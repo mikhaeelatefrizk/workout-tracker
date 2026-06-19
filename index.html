@@ -191,10 +191,10 @@
 
   /* SETS TABLE */
   .sets{margin-top:13px;background:var(--card2);border-radius:var(--r-sm);padding:10px;border:1px solid var(--hairline)}
-  .sets-header{display:grid;grid-template-columns:30px 1fr 1fr 36px;gap:8px;padding:0 4px 7px;font-size:.6rem;text-transform:uppercase;color:var(--muted2);letter-spacing:0.1em;font-weight:700}
-  .set-row{display:grid;grid-template-columns:30px 1fr 1fr 36px;gap:8px;align-items:center;padding:6px 4px;border-top:1px solid var(--hairline)}
+  .sets-header{display:grid;grid-template-columns:20px 1.45fr 1fr 30px;gap:5px;padding:0 4px 7px;font-size:.6rem;text-transform:uppercase;color:var(--muted2);letter-spacing:0.1em;font-weight:700}
+  .set-row{display:grid;grid-template-columns:20px 1.45fr 1fr 30px;gap:5px;align-items:center;padding:6px 4px;border-top:1px solid var(--hairline)}
   .set-row .lbl{font-weight:800;color:var(--muted2);font-size:.8rem;text-align:center}
-  .set-row input[type=number]{background:var(--field);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 7px;font-size:1.02rem;font-weight:700;width:100%;text-align:center;font-family:inherit;font-variant-numeric:tabular-nums;transition:border-color var(--dur),box-shadow var(--dur),background var(--dur);-moz-appearance:textfield}
+  .set-row input[type=number]{background:var(--field);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 2px;font-size:1.04rem;font-weight:700;width:100%;min-width:0;text-align:center;font-family:inherit;font-variant-numeric:tabular-nums;transition:border-color var(--dur),box-shadow var(--dur),background var(--dur);-moz-appearance:textfield}
   .set-row input[type=number]::-webkit-outer-spin-button,.set-row input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .set-row input:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:var(--ring)}
   .set-row input::placeholder{color:var(--muted2);font-weight:500}
@@ -297,9 +297,9 @@
   body::before{content:none}
 
   /* Stepper number inputs */
-  .stepper{display:flex;align-items:center;gap:4px;min-width:0}
-  .stepper input[type=number]{flex:1;min-width:0;padding-left:4px;padding-right:4px}
-  .st{flex-shrink:0;width:32px;height:40px;border-radius:9px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:1.2rem;font-weight:700;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;-webkit-user-select:none;user-select:none;transition:transform .1s var(--ease),background var(--dur),color var(--dur)}
+  .stepper{display:flex;align-items:center;gap:3px;min-width:0}
+  .stepper input[type=number]{flex:1 1 auto;min-width:48px;padding-left:2px;padding-right:2px}
+  .st{flex-shrink:0;width:26px;height:42px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:1.15rem;font-weight:700;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;-webkit-user-select:none;user-select:none;transition:transform .1s var(--ease),background var(--dur),color var(--dur)}
   .st:active{transform:scale(.85);background:rgba(var(--accent-rgb),.2);color:var(--accent)}
 
   /* completed set row highlight */
@@ -364,12 +364,12 @@
     <button class="today" onclick="setToday()">Today</button>
   </div>
   <div class="unit-row">
-    <span class="unit-cap">Units</span>
-    <div class="unit-seg" role="group" aria-label="Weight unit">
+    <span class="unit-cap">Default unit</span>
+    <div class="unit-seg" role="group" aria-label="Default weight unit">
       <button class="unit-opt active" data-u="kg" onclick="setUnit('kg')">kg</button>
       <button class="unit-opt" data-u="lb" onclick="setUnit('lb')">lb</button>
     </div>
-    <span class="unit-note">always saved in kg</span>
+    <span class="unit-note">set per-exercise too · saved as kg</span>
   </div>
   <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
   <div class="stats" id="statsLine">
@@ -1191,7 +1191,7 @@
     return max;
   }
 
-  function suggestNext(exDef, history) {
+  function suggestNext(exDef, history, dispUnit) {
     if (!history || history.length === 0) return null;
     const last = history[0];
     const sets = last.sets;
@@ -1211,8 +1211,8 @@
     // gym's lb-converted cable stacks in 2.3/4.5, plate machines in 5s);
     // fallback 2.5 compound / 1 isolation.
     // Unit-aware phrasing helpers (engine math stays in kg; only the words change)
-    const U = unit;
-    const showKg = (kg) => kgToDisp(kg) + ' ' + U;
+    const U = dispUnit || unit;
+    const showKg = (kg) => kgToDisp(kg, U) + ' ' + U;
     const dispBump = (kgBump) => (U === 'kg' ? trimNum(kgBump) : trimNum(Math.round(kgBump / KG_PER_LB * 10) / 10));
 
     const hitAllSets = sets.length >= exDef.sets && setsAtTarget >= exDef.sets;
@@ -1266,32 +1266,35 @@
   // You may type/read in kg or lb; conversion happens at the edge.
   // ============================================================
   const UNIT_KEY = 'wo:_unit';
-  let unit = (localStorage.getItem(UNIT_KEY) === 'lb') ? 'lb' : 'kg';
+  const EXUNIT_KEY = 'wo:_exunits';
+  let unit = (localStorage.getItem(UNIT_KEY) === 'lb') ? 'lb' : 'kg';   // global DEFAULT unit
+  let exUnits = (function(){ try { return JSON.parse(localStorage.getItem(EXUNIT_KEY) || '{}') || {}; } catch(e){ return {}; } })();
   const KG_PER_LB = 0.45359237;
-  function trimNum(n){ n = Math.round(n * 100) / 100; return (n % 1 === 0) ? String(n) : String(n); }
-  // kg (stored) -> number shown in the current unit, as a clean string
-  function kgToDisp(kg){
+  function trimNum(n){ return String(Math.round(n * 100) / 100); }
+  // unit defaults to the global one; pass an explicit unit for a specific exercise
+  function kgToDisp(kg, u){
+    u = u || unit;
     const n = parseFloat(kg);
     if (isNaN(n)) return '';
-    if (unit === 'kg') return trimNum(n);
-    return trimNum(Math.round((n / KG_PER_LB) * 10) / 10);   // lb to 1 decimal
+    return (u === 'kg') ? trimNum(n) : trimNum(Math.round((n / KG_PER_LB) * 10) / 10);   // lb to 1 decimal
   }
-  // value typed in the current unit -> kg string (stored)
-  function dispToKg(v){
+  function dispToKg(v, u){
+    u = u || unit;
     const n = parseFloat(v);
     if (isNaN(n)) return '';
-    if (unit === 'kg') return trimNum(n);
-    return trimNum(Math.round(n * KG_PER_LB * 100) / 100);
+    return (u === 'kg') ? trimNum(n) : trimNum(Math.round(n * KG_PER_LB * 100) / 100);
   }
-  function weightStep(){ return unit === 'kg' ? 2.5 : 5; }   // 2.5 kg or 5 lb plates
+  function weightStep(u){ u = u || unit; return (u === 'kg') ? 2.5 : 5; }   // 2.5 kg or 5 lb plates
+  function unitFor(exId){ return exUnits[exId] || unit; }                   // per-exercise override, else global
+  function setExUnit(exId, u){ exUnits[exId] = u; localStorage.setItem(EXUNIT_KEY, JSON.stringify(exUnits)); }
   function setUnit(u){
     if (u === unit) return;
     unit = u; localStorage.setItem(UNIT_KEY, u);
     updateUnitUI(); render();
-    if (typeof toast === 'function') toast(`Showing weights in ${u === 'kg' ? 'kilograms' : 'pounds'} · stored as kg`);
+    if (typeof toast === 'function') toast(`Default unit: ${u} · per-exercise choices kept`);
   }
   function updateUnitUI(){
-    document.querySelectorAll('.unit-opt').forEach(b => b.classList.toggle('active', b.dataset.u === unit));
+    document.querySelectorAll('.unit-row .unit-opt').forEach(b => b.classList.toggle('active', b.dataset.u === unit));
   }
 
   // ---- Theme: dark (default) / light, pure monochrome ----
@@ -1414,33 +1417,35 @@
         : `${ex.sets} × ${ex.reps}`;
       const finisherPill = ex.isFinisher ? ' <span class="pill opt">Finisher</span>' : '';
 
+      // This exercise's unit (per-exercise override, else the global default)
+      const u = unitFor(ex.id);
       // Build last session hint + progression suggestion (based on up to last 3 sessions
       // of the CURRENTLY-SELECTED implement, so dumbbell vs barbell history stays separate)
       const curFn = effectiveFn(ex, exData);
       const history = recentSessionsFor(curFn, currentDate, 3);
       const last = history[0] || null;
-      const suggest = suggestNext(Object.assign({}, ex, { inc: effectiveInc(ex, exData) }), history);
+      const suggest = suggestNext(Object.assign({}, ex, { inc: effectiveInc(ex, exData) }), history, u);
       let lastHtml = '';
       if (last) {
-        const summary = last.sets.map(s => `${kgToDisp(s.w)}×${s.r}`).join(', ');
+        const summary = last.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ');
         let suggestHtml = '';
         if (suggest) {
           const cls = suggest.kind === 'deload' ? 'target deload' : 'target';
           const repTxt = ex.perSide ? `${ex.reps}/leg` : `${ex.reps}`;
-          suggestHtml = `<br><span class="coach-tag">⌾ COACH</span> <span class="${cls}">${kgToDisp(suggest.w)} ${unit} × ${repTxt}</span> — ${suggest.note}`;
+          suggestHtml = `<br><span class="coach-tag">⌾ COACH</span> <span class="${cls}">${kgToDisp(suggest.w, u)} ${u} × ${repTxt}</span> — ${suggest.note}`;
         }
         lastHtml = `<div class="last-session ${suggest && suggest.kind === 'deload' ? 'is-deload' : ''}"><b>Last ${last.day} (${last.date}):</b> ${summary}${suggestHtml}</div>`;
       } else {
         lastHtml = '<div class="last-session none">No prior data — start light, find the rep target.</div>';
       }
 
-      // Sets table — weights shown in the chosen unit; stored as kg
-      const wStep = weightStep();
+      // Sets table — weights shown in this exercise's unit; always stored as kg
+      const wStep = weightStep(u);
       let setsHtml = '<div class="sets">';
-      setsHtml += `<div class="sets-header"><div></div><div>Weight (${unit})</div><div>Reps</div><div>✓</div></div>`;
+      setsHtml += `<div class="sets-header"><div></div><div>Weight (${u})</div><div>Reps</div><div>✓</div></div>`;
       const targetW = (suggest && suggest.w) || '';
       for (let n = 1; n <= ex.sets; n++) {
-        const w = kgToDisp(exData[`w${n}`] || '');
+        const w = kgToDisp(exData[`w${n}`] || '', u);
         const r = exData[`r${n}`] || '';
         const c = exData[`c${n}`] ? ' checked' : '';
         const doneCls = exData[`c${n}`] ? ' set-done' : '';
@@ -1448,7 +1453,7 @@
           <div class="lbl">${n}</div>
           <div class="stepper">
             <button type="button" class="st" data-ex="${ex.id}" data-tf="w${n}" data-step="-${wStep}">−</button>
-            <input type="number" inputmode="decimal" data-id="${ex.id}" data-f="w${n}" value="${w}" placeholder="${kgToDisp(targetW)}">
+            <input type="number" inputmode="decimal" data-id="${ex.id}" data-f="w${n}" value="${w}" placeholder="${kgToDisp(targetW, u)}">
             <button type="button" class="st" data-ex="${ex.id}" data-tf="w${n}" data-step="${wStep}">+</button>
           </div>
           <div class="stepper">
@@ -1461,14 +1466,18 @@
       }
       setsHtml += '</div>';
 
-      // Equipment selector (dumbbell / barbell / machine) — only when the lift has variants
+      // Settings: equipment (dumbbell/barbell/machine) when the lift has variants, + per-exercise unit
       let implHtml = '';
       if (ex.variants) {
         const curLabel = (variantFor(ex, exData) || {}).label;
-        implHtml = `<div class="impl-row"><span class="impl-cap">⚙ Equipment</span><div class="impl-seg">` +
+        implHtml += `<div class="impl-row"><span class="impl-cap">⚙ Equipment</span><div class="impl-seg">` +
           ex.variants.map(v => `<button type="button" class="impl-opt${v.label === curLabel ? ' active' : ''}" data-ex="${ex.id}" data-impl="${v.label}">${v.label}</button>`).join('') +
           `</div></div>`;
       }
+      // Per-exercise unit (some machines load in lb, others kg) — display only; always saved as kg
+      implHtml += `<div class="impl-row"><span class="impl-cap">📏 Unit</span><div class="impl-seg">` +
+        ['kg','lb'].map(uu => `<button type="button" class="impl-opt${uu === u ? ' active' : ''}" data-ex="${ex.id}" data-u="${uu}">${uu}</button>`).join('') +
+        `</div></div>`;
 
       // Build cues / mistakes / feel
       const cuesHtml = `<div class="block cue"><h4>◆ Form cues</h4><ul>${ex.cues.map(c => `<li>${c}</li>`).join('')}</ul></div>`;
@@ -1530,8 +1539,8 @@
             updateCardDone(card);
             if (inp.checked && autoRest.on) startRest(ex.compound ? 120 : 90);
           } else {
-            // weight fields are typed in the current unit but stored canonically in kg
-            session.exercises[id][f] = (f[0] === 'w') ? dispToKg(inp.value) : inp.value;
+            // weight fields are typed in this exercise's unit but stored canonically in kg
+            session.exercises[id][f] = (f[0] === 'w') ? dispToKg(inp.value, u) : inp.value;
           }
           persist();
         });
@@ -1553,8 +1562,13 @@
         });
       });
 
+      // helper: re-render and keep this card open after a setting change
+      const reopenCard = (id) => {
+        const c = document.querySelector(`.card[data-id="${id}"]`);
+        if (c) { c.classList.add('open'); wireVideo(c.querySelector('video.form-video')); }
+      };
       // Equipment selector — switching implement re-evaluates the Coach against that implement's history
-      card.querySelectorAll('button.impl-opt').forEach(btn => {
+      card.querySelectorAll('button.impl-opt[data-impl]').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const id = btn.dataset.ex;
@@ -1562,8 +1576,17 @@
           session.exercises[id].impl = btn.dataset.impl;
           persist();
           render();
-          const c = document.querySelector(`.card[data-id="${id}"]`);
-          if (c) { c.classList.add('open'); wireVideo(c.querySelector('video.form-video')); }
+          reopenCard(id);
+          vibrate(8);
+        });
+      });
+      // Per-exercise unit toggle — converts the displayed numbers (data stays in kg)
+      card.querySelectorAll('button.impl-opt[data-u]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setExUnit(btn.dataset.ex, btn.dataset.u);
+          render();
+          reopenCard(btn.dataset.ex);
           vibrate(8);
         });
       });
@@ -1603,9 +1626,8 @@
     const sd = document.getElementById('statDone'), st = document.getElementById('statTotal'), sv = document.getElementById('statVol');
     if (sd) sd.textContent = doneSets;
     if (st) st.textContent = totalSets;
-    const dispVol = unit === 'kg' ? volume : volume / KG_PER_LB;
-    if (sv) sv.textContent = Math.round(dispVol).toLocaleString();
-    const vu = document.getElementById('volUnit'); if (vu) vu.textContent = unit;
+    if (sv) sv.textContent = Math.round(volume).toLocaleString();
+    const vu = document.getElementById('volUnit'); if (vu) vu.textContent = 'kg';
     const setsStat = document.getElementById('statSets');
     const complete = pct >= 100 && totalSets > 0;
     if (setsStat) setsStat.classList.toggle('complete', complete);
