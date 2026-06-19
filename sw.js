@@ -1,7 +1,7 @@
 /* Service worker: caches the app shell so the page opens 100% offline.
    The 23 AthleanX videos are cached separately by the app itself (IndexedDB),
    and the video CDN is cross-origin, so we deliberately don't touch it here. */
-const CACHE = 'workout-shell-v3';
+const CACHE = 'workout-shell-v4';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -21,9 +21,10 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return; // ignore cross-origin
   if (url.pathname.endsWith('.mp4')) return; // videos are cached by the app in IndexedDB — don't double-store
-  // Network-first: always get the freshest app when online; fall back to cache offline.
+  // Network-first; for the HTML document, bypass the HTTP cache so updates appear immediately.
+  const isDoc = e.request.mode === 'navigate' || e.request.destination === 'document';
   e.respondWith(
-    fetch(e.request).then((resp) => {
+    fetch(e.request, isDoc ? { cache: 'no-store' } : {}).then((resp) => {
       const copy = resp.clone();
       caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
       return resp;
