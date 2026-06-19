@@ -19,7 +19,8 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin) return; // ignore CDN / cross-origin
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return; // ignore cross-origin
+  if (url.pathname.endsWith('.mp4')) return; // videos are cached by the app in IndexedDB — don't double-store
   e.respondWith(
     caches.match(e.request).then((cached) =>
       cached || fetch(e.request).then((resp) => {
