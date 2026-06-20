@@ -191,10 +191,10 @@
 
   /* SETS TABLE */
   .sets{margin-top:13px;background:var(--card2);border-radius:var(--r-sm);padding:10px;border:1px solid var(--hairline)}
-  .sets-header{display:grid;grid-template-columns:20px 1.45fr 1fr 30px;gap:5px;padding:0 4px 7px;font-size:.6rem;text-transform:uppercase;color:var(--muted2);letter-spacing:0.1em;font-weight:700}
-  .set-row{display:grid;grid-template-columns:20px 1.45fr 1fr 30px;gap:5px;align-items:center;padding:6px 4px;border-top:1px solid var(--hairline)}
+  .sets-header{display:grid;grid-template-columns:24px 1.35fr 1fr 46px;gap:9px;padding:0 4px 7px;font-size:.6rem;text-transform:uppercase;color:var(--muted2);letter-spacing:0.1em;font-weight:700}
+  .set-row{display:grid;grid-template-columns:24px 1.35fr 1fr 46px;gap:9px;align-items:center;padding:6px 4px;border-top:1px solid var(--hairline)}
   .set-row .lbl{font-weight:800;color:var(--muted2);font-size:.8rem;text-align:center}
-  .set-row input[type=number]{background:var(--field);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 2px;font-size:1.04rem;font-weight:700;width:100%;min-width:0;text-align:center;font-family:inherit;font-variant-numeric:tabular-nums;transition:border-color var(--dur),box-shadow var(--dur),background var(--dur);-moz-appearance:textfield}
+  .set-row input[type=number]{background:var(--field);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:13px 6px;font-size:1.08rem;font-weight:700;width:100%;min-width:0;text-align:center;font-family:inherit;font-variant-numeric:tabular-nums;transition:border-color var(--dur),box-shadow var(--dur),background var(--dur);-moz-appearance:textfield}
   .set-row input[type=number]::-webkit-outer-spin-button,.set-row input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .set-row input:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:var(--ring)}
   .set-row input::placeholder{color:var(--muted2);font-weight:500}
@@ -212,8 +212,10 @@
   .btn:active::after{opacity:1;transform:scale(1.1);transition-duration:0s}
 
   /* VIDEO */
-  .video-wrap{margin-top:12px;border-radius:var(--r-md);overflow:hidden;background:#000;border:1px solid var(--border);box-shadow:var(--elev-1)}
-  .form-video{width:100%;display:block;max-height:60vh;background:#000}
+  .video-wrap{margin-top:12px}
+  .video-btn{width:100%;min-height:48px;border:1px solid var(--border);background:var(--card2);color:var(--text);border-radius:var(--r-md);font-family:inherit;font-weight:700;font-size:.86rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .12s var(--ease),background var(--dur),border-color var(--dur)}
+  .video-btn:active{transform:scale(.98)}
+  .form-video{width:100%;display:block;max-height:42vh;background:#000;border:1px solid var(--border);border-radius:var(--r-md)}
 
   /* WARMUP / STRETCH lists */
   .checklist{list-style:none;padding:0}
@@ -1439,8 +1441,7 @@
         lastHtml = '<div class="last-session none">No prior data — start light, find the rep target.</div>';
       }
 
-      // Sets table — weights shown in this exercise's unit; always stored as kg
-      const wStep = weightStep(u);
+      // Sets table — large clear inputs; weights shown in this exercise's unit, always stored as kg
       let setsHtml = '<div class="sets">';
       setsHtml += `<div class="sets-header"><div></div><div>Weight (${u})</div><div>Reps</div><div>✓</div></div>`;
       const targetW = (suggest && suggest.w) || '';
@@ -1451,16 +1452,8 @@
         const doneCls = exData[`c${n}`] ? ' set-done' : '';
         setsHtml += `<div class="set-row${doneCls}">
           <div class="lbl">${n}</div>
-          <div class="stepper">
-            <button type="button" class="st" data-ex="${ex.id}" data-tf="w${n}" data-step="-${wStep}">−</button>
-            <input type="number" inputmode="decimal" data-id="${ex.id}" data-f="w${n}" value="${w}" placeholder="${kgToDisp(targetW, u)}">
-            <button type="button" class="st" data-ex="${ex.id}" data-tf="w${n}" data-step="${wStep}">+</button>
-          </div>
-          <div class="stepper">
-            <button type="button" class="st" data-ex="${ex.id}" data-tf="r${n}" data-step="-1">−</button>
-            <input type="number" inputmode="numeric" data-id="${ex.id}" data-f="r${n}" value="${r}" placeholder="${ex.reps}">
-            <button type="button" class="st" data-ex="${ex.id}" data-tf="r${n}" data-step="1">+</button>
-          </div>
+          <input type="number" inputmode="decimal" data-id="${ex.id}" data-f="w${n}" value="${w}" placeholder="${kgToDisp(targetW, u)}">
+          <input type="number" inputmode="numeric" data-id="${ex.id}" data-f="r${n}" value="${r}" placeholder="${ex.reps}">
           <input type="checkbox" class="check" data-id="${ex.id}" data-f="c${n}"${c}>
         </div>`;
       }
@@ -1486,7 +1479,7 @@
 
       // Video — wired lazily from IndexedDB when the card opens (data-slug holds the key)
       const noteHtml = ex.note ? `<div class="video-note">📹 ${ex.note}</div>` : '';
-      const videoHtml = `<div class="video-wrap" data-slug="${ex.video}"><video class="form-video" controls preload="none" playsinline webkit-playsinline></video></div>${noteHtml}`;
+      const videoHtml = `<div class="video-wrap" data-slug="${ex.video}"><button type="button" class="video-btn">▶&nbsp; AthleanX form video</button><video class="form-video" controls preload="none" playsinline webkit-playsinline hidden></video></div>${noteHtml}`;
 
       // Buttons
       const btnsHtml = `<div class="btn-row">
@@ -1520,9 +1513,20 @@
       card.querySelector('.card-head').addEventListener('click', (e) => {
         if (e.target.closest('input,button,a')) return;
         card.classList.toggle('open');
-        if (card.classList.contains('open')) {
-          const v = card.querySelector('video.form-video');
-          wireVideo(v);
+      });
+
+      // Form video loads only when you tap the button (no big empty player taking up the screen)
+      const vbtn = card.querySelector('.video-btn');
+      if (vbtn) vbtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const v = card.querySelector('video.form-video');
+        vbtn.textContent = '…';
+        await wireVideo(v);
+        if (v.getAttribute('src')) {
+          v.hidden = false; vbtn.style.display = 'none';
+          try { v.play(); } catch (_) {}
+        } else {
+          vbtn.textContent = '▶  Video not saved yet — open once online';
         }
       });
 
