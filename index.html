@@ -273,6 +273,10 @@
   .load-btn{color:var(--text);background:transparent;border:1px solid var(--border)}
   .reset-btn{color:var(--muted);background:transparent;border:1px solid var(--border)}
   .persist-note{margin-top:12px;font-size:.7rem;color:var(--muted2);line-height:1.5}
+  /* loud at-risk banner (monochrome but high-contrast, so it stands out in B&W) */
+  .persist-warn{margin:0 0 12px;padding:11px 14px;border:2px solid var(--text);border-radius:var(--r-md);background:var(--text);color:var(--bg);font-size:.76rem;line-height:1.45;font-weight:600}
+  .persist-warn b{font-weight:800}
+  .persist-warn button{margin-left:6px;border:1px solid var(--bg);background:transparent;color:var(--bg);font-family:inherit;font-weight:800;font-size:.72rem;border-radius:8px;padding:5px 12px;min-height:34px;cursor:pointer}
 
   /* EXPORT MODAL — premium bottom sheet */
   .modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);animation:overlay-in .22s var(--ease) both}
@@ -367,6 +371,10 @@
 <div class="dlbar" id="dlbar">
   <span id="dlmsg">Preparing videos…</span>
   <div class="bar"><i id="dlfill"></i></div>
+</div>
+
+<div class="persist-warn" id="persistWarn" hidden>
+  ⚠ <b>This browser may not save your data permanently.</b> To protect your workouts, open the app from its <b>home-screen icon</b> (installed app) — not a browser tab. <button type="button" onclick="installHelp()">How?</button>
 </div>
 
 <header>
@@ -1821,6 +1829,9 @@
     confettiBurst();
     vibrate([40, 50, 90]);
     toast(`<span class="ti">💪</span> ${PROGRAM[currentDay].shortName} complete — every set done!`, 'good');
+    // Auto-save a real backup file to Downloads so a completed workout can never be lost to
+    // browser-storage eviction. Fires inside the checkbox gesture, so the download is allowed.
+    try { downloadText(buildJSONBackup(), 'workout-db.json'); setTimeout(() => toast('<span class="ti">💾</span> Backup saved to Downloads', 'good'), 1300); } catch (e) {}
   }
 
   // ============================================================
@@ -2005,13 +2016,22 @@
   }
   // Reflect whether storage is guaranteed durable
   async function showPersistState() {
-    const el = document.getElementById('persistNote');
-    if (!el) return;
     let persisted = false;
-    try { if (navigator.storage && navigator.storage.persisted) persisted = await navigator.storage.persisted(); } catch (e) {}
-    el.textContent = persisted
-      ? '✓ Permanent storage on — your data survives restarts.'
-      : 'Tip: install to your home screen (browser menu → “Add to Home screen”) to lock in permanent storage.';
+    try {
+      if (navigator.storage && navigator.storage.persist && !(await navigator.storage.persisted())) {
+        await navigator.storage.persist();   // (re)request — granted automatically for installed PWAs
+      }
+      if (navigator.storage && navigator.storage.persisted) persisted = await navigator.storage.persisted();
+    } catch (e) {}
+    const el = document.getElementById('persistNote');
+    if (el) el.textContent = persisted
+      ? '✓ Permanent storage on — your data is safe across restarts.'
+      : '⚠ Data is NOT protected in this browser tab — open the installed home-screen app.';
+    const warn = document.getElementById('persistWarn');
+    if (warn) warn.hidden = persisted;       // show the loud banner only when data is at risk
+  }
+  function installHelp() {
+    alert('To keep your workouts safe permanently:\n\n1) In the browser menu (⋮), tap “Add to Home screen” / “Install app”.\n2) From now on, open the app ONLY from that home-screen icon (it runs as a real app, not a browser tab).\n3) That turns on permanent storage so your data can never be evicted.\n\nAlso: every completed workout auto-saves a backup file (workout-db.json) to your Downloads, and you can tap “Save to Downloads” anytime.');
   }
 
   function resetCurrent() {
