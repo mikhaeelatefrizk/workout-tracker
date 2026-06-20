@@ -300,9 +300,6 @@
   body::before{content:none}
 
   /* Stepper number inputs */
-  .stepper{display:flex;align-items:center;gap:3px;min-width:0}
-  .stepper input[type=number]{flex:1 1 auto;min-width:48px;padding-left:2px;padding-right:2px}
-  .st{flex-shrink:0;width:26px;height:42px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:1.15rem;font-weight:700;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;-webkit-user-select:none;user-select:none;transition:transform .1s var(--ease),background var(--dur),color var(--dur)}
   .st:active{transform:scale(.85);background:rgba(var(--accent-rgb),.2);color:var(--accent)}
 
   /* completed set row highlight */
@@ -1287,7 +1284,6 @@
     if (isNaN(n)) return '';
     return (u === 'kg') ? trimNum(n) : trimNum(Math.round(n * KG_PER_LB * 100) / 100);
   }
-  function weightStep(u){ u = u || unit; return (u === 'kg') ? 2.5 : 5; }   // 2.5 kg or 5 lb plates
   function unitFor(exId){ return exUnits[exId] || unit; }                   // per-exercise override, else global
   function setExUnit(exId, u){ exUnits[exId] = u; localStorage.setItem(EXUNIT_KEY, JSON.stringify(exUnits)); }
   function setUnit(u){
@@ -1551,21 +1547,6 @@
         });
       });
 
-      // Stepper +/- buttons adjust the matching number input
-      card.querySelectorAll('button.st').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const inp = card.querySelector(`input[data-id="${btn.dataset.ex}"][data-f="${btn.dataset.tf}"]`);
-          if (!inp) return;
-          const step = parseFloat(btn.dataset.step);
-          let v = parseFloat(inp.value);
-          if (isNaN(v)) v = parseFloat(inp.placeholder) || 0;
-          v = Math.max(0, Math.round((v + step) * 100) / 100);
-          inp.value = v;
-          inp.dispatchEvent(new Event('change'));
-          vibrate(8);
-        });
-      });
 
       // helper: re-render and keep this card open after a setting change
       const reopenCard = (id) => {
