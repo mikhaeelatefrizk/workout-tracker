@@ -99,6 +99,15 @@
   .unit-opt.active{background:var(--text);color:var(--on-accent)}
   .unit-note{font-size:.66rem;color:var(--muted2);opacity:.85;font-style:italic}
 
+  /* COLLAPSIBLE HEADER CONTROLS (date + default unit) */
+  .hdr-toggle{width:100%;margin-top:11px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:10px 14px;font-family:inherit;font-size:.76rem;font-weight:700;letter-spacing:.01em;color:var(--muted);cursor:pointer;transition:background var(--dur),transform .12s var(--ease)}
+  .hdr-toggle:active{transform:scale(.99)}
+  .hdr-chev{font-size:1.05rem;line-height:1;color:var(--muted2);transition:transform .3s var(--spring);transform:rotate(0deg);flex-shrink:0}
+  .hdr-toggle[aria-expanded="true"] .hdr-chev{transform:rotate(90deg)}
+  .hdr-controls{display:grid;grid-template-rows:1fr;transition:grid-template-rows .3s var(--ease),opacity .25s var(--ease);opacity:1}
+  .hdr-controls.collapsed{grid-template-rows:0fr;opacity:0;pointer-events:none}
+  .hdr-inner{overflow:hidden;min-height:0}
+
   /* EQUIPMENT SELECTOR (dumbbell / barbell / machine) */
   .impl-row{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
   .impl-cap{font-size:.64rem;color:var(--muted2);font-weight:800;text-transform:uppercase;letter-spacing:.1em}
@@ -358,19 +367,24 @@
     <button class="tab" data-day="B" onclick="switchDay('B')">B<span class="small">Quads · Incline · Delts</span></button>
     <button class="tab" data-day="C" onclick="switchDay('C')">C<span class="small">Posterior · Chest · Arms</span></button>
   </div>
-  <div class="date-row">
-    <label for="dateInp">Session date:</label>
-    <input type="date" id="dateInp" oninput="onDateChange()">
-    <button class="today" onclick="setToday()">Today</button>
-  </div>
-  <div class="unit-row">
-    <span class="unit-cap">Default unit</span>
-    <div class="unit-seg" role="group" aria-label="Default weight unit">
-      <button class="unit-opt active" data-u="kg" onclick="setUnit('kg')">kg</button>
-      <button class="unit-opt" data-u="lb" onclick="setUnit('lb')">lb</button>
+  <button class="hdr-toggle" id="hdrToggle" onclick="toggleHdr()" aria-expanded="false">
+    <span id="hdrSummary">📅 Today · kg</span><span class="hdr-chev">›</span>
+  </button>
+  <div class="hdr-controls collapsed" id="hdrControls"><div class="hdr-inner">
+    <div class="date-row">
+      <label for="dateInp">Session date:</label>
+      <input type="date" id="dateInp" oninput="onDateChange()">
+      <button class="today" onclick="setToday()">Today</button>
     </div>
-    <span class="unit-note">set per-exercise too · saved as kg</span>
-  </div>
+    <div class="unit-row">
+      <span class="unit-cap">Default unit</span>
+      <div class="unit-seg" role="group" aria-label="Default weight unit">
+        <button class="unit-opt active" data-u="kg" onclick="setUnit('kg')">kg</button>
+        <button class="unit-opt" data-u="lb" onclick="setUnit('lb')">lb</button>
+      </div>
+      <span class="unit-note">set per-exercise too · saved as kg</span>
+    </div>
+  </div></div>
   <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
   <div class="stats" id="statsLine">
     <span class="stat" id="statSets"><b id="statDone">0</b>/<span id="statTotal">0</span> sets done</span>
@@ -1289,7 +1303,7 @@
   function setUnit(u){
     if (u === unit) return;
     unit = u; localStorage.setItem(UNIT_KEY, u);
-    updateUnitUI(); render();
+    updateUnitUI(); render(); if (typeof updateHdrSummary === 'function') updateHdrSummary();
     if (typeof toast === 'function') toast(`Default unit: ${u} · per-exercise choices kept`);
   }
   function updateUnitUI(){
@@ -1311,6 +1325,31 @@
     localStorage.setItem(THEME_KEY, theme);
     applyTheme();
     if (typeof toast === 'function') toast(theme === 'light' ? '☀ Light mode' : '☾ Dark mode');
+  }
+
+  // ---- Collapsible header controls (date + default unit) — compact by default ----
+  const HDR_KEY = 'wo:_hdr';
+  function updateHdrSummary(){
+    const el = document.getElementById('hdrSummary');
+    if (!el) return;
+    const label = (currentDate === todayStr()) ? 'Today' : currentDate;
+    el.textContent = '📅 ' + label + ' · ' + unit;
+  }
+  function setHdrState(collapsed){
+    const c = document.getElementById('hdrControls');
+    const t = document.getElementById('hdrToggle');
+    if (c) c.classList.toggle('collapsed', collapsed);
+    if (t) t.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+  function toggleHdr(){
+    const c = document.getElementById('hdrControls');
+    const collapsed = !c.classList.contains('collapsed');
+    setHdrState(collapsed);
+    localStorage.setItem(HDR_KEY, collapsed ? '1' : '0');
+  }
+  function initHdr(){
+    setHdrState(localStorage.getItem(HDR_KEY) !== '0');   // default collapsed
+    updateHdrSummary();
   }
 
   function loadCurrentSession() {
@@ -1339,6 +1378,7 @@
     document.getElementById('dateInp').value = currentDate;
     loadCurrentSession();
     render();
+    if (typeof updateHdrSummary === 'function') updateHdrSummary();
   }
 
   function onDateChange() {
@@ -1347,6 +1387,7 @@
     currentDate = v;
     loadCurrentSession();
     render();
+    if (typeof updateHdrSummary === 'function') updateHdrSummary();
   }
 
   let _renderingNow = false;
@@ -2080,6 +2121,7 @@
     applyTheme();
     updateAutoToggleUI();
     updateUnitUI();
+    initHdr();
     showPersistState();
 
     // Kick off offline-video setup (download on first online open; instant after)
