@@ -61,7 +61,7 @@
     transition:background .45s var(--ease);
   }
   ::selection{background:rgba(var(--accent-rgb),.3)}
-  :focus-visible{outline:none; box-shadow:var(--ring); border-radius:10px}
+  :focus-visible{outline:none; box-shadow:var(--ring)}
   /* Monochrome: all days share one accent (from the active theme) — differentiated by label, not colour */
 
   /* HEADER */
@@ -215,6 +215,12 @@
   .set-row .check:checked{background:var(--good);border-color:var(--good);animation:check-pop .28s var(--spring)}
   .set-row .check:checked::after{content:"";position:absolute;left:12px;top:5px;width:9px;height:16px;border:solid var(--on-accent);border-width:0 3px 3px 0;transform:rotate(45deg)}
   @keyframes check-pop{0%{transform:scale(.6)}55%{transform:scale(1.18)}100%{transform:scale(1)}}
+  /* add / remove a set */
+  .set-ctl{display:flex;gap:8px;justify-content:flex-end;padding:9px 4px 1px;border-top:1px solid var(--hairline);margin-top:2px}
+  .set-ctl-btn{min-height:34px;padding:6px 14px;border:1px solid var(--border);background:var(--card2);color:var(--muted);border-radius:var(--r-sm);font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer;transition:transform .12s var(--ease),color var(--dur),border-color var(--dur)}
+  .set-ctl-btn:active{transform:scale(.94)}
+  .set-ctl-btn:disabled{opacity:.34;cursor:default}
+  .set-ctl-btn:not(:disabled):hover{color:var(--text);border-color:var(--text)}
 
   /* BUTTONS */
   .btn-row{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
@@ -292,12 +298,12 @@
   .modal .pick small{opacity:.55;font-weight:400;display:block;font-size:.66rem;margin-top:3px}
   .modal textarea{flex:1;min-height:40vh;background:var(--field);color:var(--text);border:1px solid var(--border);border-radius:var(--r-md);padding:13px;font-size:.72rem;line-height:1.5;font-family:ui-monospace,Menlo,monospace;resize:none;white-space:pre}
   .modal .row{display:flex;gap:8px;flex-wrap:wrap}
-  .modal .row button{flex:1;min-width:80px;border:none;color:#0a0a0a}
-  .modal .share{background:var(--text);color:var(--on-accent)}
-  .modal .copy{background:#c9c9cf;color:#0a0a0a}
-  .modal .copy.ok{background:var(--accent);color:var(--on-accent)} .modal .copy.fail{background:#5a5a60;color:#fff}
-  .modal .dl{background:#a6a6ac;color:#0a0a0a}
-  .modal .close{background:var(--card2);color:var(--text);border:1px solid var(--border)}
+  .modal .row button{flex:1;min-width:80px;border:1px solid var(--border)}
+  .modal .share{background:var(--text);color:var(--on-accent);border-color:var(--text)}
+  .modal .copy{background:var(--card2);color:var(--text)}
+  .modal .copy.ok{background:var(--accent);color:var(--on-accent);border-color:var(--accent)} .modal .copy.fail{background:var(--card2);color:var(--text);border-style:dashed}
+  .modal .dl{background:var(--card2);color:var(--text)}
+  .modal .close{background:var(--card2);color:var(--text)}
 
   .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;vertical-align:middle}
   .pill.opt{background:rgba(var(--tint),.1);color:var(--muted);border:1px solid var(--border)}
@@ -1253,7 +1259,9 @@
     const showKg = (kg) => kgToDisp(kg, U) + ' ' + U;
     const dispBump = (kgBump) => (U === 'kg' ? trimNum(kgBump) : trimNum(Math.round(kgBump / KG_PER_LB * 10) / 10));
 
-    const hitAllSets = sets.length >= exDef.sets && setsAtTarget >= exDef.sets;
+    // Earn the bump only if you did at least the prescribed number of sets AND every set
+    // you logged hit the target (=== so an added set that fell short blocks the increase).
+    const hitAllSets = sets.length >= exDef.sets && setsAtTarget === sets.length;
     if (hitAllSets) {
       const bump = exDef.inc || (exDef.compound ? 2.5 : 1);
       const next = Math.round((work + bump) * 100) / 100;
@@ -1264,7 +1272,7 @@
       }
       return {
         w: next.toString(),
-        note: `+${dispBump(bump)} ${U} earned — you hit ${exDef.reps} reps on all ${exDef.sets} sets last time. Reps may dip; build them back, then jump again.`,
+        note: `+${dispBump(bump)} ${U} earned — you hit ${exDef.reps} reps on all ${sets.length} sets last time. Reps may dip; build them back, then jump again.`,
         kind: 'bump'
       };
     }
@@ -1471,21 +1479,33 @@
     }
   }
 
+  // Effective number of sets for an exercise THIS session. Defaults to the program's
+  // prescription, but the user can add/remove sets (stored as exData._sets). Capped 1..8
+  // (recentSessionsFor / export read up to 8 sets).
+  function setCount(ex, exData) {
+    const n = exData && exData._sets ? parseInt(exData._sets, 10) : ex.sets;
+    return Math.max(1, Math.min(8, n || ex.sets));
+  }
+
   function renderExercises() {
     const container = document.getElementById('exerciseContainer');
+    // Preserve which cards are expanded across a re-render (so changing unit/equipment or
+    // adding a set never collapses the cards you're working in).
+    const openIds = new Set(Array.from(container.querySelectorAll('.card.open')).map(c => c.dataset.id));
     container.innerHTML = '';
     const dayDef = PROGRAM[currentDay];
 
     dayDef.exercises.forEach((ex, idx) => {
       const exData = session.exercises[ex.id] || {};
+      const nSets = setCount(ex, exData);   // dynamic — user can add/remove sets this session
       const card = document.createElement('div');
       card.className = 'card';
       card.dataset.id = ex.id;
 
-      // Header
+      // Header (reflects the current session's set count, not just the prescription)
       const setsLabel = ex.perSide
-        ? `${ex.sets} × ${ex.reps} each leg`
-        : `${ex.sets} × ${ex.reps}`;
+        ? `${nSets} × ${ex.reps} each leg`
+        : `${nSets} × ${ex.reps}`;
       const finisherPill = ex.isFinisher ? ' <span class="pill opt">Finisher</span>' : '';
 
       // This exercise's unit (per-exercise override, else the global default)
@@ -1514,7 +1534,7 @@
       let setsHtml = '<div class="sets">';
       setsHtml += `<div class="sets-header"><div></div><div>Weight (${u})</div><div>Reps</div><div>✓</div></div>`;
       const targetW = (suggest && suggest.w) || '';
-      for (let n = 1; n <= ex.sets; n++) {
+      for (let n = 1; n <= nSets; n++) {
         const w = kgToDisp(exData[`w${n}`] || '', u);
         const r = exData[`r${n}`] || '';
         const c = exData[`c${n}`] ? ' checked' : '';
@@ -1526,6 +1546,10 @@
           <input type="checkbox" class="check" data-id="${ex.id}" data-f="c${n}"${c}>
         </div>`;
       }
+      setsHtml += `<div class="set-ctl">
+        <button type="button" class="set-ctl-btn" data-ex="${ex.id}" data-act="remove"${nSets <= 1 ? ' disabled' : ''}>− set</button>
+        <button type="button" class="set-ctl-btn" data-ex="${ex.id}" data-act="add"${nSets >= 8 ? ' disabled' : ''}>+ set</button>
+      </div>`;
       setsHtml += '</div>';
 
       // Settings: equipment (dumbbell/barbell/machine) when the lift has variants, + per-exercise unit
@@ -1627,11 +1651,26 @@
       });
 
 
-      // helper: re-render and keep this card open after a setting change
-      const reopenCard = (id) => {
-        const c = document.querySelector(`.card[data-id="${id}"]`);
-        if (c) { c.classList.add('open'); wireVideo(c.querySelector('video.form-video')); }
-      };
+      // Add / remove a set — stored per exercise; re-render preserves the open card.
+      card.querySelectorAll('button.set-ctl-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.ex;
+          if (!session.exercises[id]) session.exercises[id] = {};
+          const cur = setCount(ex, session.exercises[id]);
+          if (btn.dataset.act === 'add') {
+            if (cur >= 8) return;
+            session.exercises[id]._sets = cur + 1;
+          } else {
+            if (cur <= 1) return;
+            ['w', 'r', 'c'].forEach(p => delete session.exercises[id][p + cur]); // clear the removed row
+            session.exercises[id]._sets = cur - 1;
+          }
+          persist();
+          render();
+          vibrate(8);
+        });
+      });
       // Equipment selector — switching implement re-evaluates the Coach against that implement's history
       card.querySelectorAll('button.impl-opt[data-impl]').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -1641,7 +1680,6 @@
           session.exercises[id].impl = btn.dataset.impl;
           persist();
           render();
-          reopenCard(id);
           vibrate(8);
         });
       });
@@ -1651,12 +1689,12 @@
           e.stopPropagation();
           setExUnit(btn.dataset.ex, btn.dataset.u);
           render();
-          reopenCard(btn.dataset.ex);
           vibrate(8);
         });
       });
 
-      // Mark done state
+      // Mark done state + restore expanded state from before the re-render
+      if (openIds.has(ex.id)) card.classList.add('open');
       updateCardDone(card);
       container.appendChild(card);
     });
@@ -1678,7 +1716,7 @@
     for (const ex of dayDef.exercises) {
       const d = session.exercises[ex.id] || {};
       const req = !ex.isFinisher;
-      for (let n = 1; n <= ex.sets; n++) {
+      for (let n = 1; n <= setCount(ex, d); n++) {
         if (req) { totalSets++; if (d[`c${n}`]) doneSets++; }
         if (d[`c${n}`]) {
           const w = parseFloat(d[`w${n}`]), r = parseFloat(d[`r${n}`]);
@@ -1855,7 +1893,7 @@
       for (const ex of dayDef.exercises) {
         const d = s.data.exercises[ex.id] || {};
         const fnName = effectiveFn(ex, d);   // implement-aware FitNotes name
-        for (let n = 1; n <= ex.sets; n++) {
+        for (let n = 1; n <= setCount(ex, d); n++) {
           const w = (d[`w${n}`] || '').toString().trim();
           const r = (d[`r${n}`] || '').toString().trim();
           if (!d[`c${n}`] || !w || !r) continue;
