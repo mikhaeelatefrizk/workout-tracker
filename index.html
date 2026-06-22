@@ -860,7 +860,8 @@
           feel:'Mid-back (rhomboids, mid-traps), lats, biceps. NO lower back working hard.'
         },
         { id:'B5', name:'Cable Lateral Raise', fn:'Cable Lateral Raise', cat:'Shoulders',
-          sets:3, reps:15, compound:false, video:'07-lateral-raise',
+          sets:3, reps:15, compound:false, inc:2, video:'07-lateral-raise',
+          variants:[{label:'Cable',fn:'Cable Lateral Raise',inc:2.3},{label:'Dumbbell',fn:'Dumbbell Lateral Raise',inc:2},{label:'Machine',fn:'Machine Lateral Raise',inc:5}],
           note:'AthleanX side-delt raise video — identical movement; just run the cable across your body as written in the cues below.',
           cues:[
             'Pulley at lowest setting. Stand side-on, cable from the OPPOSITE side (across body).',
@@ -1196,16 +1197,35 @@
   function effectiveFn(ex, exData){ const v = variantFor(ex, exData); return v ? v.fn : ex.fn; }
   function effectiveInc(ex, exData){ const v = variantFor(ex, exData); return (v && v.inc) || ex.inc; }
 
-  // Find the N most recent prior sessions for a given FITNOTES NAME, matching by
-  // the implement actually used in each past session (so dumbbell vs barbell history stays separate).
-  function recentSessionsFor(targetFn, beforeDate, n=3) {
+  // ---- Global exercise lookups (built once from PROGRAM) ----
+  // EXERCISE_BY_ID lets history readers iterate a session's OWN exercise ids regardless of
+  // which day the session is labelled (real/imported dates mix exercises across program days).
+  // EXERCISE_BY_FN maps every fn (including variant fns) to its canonical exDef (first-wins,
+  // so a fn shared by two ids resolves to the lower/default id — matching is by fn anyway).
+  const EXERCISE_BY_ID = {};
+  const EXERCISE_BY_FN = {};
+  (function buildExerciseMaps(){
+    for (const day of Object.keys(PROGRAM)){
+      for (const ex of PROGRAM[day].exercises){
+        if (!EXERCISE_BY_ID[ex.id]) EXERCISE_BY_ID[ex.id] = ex;
+        const fns = [ex.fn].concat((ex.variants || []).map(v => v.fn));
+        for (const fn of fns){ if (!EXERCISE_BY_FN[fn]) EXERCISE_BY_FN[fn] = ex; }
+      }
+    }
+  })();
+
+  // Find prior sessions for a given FITNOTES NAME, matching by the implement actually used in
+  // each past session. Day-agnostic: scans each session's own exercise ids via EXERCISE_BY_ID,
+  // so an exercise is found no matter which day the session is labelled. n defaults to the full
+  // history (the Coach uses ALL of it); pass a number to cap.
+  function recentSessionsFor(targetFn, beforeDate, n=Infinity) {
     const all = allSessions().filter(s => s.date < beforeDate);
     const found = [];
     for (const s of all) {
-      const dayDef = PROGRAM[s.day];
-      if (!dayDef) continue;
-      for (const exDef of dayDef.exercises) {
-        const exData = s.data.exercises[exDef.id];
+      for (const id in s.data.exercises) {
+        const exDef = EXERCISE_BY_ID[id];
+        if (!exDef) continue;                       // unknown id — skip defensively
+        const exData = s.data.exercises[id];
         if (!exData) continue;
         if (effectiveFn(exDef, exData) !== targetFn) continue;
         const sets = [];
@@ -1213,6 +1233,7 @@
           const w = exData[`w${i}`], r = exData[`r${i}`];
           if (w && r && exData[`c${i}`]) sets.push({ w: w.toString(), r: r.toString() });
         }
+        // one id per fn per session is enough (a fn won't legitimately appear twice on one date)
         if (sets.length > 0) { found.push({ date: s.date, day: s.day, sets }); break; }
       }
       if (found.length >= n) break;
@@ -1220,10 +1241,10 @@
     return found;
   }
 
-  // Suggest next weight based on the user's documented progression rules:
-  //   1. Hit top of rep range on ALL prescribed sets → +2.5kg (compound) or +1kg (isolation)
-  //   2. 3+ sessions stalled at same weight (didn't progress) → -10% deload
-  //   3. Otherwise → same weight, beat last session's reps
+  // Science-based progression engine. Uses the FULL per-exercise history (passed in), not just
+  // the last session: Epley estimated-1RM per session, double progression for the load step,
+  // an e1RM trend (least-squares slope) for hold messaging, and an e1RM-based plateau check for
+  // autoregulated deloads. Recommends next WEIGHT and REPS. Deterministic, offline, no ML.
   function topWeight(sets) {
     // The working weight = the heaviest set logged (handles ascending warm-up sets
     // correctly; for straight sets every set is equal so this is a no-op).
@@ -1235,70 +1256,108 @@
     return max;
   }
 
-  function suggestNext(exDef, history, dispUnit) {
+  function suggestNext(exDef, history, dispUnit, todayDate) {
     if (!history || history.length === 0) return null;
     const last = history[0];
-    const sets = last.sets;
-    if (sets.length === 0) return null;
-    const work = topWeight(sets);
-    if (isNaN(work)) return null;
+    if (!last.sets || last.sets.length === 0) return null;
+    const lastWork = topWeight(last.sets);
+    if (isNaN(lastWork)) return null;
 
-    // How many sets reached the target rep count
-    const setsAtTarget = sets.filter(s => {
-      const r = parseInt(s.r);
-      return !isNaN(r) && r >= exDef.reps;
-    }).length;
-
-    // CLEAN PROGRESSION: did at least the prescribed number of sets AND every one
-    // hit the top of the rep range → earn the weight bump (his documented rule).
-    // Increment is equipment-aware: ex.inc overrides (dumbbells move in 2s, this
-    // gym's lb-converted cable stacks in 2.3/4.5, plate machines in 5s);
-    // fallback 2.5 compound / 1 isolation.
-    // Unit-aware phrasing helpers (engine math stays in kg; only the words change)
+    const targetReps = exDef.reps;
+    const inc = exDef.inc || (exDef.compound ? 2.5 : 1);   // equipment-aware increment
     const U = dispUnit || unit;
-    const showKg = (kg) => kgToDisp(kg, U) + ' ' + U;
+    const today = todayDate || currentDate;
+
+    // Unit-aware phrasing (engine math stays in kg; only the words change)
+    const showKg   = (kg) => kgToDisp(kg, U) + ' ' + U;
     const dispBump = (kgBump) => (U === 'kg' ? trimNum(kgBump) : trimNum(Math.round(kgBump / KG_PER_LB * 10) / 10));
+    const roundToInc = (w) => (inc > 0 ? Math.round(Math.round(w / inc) * inc * 100) / 100 : Math.round(w * 100) / 100);
+    // Snap a recommended kg weight to a CLEAN value in the user's display unit, so lb-stack
+    // machines land on real pins (nearest 5 lb) and kg lifts land on the increment grid.
+    const stepKg = (U === 'lb') ? 5 * KG_PER_LB : inc;
+    const snap = (kg) => (U === 'lb')
+      ? Math.round(Math.max(0, Math.round((kg / KG_PER_LB) / 5) * 5) * KG_PER_LB * 100) / 100
+      : roundToInc(kg);
 
-    // Earn the bump only if you did at least the prescribed number of sets AND every set
-    // you logged hit the target (=== so an added set that fell short blocks the increase).
-    const hitAllSets = sets.length >= exDef.sets && setsAtTarget === sets.length;
-    if (hitAllSets) {
-      const bump = exDef.inc || (exDef.compound ? 2.5 : 1);
-      const next = Math.round((work + bump) * 100) / 100;
-      if (work === 0) {
-        return { w: next.toString(),
-          note: `bodyweight cleared on every set — time to add load. Start around ${dispBump(bump)} ${U}.`,
-          kind: 'bump' };
-      }
-      return {
-        w: next.toString(),
-        note: `+${dispBump(bump)} ${U} earned — you hit ${exDef.reps} reps on all ${sets.length} sets last time. Reps may dip; build them back, then jump again.`,
-        kind: 'bump'
-      };
+    // Estimated 1RM per session over the FULL history (Epley: w·(1+reps/30)).
+    //  - CAPPED variant (reps→12): an accurate strength estimate, used for the "best e1RM" display.
+    //  - UNCAPPED variant: a progress signal that keeps rising when high-rep work (laterals/calves
+    //    at 15) adds reps past 12 — so trend/stall detection isn't blind to high-rep gains.
+    const epley   = (w, r, cap) => { const W = parseFloat(w), R = parseInt(r); return (isNaN(W) || isNaN(R) || W <= 0) ? 0 : W * (1 + Math.min(R, cap ? 12 : 99) / 30); };
+    const sessBest = (s, cap) => s.sets.reduce((m, x) => Math.max(m, epley(x.w, x.r, cap)), 0);
+    const totalReps = (s) => s.sets.reduce((a, x) => a + (parseInt(x.r) || 0), 0);
+    const eCap  = history.map(s => sessBest(s, true));     // newest-first — for strength display
+    const ePerf = history.map(s => sessBest(s, false));    // newest-first — for trend/progress
+    let bestE1RM = 0, bestIdx = 0;
+    eCap.forEach((v, i) => { if (v > bestE1RM) { bestE1RM = v; bestIdx = i; } });
+    const meanPerf = ePerf.reduce((a, b) => a + b, 0) / (ePerf.length || 1);
+    const eps = Math.max(0.005 * meanPerf, 0.01);          // ignore rounding-level noise
+    // performance trend: least-squares slope over the last up-to-5 sessions (oldest→newest)
+    const win = ePerf.slice(0, Math.min(5, ePerf.length)).reverse();
+    let slope = 0;
+    if (win.length >= 2) {
+      const m = win.length, xm = (m - 1) / 2, ym = win.reduce((a, b) => a + b, 0) / m;
+      let num = 0, den = 0;
+      win.forEach((y, x) => { num += (x - xm) * (y - ym); den += (x - xm) * (x - xm); });
+      slope = den ? num / den : 0;
+    }
+    const agoPhrase = bestIdx === 0 ? 'your best yet' : `best was ${bestIdx} session${bestIdx > 1 ? 's' : ''} ago`;
+
+    // Last-session quality (double progression: every logged set at/above target reps)
+    const setsAtTarget = last.sets.filter(s => { const r = parseInt(s.r); return !isNaN(r) && r >= targetReps; }).length;
+    const hitAll = last.sets.length >= exDef.sets && setsAtTarget === last.sets.length;
+    const daysSince = (() => {
+      const d = Math.round((new Date(today + 'T00:00:00') - new Date(last.date + 'T00:00:00')) / 86400000);
+      return isNaN(d) ? 0 : d;
+    })();
+
+    // 1) BODYWEIGHT
+    if (lastWork === 0) {
+      return hitAll
+        ? { w: roundToInc(inc).toString(), reps: targetReps, kind: 'bump',
+            note: `bodyweight cleared on all ${last.sets.length} sets — add about ${dispBump(inc)} ${U}.` }
+        : { w: '0', reps: targetReps, kind: 'hold',
+            note: `build to ${targetReps} reps on every set at bodyweight before adding load.` };
     }
 
-    // STALL → deload. 3 sessions at the same working weight AND no rep progress (true plateau).
-    // (Staying at a weight while adding reps is double-progression working — NOT a stall.)
-    if (history.length >= 3 && work > 0) {
-      const w3 = history.slice(0, 3).map(s => topWeight(s.sets));
-      const allSame = w3.every(w => !isNaN(w) && Math.abs(w - work) < 0.5);
-      const totalReps = s => s.sets.reduce((a, x) => a + (parseInt(x.r) || 0), 0);
-      const repsProgressing = totalReps(history[0]) > totalReps(history[2]); // most-recent beats oldest
-      if (allSame && !repsProgressing) {
-        const deload = Math.round(work * 0.9 * 2) / 2;
-        return {
-          w: deload.toString(),
-          note: `−10% deload — stalled 3 sessions at ${showKg(work)} with no rep gains. Drop, rebuild clean form, then climb again.`,
-          kind: 'deload'
-        };
+    // 2) STALE → re-baseline instead of progressing off old data
+    if (daysSince > 21) {
+      return { w: lastWork.toString(), reps: targetReps, kind: 'hold',
+        note: `last logged ${daysSince} days ago — repeat ${showKg(lastWork)} × ${targetReps} to re-baseline, then push up.` };
+    }
+
+    // 3) BUMP → clean double progression. The +1-increment step is itself the safety cap:
+    //    one increment above a weight just completed for ALL sets at target is never an unseen jump.
+    if (hitAll) {
+      let next = snap(lastWork + stepKg);
+      if (next <= lastWork) next = Math.round((lastWork + stepKg) * 100) / 100;   // guarantee real progress
+      const gained = Math.round((next - lastWork) * 100) / 100;
+      return { w: next.toString(), reps: targetReps, kind: 'bump',
+        note: `+${dispBump(gained)} ${U} earned — you hit ${targetReps} on all ${last.sets.length} sets. Reps may dip; rebuild then climb. (best e1RM ${showKg(snap(bestE1RM))}, ${agoPhrase}.)` };
+    }
+
+    // 4) DELOAD → 3 sessions at ~the same load with no e1RM gain = a true plateau.
+    //    (Rising reps at the same load is double progression working, so e1RM would climb.)
+    if (history.length >= 3 && lastWork > 0) {
+      const w3 = [topWeight(history[0].sets), topWeight(history[1].sets), topWeight(history[2].sets)];
+      const sameLoad = w3.every(w => !isNaN(w) && Math.abs(w - lastWork) < 0.5);
+      const repsProgressing = totalReps(history[0]) > Math.max(totalReps(history[1]), totalReps(history[2]));
+      if (sameLoad && !repsProgressing) {
+        return { w: snap(lastWork * 0.9).toString(), reps: targetReps, kind: 'deload',
+          note: `−10% deload — 3 sessions stuck at ${showKg(lastWork)} with no added reps or load. Drop, rebuild clean reps, then climb.` };
       }
     }
 
-    // HOLD → same working weight, build reps/sets up to the target before adding load.
-    const note = sets.length < exDef.sets
-      ? `match ${showKg(work)} across all ${exDef.sets} sets at ${exDef.reps} reps before adding load.`
-      : `hold this weight — add reps toward ${exDef.reps} on every set, then the load goes up.`;
-    return { w: work.toString(), note, kind: 'hold' };
+    // 5) HOLD → trend-aware double-progression coaching
+    let note;
+    if (last.sets.length < exDef.sets) {
+      note = `match ${showKg(lastWork)} across all ${exDef.sets} sets at ${targetReps} reps before adding load.`;
+    } else if (slope > eps) {
+      note = `progressing — hold ${showKg(lastWork)} and drive every set toward ${targetReps} (e1RM trending up).`;
+    } else {
+      note = `hold ${showKg(lastWork)} and reclaim reps toward ${targetReps} — e1RM flat over your last ${win.length} session${win.length > 1 ? 's' : ''}.`;
+    }
+    return { w: lastWork.toString(), reps: targetReps, kind: 'hold', note };
   }
 
   // ============================================================
@@ -1513,7 +1572,7 @@
       // Build last session hint + progression suggestion (based on up to last 3 sessions
       // of the CURRENTLY-SELECTED implement, so dumbbell vs barbell history stays separate)
       const curFn = effectiveFn(ex, exData);
-      const history = recentSessionsFor(curFn, currentDate, 3);
+      const history = recentSessionsFor(curFn, currentDate);   // FULL history — the Coach uses all of it
       const last = history[0] || null;
       const suggest = suggestNext(Object.assign({}, ex, { inc: effectiveInc(ex, exData) }), history, u);
       let lastHtml = '';
@@ -1522,7 +1581,8 @@
         let suggestHtml = '';
         if (suggest) {
           const cls = suggest.kind === 'deload' ? 'target deload' : 'target';
-          const repTxt = ex.perSide ? `${ex.reps}/leg` : `${ex.reps}`;
+          const recReps = (suggest.reps != null) ? suggest.reps : ex.reps;
+          const repTxt = ex.perSide ? `${recReps}/leg` : `${recReps}`;
           suggestHtml = `<br><span class="coach-tag">⌾ COACH</span> <span class="${cls}">${kgToDisp(suggest.w, u)} ${u} × ${repTxt}</span> — ${suggest.note}`;
         }
         lastHtml = `<div class="last-session ${suggest && suggest.kind === 'deload' ? 'is-deload' : ''}"><b>Last ${last.day} (${last.date}):</b> ${summary}${suggestHtml}</div>`;
@@ -1888,10 +1948,12 @@
       ? [{ day: currentDay, date: currentDate, data: session }]
       : allSessions();
     for (const s of sessions) {
-      const dayDef = PROGRAM[s.day];
-      if (!dayDef) continue;
-      for (const ex of dayDef.exercises) {
-        const d = s.data.exercises[ex.id] || {};
+      // Day-agnostic: iterate the session's OWN exercise ids so cross-day / imported
+      // sessions export losslessly (mirror of recentSessionsFor).
+      for (const id in s.data.exercises) {
+        const ex = EXERCISE_BY_ID[id];
+        if (!ex) continue;
+        const d = s.data.exercises[id] || {};
         const fnName = effectiveFn(ex, d);   // implement-aware FitNotes name
         for (let n = 1; n <= setCount(ex, d); n++) {
           const w = (d[`w${n}`] || '').toString().trim();
@@ -2084,87 +2146,63 @@
   // BASELINE SEED (runs once — populates the user's actual May 25 data
   // so progression suggestions have something to reference)
   // ============================================================
-  function maybeSeed() {
-    // SEED v6 (2026-06-18): authoritative FitNotes-synced history through the 06-18 Day C
-    // session. NON-DESTRUCTIVE: only adds a session if that day/date isn't already present,
-    // so any workout you log in the app is NEVER wiped by a seed-version bump. Prefs kept.
-    if (localStorage.getItem('wo:_seeded') === 'v6') return;
+  // The COMPLETE FitNotes history (all dates through 2026-06-20), generated offline by
+  // _build/gen_seed_v7.py from the .fitnotes backup. Each entry is one date; ex is keyed by the
+  // canonical exercise id (variant fns carry impl). The day label is the majority program day for
+  // that date — cosmetic only, since Coach/CSV reads are day-agnostic (EXERCISE_BY_ID).
+  const SEED_V7 = [
+  {day:'A',date:'2025-12-18',ex:{A3:{w1:'34',r1:'10',c1:true,w2:'34',r2:'9',c2:true},B3:{w1:'34',r1:'8',c1:true,w2:'34',r2:'8',c2:true},B4:{w1:'45',r1:'12',c1:true,w2:'54',r2:'12',c2:true},A8:{w1:'23',r1:'12',c1:true,w2:'23',r2:'12',c2:true}}},
+  {day:'A',date:'2025-12-21',ex:{B3:{w1:'34',r1:'10',c1:true,w2:'34',r2:'10',c2:true},A3:{w1:'34',r1:'10',c1:true,w2:'34',r2:'9',c2:true}}},
+  {day:'A',date:'2025-12-29',ex:{A4:{w1:'77',r1:'9',c1:true,w2:'77',r2:'9',c2:true},B4:{w1:'59',r1:'8',c1:true,w2:'59',r2:'12',c2:true}}},
+  {day:'A',date:'2025-12-31',ex:{B3:{w1:'42',r1:'6',c1:true,w2:'38',r2:'12',c2:true},C3:{w1:'18.1',r1:'12',c1:true,w2:'18.1',r2:'12',c2:true},A4:{w1:'77',r1:'12',c1:true,w2:'86',r2:'8',c2:true},A8:{w1:'54',r1:'12',c1:true,w2:'68',r2:'12',c2:true}}},
+  {day:'A',date:'2026-01-05',ex:{C3:{w1:'18.1',r1:'12',c1:true,w2:'18.1',r2:'12',c2:true},A8:{w1:'54',r1:'12',c1:true,w2:'59',r2:'12',c2:true}}},
+  {day:'B',date:'2026-01-06',ex:{A4:{w1:'86',r1:'8',c1:true,w2:'86',r2:'8',c2:true},B4:{w1:'59',r1:'12',c1:true,w2:'59',r2:'12',c2:true},B6:{w1:'40.5',r1:'24',c1:true,w2:'58.5',r2:'12',c2:true}}},
+  {day:'A',date:'2026-01-08',ex:{C3:{w1:'20.4',r1:'12',c1:true,w2:'22.7',r2:'12',c2:true},A4:{w1:'86',r1:'8',c1:true,w2:'86',r2:'8',c2:true},B6:{w1:'67.5',r1:'12',c1:true,w2:'67.5',r2:'12',c2:true},A8:{w1:'72.6',r1:'12',c1:true,w2:'72.6',r2:'12',c2:true}}},
+  {day:'B',date:'2026-02-20',ex:{A4:{w1:'86',r1:'8',c1:true,w2:'86',r2:'8',c2:true},B4:{w1:'59',r1:'12',c1:true,w2:'59',r2:'12',c2:true},B6:{w1:'67.5',r1:'12',c1:true,w2:'67.5',r2:'12',c2:true}}},
+  {day:'A',date:'2026-03-06',ex:{C3:{w1:'22.7',r1:'9',c1:true,w2:'18.1',r2:'12',c2:true},A4:{w1:'77',r1:'9',c1:true,w2:'77',r2:'10',c2:true},B6:{w1:'67.5',r1:'10',c1:true,w2:'67.5',r2:'10',c2:true},A8:{w1:'72.6',r1:'12',c1:true,w2:'72.6',r2:'12',c2:true}}},
+  {day:'A',date:'2026-05-25',ex:{A1:{w1:'139.5',r1:'12',c1:true,w2:'157.5',r2:'12',c2:true},A2:{w1:'30',r1:'12',c1:true,w2:'35',r2:'13',c2:true},A3:{w1:'20',r1:'12',c1:true,w2:'24',r2:'8',c2:true},B4:{w1:'32',r1:'10',c1:true,w2:'45',r2:'10',c2:true},A5:{w1:'14',r1:'10',c1:true,w2:'14',r2:'10',c2:true},A4:{w1:'68',r1:'10',c1:true,w2:'68',r2:'8',c2:true},B5:{w1:'4.5',r1:'15',c1:true,w2:'4.5',r2:'15',c2:true},A6:{w1:'2.3',r1:'10',c1:true,w2:'2.3',r2:'10',c2:true},A7:{w1:'15',r1:'12',c1:true},A8:{w1:'18.14',r1:'12',c1:true}}},
+  {day:'B',date:'2026-05-29',ex:{B1:{w1:'4',r1:'10',c1:true,w2:'4',r2:'10',c2:true,w3:'0',r3:'10',c3:true},B2:{w1:'5',r1:'12',c1:true,w2:'5',r2:'12',c2:true,w3:'5',r3:'12',c3:true},B3:{w1:'24',r1:'10',c1:true,w2:'24',r2:'8',c2:true,w3:'24',r3:'9',c3:true}}},
+  {day:'B',date:'2026-05-31',ex:{B4:{w1:'45',r1:'10',c1:true,w2:'50',r2:'10',c2:true,w3:'50',r3:'10',c3:true},B5:{w1:'6',r1:'12',c1:true,w2:'6',r2:'12',c2:true},B6:{w1:'31.5',r1:'15',c1:true,w2:'31.5',r2:'15',c2:true,w3:'22.5',r3:'15',c3:true},B7:{w1:'0',r1:'15',c1:true,w2:'0',r2:'15',c2:true,w3:'0',r3:'15',c3:true},B8:{w1:'8',r1:'12',c1:true,w2:'8',r2:'12',c2:true},B9:{w1:'36',r1:'10',c1:true,w2:'27',r2:'12',c2:true}}},
+  {day:'C',date:'2026-06-04',ex:{C1:{w1:'50',r1:'12',c1:true,w2:'50',r2:'12',c2:true,w3:'50',r3:'12',c3:true},A2:{w1:'35',r1:'8',c1:true,w2:'35',r2:'8',c2:true,w3:'35',r3:'12',c3:true},C3:{w1:'11.3',r1:'12',c1:true,w2:'11.3',r2:'12',c2:true,w3:'11.3',r3:'12',c3:true},C4:{w1:'15',r1:'12',c1:true,w2:'15',r2:'12',c2:true,w3:'15',r3:'12',c3:true},A5:{w1:'14',r1:'10',c1:true,w2:'14',r2:'10',c2:true,w3:'16',r3:'10',c3:true},C6:{w1:'31.8',r1:'15',c1:true,w2:'36.3',r2:'15',c2:true,w3:'40.8',r3:'15',c3:true},C8:{w1:'12',r1:'12',c1:true,w2:'12',r2:'12',c2:true},C9:{w1:'15',r1:'12',c1:true,w2:'15',r2:'12',c2:true}}},
+  {day:'A',date:'2026-06-08',ex:{A3:{w1:'24',r1:'12',c1:true,w2:'28',r2:'10',c2:true,w3:'28',r3:'10',c3:true},A4:{w1:'68',r1:'10',c1:true,w2:'68',r2:'8',c2:true,w3:'64',r3:'6',c3:true},A5:{w1:'18',r1:'12',c1:true,w2:'20',r2:'8',c2:true,w3:'20',r3:'5',c3:true},A7:{w1:'14',r1:'12',c1:true,w2:'15',r2:'18',c2:true},A8:{w1:'18',r1:'12',c1:true,w2:'18',r2:'14',c2:true}}},
+  {day:'B',date:'2026-06-11',ex:{B3:{w1:'28',r1:'10',c1:true,w2:'28',r2:'8',c2:true,w3:'28',r3:'8',c3:true},B4:{w1:'59',r1:'10',c1:true,w2:'63.5',r2:'10',c2:true,w3:'77.11',r3:'10',c3:true},B5:{w1:'4.5',r1:'15',c1:true,w2:'6',r2:'15',c2:true,w3:'6',r3:'15',c3:true},B6:{w1:'40.5',r1:'15',c1:true,w2:'31.5',r2:'15',c2:true,w3:'31.5',r3:'15',c3:true},B8:{w1:'10',r1:'12',c1:true,w2:'10',r2:'15',c2:true},B9:{w1:'26',r1:'12',c1:true,w2:'36',r2:'12',c2:true}}},
+  {day:'C',date:'2026-06-18',ex:{C3:{w1:'15.9',r1:'12',c1:true,w2:'15.9',r2:'12',c2:true,w3:'15.9',r3:'12',c3:true},C4:{w1:'17.5',r1:'12',c1:true,w2:'22.5',r2:'10',c2:true,w3:'32.5',r3:'10',c3:true},A5:{w1:'30',r1:'10',c1:true,w2:'40',r2:'10',c2:true,w3:'45',r3:'8',c3:true,impl:'Barbell'},C6:{w1:'45.3',r1:'12',c1:true,w2:'45.3',r2:'15',c2:true,w3:'45.2',r3:'15',c3:true},C8:{w1:'20',r1:'12',c1:true,w2:'20',r2:'7',c2:true},C9:{w1:'18.14',r1:'12',c1:true,w2:'22.6',r2:'17',c2:true}}},
+  {day:'A',date:'2026-06-20',ex:{A3:{w1:'30',r1:'10',c1:true,w2:'30',r2:'9',c2:true,w3:'30',r3:'9',c3:true},A4:{w1:'68.04',r1:'10',c1:true,w2:'68.04',r2:'10',c2:true,w3:'68.04',r3:'10',c3:true},A5:{w1:'50',r1:'10',c1:true,w2:'50',r2:'9',c2:true,w3:'50',r3:'8',c3:true,impl:'Barbell'},A7:{w1:'12',r1:'12',c1:true,w2:'12',r2:'10',c2:true,impl:'Dumbbell'},A8:{w1:'18.14',r1:'12',c1:true,w2:'18.14',r2:'12',c2:true}}}
+  ];
 
-    const put = (k, ex, extra) => {
-      if (localStorage.getItem(k)) return;   // never overwrite an existing (possibly user-logged) session
+  function maybeSeed() {
+    // SEED v7 (2026-06-22): the COMPLETE FitNotes history, so the app and FitNotes hold the same
+    // data and the Coach has full per-exercise history. NON-DESTRUCTIVE: replaces only prior
+    // _seeded rows; a session you logged in-app (no _seeded flag) is never touched or duplicated.
+    if (localStorage.getItem('wo:_seeded') === 'v7') return;
+
+    // (1) Drop stale seed-only sessions from earlier versions — _seeded:true payloads only.
+    const stale = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !/^wo:[ABC]:\d{4}-\d\d-\d\d$/.test(k)) continue;
+      try { const v = JSON.parse(localStorage.getItem(k)); if (v && v._seeded === true) stale.push(k); } catch (e) {}
+    }
+    stale.forEach(k => localStorage.removeItem(k));
+
+    // (2) Write each historical date only if the user hasn't logged that date themselves.
+    const dateHasUserSession = (date) => {
+      for (const d of ['A','B','C']) {
+        const raw = localStorage.getItem(`wo:${d}:${date}`);
+        if (raw) { try { if (!JSON.parse(raw)._seeded) return true; } catch (e) { return true; } }
+      }
+      return false;
+    };
+    const put = (day, date, ex, extra) => {
+      const k = `wo:${day}:${date}`;
+      if (localStorage.getItem(k)) return;       // exact key already present (user or just-written)
+      if (dateHasUserSession(date)) return;      // user logged this date under another label → leave it
       localStorage.setItem(k, JSON.stringify(
         Object.assign({ exercises: ex, warmup:{}, cooldown:{}, ts: 1780000000000, _seeded: true }, extra || {})));
     };
+    SEED_V7.forEach(s => put(s.day, s.date, s.ex, s.extra));
 
-    // 2026-05-25 — return day (Day A) + the two lifts that now live in Day B
-    put('wo:A:2026-05-25', {
-      A1: { w1:'139.5', r1:'12', c1:true, w2:'157.5', r2:'12', c2:true },
-      A2: { w1:'30',    r1:'12', c1:true, w2:'35',    r2:'13', c2:true },
-      A3: { w1:'20',    r1:'12', c1:true, w2:'24',    r2:'8',  c2:true },
-      A4: { w1:'68',    r1:'10', c1:true, w2:'68',    r2:'8',  c2:true },
-      A5: { w1:'14',    r1:'10', c1:true, w2:'14',    r2:'10', c2:true },
-      A6: { w1:'2.3',   r1:'10', c1:true, w2:'2.3',   r2:'10', c2:true },
-      A7: { w1:'15',    r1:'12', c1:true },
-      A8: { w1:'18.14', r1:'12', c1:true },
-    }, { warmup:{w1:true,w2:true,w3:true,w4:true,w5:true}, cooldown:{c1:true,c2:true,c3:true,c4:true,c5:true,c6:true,c7:true} });
-    put('wo:B:2026-05-25', {
-      B4: { w1:'32',  r1:'10', c1:true, w2:'45',  r2:'10', c2:true },
-      B5: { w1:'4.5', r1:'15', c1:true, w2:'4.5', r2:'15', c2:true },
-    });
-    // 2026-05-29 — Day B first half (gym closed early)
-    put('wo:B:2026-05-29', {
-      B1: { w1:'4',  r1:'10', c1:true, w2:'4',  r2:'10', c2:true, w3:'0',  r3:'10', c3:true },
-      B2: { w1:'5',  r1:'12', c1:true, w2:'5',  r2:'12', c2:true, w3:'5',  r3:'12', c3:true },
-      B3: { w1:'24', r1:'10', c1:true, w2:'24', r2:'8',  c2:true, w3:'24', r3:'9',  c3:true },
-    });
-    // 2026-05-31 — Day B second half
-    put('wo:B:2026-05-31', {
-      B4: { w1:'45',   r1:'10', c1:true, w2:'50',   r2:'10', c2:true, w3:'50',   r3:'10', c3:true },
-      B5: { w1:'6',    r1:'12', c1:true, w2:'6',    r2:'12', c2:true },
-      B6: { w1:'31.5', r1:'15', c1:true, w2:'31.5', r2:'15', c2:true, w3:'22.5', r3:'15', c3:true },
-      B7: { w1:'0',    r1:'15', c1:true, w2:'0',    r2:'15', c2:true, w3:'0',    r3:'15', c3:true },
-      B8: { w1:'8',    r1:'12', c1:true, w2:'8',    r2:'12', c2:true },
-      B9: { w1:'36',   r1:'10', c1:true, w2:'27',   r2:'12', c2:true },
-    });
-    // 2026-06-04 — Day C full
-    put('wo:C:2026-06-04', {
-      C1: { w1:'50',   r1:'12', c1:true, w2:'50',   r2:'12', c2:true, w3:'50',   r3:'12', c3:true },
-      C2: { w1:'35',   r1:'8',  c1:true, w2:'35',   r2:'8',  c2:true, w3:'35',   r3:'12', c3:true },
-      C3: { w1:'11.3', r1:'12', c1:true, w2:'11.3', r2:'12', c2:true, w3:'11.3', r3:'12', c3:true },
-      C4: { w1:'15',   r1:'12', c1:true, w2:'15',   r2:'12', c2:true, w3:'15',   r3:'12', c3:true },
-      C5: { w1:'14',   r1:'10', c1:true, w2:'14',   r2:'10', c2:true, w3:'16',   r3:'10', c3:true },
-      C6: { w1:'31.8', r1:'15', c1:true, w2:'36.3', r2:'15', c2:true, w3:'40.8', r3:'15', c3:true },
-      C8: { w1:'12',   r1:'12', c1:true, w2:'12',   r2:'12', c2:true },
-      C9: { w1:'15',   r1:'12', c1:true, w2:'15',   r2:'12', c2:true },
-    });
-    // 2026-06-08 — upper session (Day A lifts)
-    put('wo:A:2026-06-08', {
-      A3: { w1:'24', r1:'12', c1:true, w2:'28', r2:'10', c2:true, w3:'28', r3:'10', c3:true },
-      A4: { w1:'68', r1:'10', c1:true, w2:'68', r2:'8',  c2:true, w3:'64', r3:'6',  c3:true },
-      A5: { w1:'18', r1:'12', c1:true, w2:'20', r2:'8',  c2:true, w3:'20', r3:'5',  c3:true },
-      A7: { w1:'14', r1:'12', c1:true, w2:'15', r2:'18', c2:true },
-      A8: { w1:'18', r1:'12', c1:true, w2:'18', r2:'14', c2:true },
-    });
-    // 2026-06-11 — Day B (incline focus)
-    put('wo:B:2026-06-11', {
-      B3: { w1:'28',   r1:'10', c1:true, w2:'28',   r2:'8',  c2:true, w3:'28',   r3:'8',  c3:true },
-      B4: { w1:'59',   r1:'10', c1:true, w2:'63.5', r2:'10', c2:true, w3:'77.11',r3:'10', c3:true },
-      B5: { w1:'4.5',  r1:'15', c1:true, w2:'6',    r2:'15', c2:true, w3:'6',    r3:'15', c3:true },
-      B6: { w1:'40.5', r1:'15', c1:true, w2:'31.5', r2:'15', c2:true, w3:'31.5', r3:'15', c3:true },
-      B8: { w1:'10',   r1:'12', c1:true, w2:'10',   r2:'15', c2:true },
-      B9: { w1:'26',   r1:'12', c1:true, w2:'36',   r2:'12', c2:true },
-    });
-    // 2026-06-18 — Day C (synced from FitNotes; 6 of 9 exercises performed).
-    // C5 shoulder press was done with the BARBELL (impl) — tracked separately from dumbbell history.
-    put('wo:C:2026-06-18', {
-      C3: { w1:'15.9',  r1:'12', c1:true, w2:'15.9', r2:'12', c2:true, w3:'15.9', r3:'12', c3:true },
-      C4: { w1:'17.5',  r1:'12', c1:true, w2:'22.5', r2:'10', c2:true, w3:'32.5', r3:'10', c3:true },
-      C5: { impl:'Barbell', w1:'30', r1:'10', c1:true, w2:'40', r2:'10', c2:true, w3:'45', r3:'8', c3:true },
-      C6: { w1:'45.3',  r1:'12', c1:true, w2:'45.3', r2:'15', c2:true, w3:'45.2', r3:'15', c3:true },
-      C8: { w1:'20',    r1:'12', c1:true, w2:'20',   r2:'7',  c2:true },
-      C9: { w1:'18.14', r1:'12', c1:true, w2:'22.6', r2:'17', c2:true },
-    });
-    localStorage.setItem('wo:_seeded', 'v6');
+    localStorage.setItem('wo:_seeded', 'v7');
   }
 
   // Default to the matching day-of-week from the example week (Mon→A, Wed→B, Sat→C)
