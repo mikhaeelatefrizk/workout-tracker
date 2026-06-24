@@ -345,6 +345,18 @@
   .stats .stat.vol b{color:var(--accent2)}
   .stats .stat.complete b{color:var(--good)}
   .stats .dot-sep{width:3px;height:3px;border-radius:50%;background:var(--border);align-self:center}
+  .stats .stat.dur b{color:var(--text)}
+
+  /* stats: per-workout summary + history modal */
+  .sum-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 12px}
+  .sum-grid > div{background:var(--field);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 6px;text-align:center;display:flex;flex-direction:column;gap:2px}
+  .sum-grid b{color:var(--text);font-size:1.05rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .sum-grid span{color:var(--muted2);font-size:.6rem;text-transform:uppercase;letter-spacing:.06em}
+  .sum-tbl{width:100%;border-collapse:collapse;font-size:.76rem;font-variant-numeric:tabular-nums}
+  .sum-tbl th{text-align:left;color:var(--muted2);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;padding:4px 6px;border-bottom:1px solid var(--border)}
+  .sum-tbl td{padding:6px;border-bottom:1px solid var(--hairline);color:var(--text)}
+  .sum-tbl td:first-child{color:var(--muted)}
+  .sum-tbl td:not(:first-child),.sum-tbl th:not(:first-child){text-align:right}
 
   /* auto-rest toggle (in timer bar) */
   .auto-toggle{flex-shrink:0;min-height:42px;padding:6px 11px;border-radius:11px;border:1px solid var(--border);background:var(--card2);color:var(--muted2);font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:.05em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.05;transition:color var(--dur),background var(--dur),border-color var(--dur),transform .12s var(--ease)}
@@ -389,9 +401,9 @@
     <span id="daySub">Day A · Full Body</span> · 1–2 RIR · <span class="offline">● OFFLINE</span>
   </div>
   <div class="tabs" role="tablist">
-    <button class="tab" data-day="A" onclick="switchDay('A')">A<span class="small">Legs · Push · Pull</span></button>
-    <button class="tab" data-day="B" onclick="switchDay('B')">B<span class="small">Quads · Incline · Delts</span></button>
-    <button class="tab" data-day="C" onclick="switchDay('C')">C<span class="small">Posterior · Chest · Arms</span></button>
+    <button class="tab" data-day="A" onclick="switchDay('A')">A<span class="small">Push · Pull · Arms</span></button>
+    <button class="tab" data-day="B" onclick="switchDay('B')">B<span class="small">Incline · Back · Delts</span></button>
+    <button class="tab" data-day="C" onclick="switchDay('C')">C<span class="small">Chest · Back · Arms</span></button>
   </div>
   <button class="hdr-toggle" id="hdrToggle" onclick="toggleHdr()" aria-expanded="false">
     <span id="hdrSummary">📅 Today · kg</span><span class="hdr-chev">›</span>
@@ -414,6 +426,8 @@
   <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
   <div class="stats" id="statsLine">
     <span class="stat" id="statSets"><b id="statDone">0</b>/<span id="statTotal">0</span> sets done</span>
+    <span class="dot-sep"></span>
+    <span class="stat dur"><b id="statDur">—</b> elapsed</span>
     <span class="dot-sep"></span>
     <span class="stat vol"><b id="statVol">0</b> <span id="volUnit">kg</span> volume</span>
   </div>
@@ -448,6 +462,14 @@
   </div></div>
 </div>
 
+<!-- ====================== WORKOUT SUMMARY ====================== -->
+<div class="csec" data-key="summary">
+  <button class="csec-head"><span class="csec-t">📊 Workout summary <span class="csec-sub">this session</span></span><span class="csec-chev">›</span></button>
+  <div class="csec-body"><div class="csec-inner">
+    <div id="summaryBody"></div>
+  </div></div>
+</div>
+
 <!-- ====================== COOLDOWN ====================== -->
 <div class="csec" data-key="cooldown">
   <button class="csec-head"><span class="csec-t">▸ Cooldown <span class="csec-sub">≈5 min · hold 30–45s</span></span><span class="csec-chev">›</span></button>
@@ -474,6 +496,7 @@
   Saved on this device and resumes automatically. For a backup you can keep, save it to your Downloads folder.<br>
   <div class="footer-btns">
     <button class="export-btn" onclick="openExport()">⬇ Export for FitNotes</button>
+    <button class="load-btn" onclick="openStats()">📊 Stats</button>
     <button class="save-btn" onclick="saveToDownloads()">💾 Save to Downloads</button>
     <button class="load-btn" onclick="document.getElementById('loadFile').click()">📂 Load backup</button>
     <button class="reset-btn" onclick="resetCurrent()">↻ Reset this session</button>
@@ -626,7 +649,7 @@
   // ============================================================
   const PROGRAM = {
     A: {
-      name: "Day A — Legs · Push · Pull",
+      name: "Day A — Push · Pull · Arms",
       shortName: "Day A",
       exercises: [
         { id:'A1', name:'Leg Press', fn:'Leg Press', cat:'Legs',
@@ -782,7 +805,7 @@
     },
 
     B: {
-      name: "Day B — Quads · Incline · Delts",
+      name: "Day B — Incline · Back · Delts",
       shortName: "Day B",
       exercises: [
         { id:'B1', name:'Bulgarian Split Squat (DB)', fn:'Bulgarian Split Squat', cat:'Legs',
@@ -913,6 +936,7 @@
         },
         { id:'B8', name:'Incline Dumbbell Curl', fn:'Incline Dumbbell Curl', cat:'Biceps',
           sets:2, reps:12, compound:false, inc:2, video:'16-incline-db-curl',
+          variants:[{label:'Dumbbell',fn:'Incline Dumbbell Curl',inc:2},{label:'Barbell',fn:'Barbell Curl',inc:2.5},{label:'Cable',fn:'Cable Curl',inc:2.3}],
           isFinisher:true,
           cues:[
             'Bench at 45–60°. Sit back fully — shoulders touch the pad.',
@@ -950,7 +974,7 @@
     },
 
     C: {
-      name: "Day C — Posterior · Chest · Arms",
+      name: "Day C — Chest · Back · Arms",
       shortName: "Day C",
       exercises: [
         { id:'C1', name:'Heel-Elevated Goblet Squat', fn:'Heel-Elevated Goblet Squat', cat:'Legs',
@@ -1081,6 +1105,7 @@
         },
         { id:'C8', name:'Preacher Curl', fn:'Preacher Curl', cat:'Biceps',
           sets:2, reps:12, compound:false, video:'22-preacher-curl',
+          variants:[{label:'Bar',fn:'Preacher Curl',inc:2.5},{label:'Dumbbell',fn:'Dumbbell Preacher Curl',inc:2},{label:'Machine',fn:'Machine Preacher Curl',inc:5}],
           isFinisher:true,
           note:'AthleanX curl-mechanics video — covers the preacher/peak-contraction position. Apply the no-full-lockout-at-bottom and hard-squeeze cues on the preacher bench.',
           cues:[
@@ -1196,6 +1221,13 @@
   }
   function effectiveFn(ex, exData){ const v = variantFor(ex, exData); return v ? v.fn : ex.fn; }
   function effectiveInc(ex, exData){ const v = variantFor(ex, exData); return (v && v.inc) || ex.inc; }
+
+  // Legs are no longer trained in this tracker — strip every leg exercise from the program before
+  // anything reads it, so they never render, get recommended, or count. Touches ONLY cat:'Legs';
+  // all other exercises are untouched. (FitNotes leg history is left intact.)
+  for (const day of Object.keys(PROGRAM)){
+    PROGRAM[day].exercises = PROGRAM[day].exercises.filter(ex => ex.cat !== 'Legs');
+  }
 
   // ---- Global exercise lookups (built once from PROGRAM) ----
   // EXERCISE_BY_ID lets history readers iterate a session's OWN exercise ids regardless of
@@ -1699,6 +1731,8 @@
               const rEl = card.querySelector(`input[data-f="r${n}"]`);
               if (wEl && !wEl.value && targetW) { wEl.value = kgToDisp(targetW, u); session.exercises[id]['w' + n] = dispToKg(wEl.value, u); }
               if (rEl && !rEl.value) { rEl.value = String(ex.reps); session.exercises[id]['r' + n] = String(ex.reps); }
+              // stamp WHEN this set was completed (keep-first) — powers duration + rest timing
+              if (typeof session.exercises[id]['t' + n] !== 'number') session.exercises[id]['t' + n] = Date.now();
             }
             updateCardDone(card);
             if (inp.checked && autoRest.on) startRest(ex.compound ? 120 : 90);
@@ -1723,7 +1757,7 @@
             session.exercises[id]._sets = cur + 1;
           } else {
             if (cur <= 1) return;
-            ['w', 'r', 'c'].forEach(p => delete session.exercises[id][p + cur]); // clear the removed row
+            ['w', 'r', 'c', 't'].forEach(p => delete session.exercises[id][p + cur]); // clear the removed row
             session.exercises[id]._sets = cur - 1;
           }
           persist();
@@ -1802,7 +1836,109 @@
       celebrate();
     }
     _wasComplete = complete;
+    updateDuration();
+    renderSummary();
   }
+
+  // ============================================================
+  // STATS & TIMING
+  // ============================================================
+  function fmtDur(sec) {
+    if (sec == null || isNaN(sec)) return '—';
+    sec = Math.max(0, Math.round(sec));
+    return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+  }
+
+  // Aggregate ONE session's logged (checked) sets → volume / counts / timing. Day-agnostic:
+  // iterates the session's own ids via EXERCISE_BY_ID, skipping removed/unknown ids (e.g. old legs).
+  function sessionStats(sd) {
+    let volume = 0, sets = 0, reps = 0, wSum = 0;
+    const times = [], perEx = {};
+    for (const id in sd.exercises) {
+      const exDef = EXERCISE_BY_ID[id]; if (!exDef) continue;
+      const d = sd.exercises[id], mult = exDef.perSide ? 2 : 1;
+      for (let n = 1; n <= 8; n++) {
+        if (!d['c' + n]) continue;
+        const w = parseFloat(d['w' + n]), r = parseFloat(d['r' + n]);
+        if (isNaN(w) || isNaN(r)) continue;
+        const vol = w * r * mult;
+        volume += vol; sets++; reps += r; wSum += w;
+        const e = perEx[exDef.name] || (perEx[exDef.name] = { name: exDef.name, volume: 0, sets: 0, topW: 0 });
+        e.volume += vol; e.sets++; if (w > e.topW) e.topW = w;
+        const t = d['t' + n]; if (typeof t === 'number') times.push(t);
+      }
+    }
+    times.sort((a, b) => a - b);
+    const durationSec = times.length >= 2 ? Math.round((times[times.length - 1] - times[0]) / 1000) : null;
+    let avgRestSec = null;
+    if (times.length >= 2) { let g = 0; for (let i = 1; i < times.length; i++) g += times[i] - times[i - 1]; avgRestSec = Math.round(g / (times.length - 1) / 1000); }
+    return { volume, sets, reps, avgWeight: sets ? wSum / sets : 0, durationSec, avgRestSec,
+             perExercise: Object.values(perEx).sort((a, b) => b.volume - a.volume), firstTs: times[0] || null, hasTimes: times.length >= 2 };
+  }
+
+  // Aggregate across ALL logged sessions for the historical Stats view.
+  function historyStats() {
+    const all = allSessions(); let totalVol = 0, durSum = 0, withDur = 0; const perEx = {};
+    for (const s of all) {
+      const st = sessionStats(s.data); totalVol += st.volume;
+      if (st.durationSec != null) { withDur++; durSum += st.durationSec; }
+      for (const pe of st.perExercise) {
+        const e = perEx[pe.name] || (perEx[pe.name] = { name: pe.name, volSum: 0, n: 0, topW: 0 });
+        e.volSum += pe.volume; e.n++; if (pe.topW > e.topW) e.topW = pe.topW;
+      }
+    }
+    return { workouts: all.length, avgVolume: all.length ? totalVol / all.length : 0,
+             avgDurationSec: withDur ? Math.round(durSum / withDur) : null,
+             perExercise: Object.values(perEx).map(e => ({ name: e.name, avgVol: e.volSum / e.n, topW: e.topW, n: e.n })).sort((a, b) => b.avgVol - a.avgVol) };
+  }
+
+  // Live workout duration in the stats bar: first checked set → now (active) / → last set (done).
+  function updateDuration() {
+    const el = document.getElementById('statDur'); if (!el || !session) return;
+    const st = sessionStats(session);
+    if (!st.firstTs) { el.textContent = '—'; return; }
+    let last = st.firstTs;
+    for (const id in session.exercises) { const d = session.exercises[id]; for (let n = 1; n <= 8; n++) { const t = d['t' + n]; if (typeof t === 'number' && t > last) last = t; } }
+    const end = _wasComplete ? last : Date.now();
+    el.textContent = fmtDur((end - st.firstTs) / 1000);
+  }
+
+  // Per-workout summary panel (collapsible section under the exercises).
+  function renderSummary() {
+    const el = document.getElementById('summaryBody'); if (!el || !session) return;
+    const st = sessionStats(session);
+    const rows = st.perExercise.map(p => `<tr><td>${p.name}</td><td>${Math.round(p.volume).toLocaleString()} kg</td><td>${p.sets}</td></tr>`).join('');
+    el.innerHTML = `<div class="sum-grid">
+        <div><b>${fmtDur(st.durationSec)}</b><span>duration</span></div>
+        <div><b>${Math.round(st.volume).toLocaleString()}</b><span>kg volume</span></div>
+        <div><b>${st.sets}</b><span>sets</span></div>
+        <div><b>${st.reps}</b><span>reps</span></div>
+        <div><b>${st.sets ? Math.round(st.avgWeight * 10) / 10 : '—'}</b><span>avg kg/set</span></div>
+        <div><b>${fmtDur(st.avgRestSec)}</b><span>avg gap</span></div>
+      </div>
+      <table class="sum-tbl">${rows || '<tr><td colspan="3">Check sets to see your breakdown.</td></tr>'}</table>`;
+  }
+
+  // Historical Stats modal (reuses the .modal/.modal-card pattern, theme-aware).
+  function openStats() {
+    const h = historyStats();
+    const ex = h.perExercise.map(p => `<tr><td>${p.name}</td><td>${Math.round(p.avgVol).toLocaleString()}</td><td>${trimNum(Math.round(p.topW * 10) / 10)}</td><td>${p.n}</td></tr>`).join('');
+    const m = document.createElement('div');
+    m.className = 'modal';
+    m.innerHTML = `<div class="modal-card">
+        <h3>📊 Your stats — all workouts</h3>
+        <div class="sum-grid">
+          <div><b>${h.workouts}</b><span>workouts</span></div>
+          <div><b>${Math.round(h.avgVolume).toLocaleString()}</b><span>avg kg / workout</span></div>
+          <div><b>${fmtDur(h.avgDurationSec)}</b><span>avg duration</span></div>
+        </div>
+        <table class="sum-tbl"><thead><tr><th>Exercise</th><th>avg vol (kg)</th><th>top kg</th><th>×</th></tr></thead><tbody>${ex || '<tr><td colspan="4">No history yet.</td></tr>'}</tbody></table>
+        <div class="row"><button class="close" onclick="closeStats()">✕ Close</button></div>
+      </div>`;
+    m.addEventListener('click', e => { if (e.target === m) closeStats(); });
+    document.body.appendChild(m);
+  }
+  function closeStats() { const m = document.querySelector('.modal'); if (m) m.remove(); }
 
   // ============================================================
   // REST TIMER
@@ -2146,11 +2282,12 @@
   // BASELINE SEED (runs once — populates the user's actual May 25 data
   // so progression suggestions have something to reference)
   // ============================================================
-  // The COMPLETE FitNotes history (all dates through 2026-06-20), generated offline by
+  // The COMPLETE FitNotes history (all dates through 2026-06-22), generated offline by
   // _build/gen_seed_v7.py from the .fitnotes backup. Each entry is one date; ex is keyed by the
   // canonical exercise id (variant fns carry impl). The day label is the majority program day for
   // that date — cosmetic only, since Coach/CSV reads are day-agnostic (EXERCISE_BY_ID).
-  const SEED_V7 = [
+  // Leg exercises are excluded (legs removed from the app); their FitNotes history stays in FitNotes.
+  const SEED_V8 = [
   {day:'A',date:'2025-12-18',ex:{A3:{w1:'34',r1:'10',c1:true,w2:'34',r2:'9',c2:true},B3:{w1:'34',r1:'8',c1:true,w2:'34',r2:'8',c2:true},B4:{w1:'45',r1:'12',c1:true,w2:'54',r2:'12',c2:true},A8:{w1:'23',r1:'12',c1:true,w2:'23',r2:'12',c2:true}}},
   {day:'A',date:'2025-12-21',ex:{B3:{w1:'34',r1:'10',c1:true,w2:'34',r2:'10',c2:true},A3:{w1:'34',r1:'10',c1:true,w2:'34',r2:'9',c2:true}}},
   {day:'A',date:'2025-12-29',ex:{A4:{w1:'77',r1:'9',c1:true,w2:'77',r2:'9',c2:true},B4:{w1:'59',r1:'8',c1:true,w2:'59',r2:'12',c2:true}}},
@@ -2160,21 +2297,23 @@
   {day:'A',date:'2026-01-08',ex:{C3:{w1:'20.4',r1:'12',c1:true,w2:'22.7',r2:'12',c2:true},A4:{w1:'86',r1:'8',c1:true,w2:'86',r2:'8',c2:true},B6:{w1:'67.5',r1:'12',c1:true,w2:'67.5',r2:'12',c2:true},A8:{w1:'72.6',r1:'12',c1:true,w2:'72.6',r2:'12',c2:true}}},
   {day:'B',date:'2026-02-20',ex:{A4:{w1:'86',r1:'8',c1:true,w2:'86',r2:'8',c2:true},B4:{w1:'59',r1:'12',c1:true,w2:'59',r2:'12',c2:true},B6:{w1:'67.5',r1:'12',c1:true,w2:'67.5',r2:'12',c2:true}}},
   {day:'A',date:'2026-03-06',ex:{C3:{w1:'22.7',r1:'9',c1:true,w2:'18.1',r2:'12',c2:true},A4:{w1:'77',r1:'9',c1:true,w2:'77',r2:'10',c2:true},B6:{w1:'67.5',r1:'10',c1:true,w2:'67.5',r2:'10',c2:true},A8:{w1:'72.6',r1:'12',c1:true,w2:'72.6',r2:'12',c2:true}}},
-  {day:'A',date:'2026-05-25',ex:{A1:{w1:'139.5',r1:'12',c1:true,w2:'157.5',r2:'12',c2:true},A2:{w1:'30',r1:'12',c1:true,w2:'35',r2:'13',c2:true},A3:{w1:'20',r1:'12',c1:true,w2:'24',r2:'8',c2:true},B4:{w1:'32',r1:'10',c1:true,w2:'45',r2:'10',c2:true},A5:{w1:'14',r1:'10',c1:true,w2:'14',r2:'10',c2:true},A4:{w1:'68',r1:'10',c1:true,w2:'68',r2:'8',c2:true},B5:{w1:'4.5',r1:'15',c1:true,w2:'4.5',r2:'15',c2:true},A6:{w1:'2.3',r1:'10',c1:true,w2:'2.3',r2:'10',c2:true},A7:{w1:'15',r1:'12',c1:true},A8:{w1:'18.14',r1:'12',c1:true}}},
-  {day:'B',date:'2026-05-29',ex:{B1:{w1:'4',r1:'10',c1:true,w2:'4',r2:'10',c2:true,w3:'0',r3:'10',c3:true},B2:{w1:'5',r1:'12',c1:true,w2:'5',r2:'12',c2:true,w3:'5',r3:'12',c3:true},B3:{w1:'24',r1:'10',c1:true,w2:'24',r2:'8',c2:true,w3:'24',r3:'9',c3:true}}},
-  {day:'B',date:'2026-05-31',ex:{B4:{w1:'45',r1:'10',c1:true,w2:'50',r2:'10',c2:true,w3:'50',r3:'10',c3:true},B5:{w1:'6',r1:'12',c1:true,w2:'6',r2:'12',c2:true},B6:{w1:'31.5',r1:'15',c1:true,w2:'31.5',r2:'15',c2:true,w3:'22.5',r3:'15',c3:true},B7:{w1:'0',r1:'15',c1:true,w2:'0',r2:'15',c2:true,w3:'0',r3:'15',c3:true},B8:{w1:'8',r1:'12',c1:true,w2:'8',r2:'12',c2:true},B9:{w1:'36',r1:'10',c1:true,w2:'27',r2:'12',c2:true}}},
-  {day:'C',date:'2026-06-04',ex:{C1:{w1:'50',r1:'12',c1:true,w2:'50',r2:'12',c2:true,w3:'50',r3:'12',c3:true},A2:{w1:'35',r1:'8',c1:true,w2:'35',r2:'8',c2:true,w3:'35',r3:'12',c3:true},C3:{w1:'11.3',r1:'12',c1:true,w2:'11.3',r2:'12',c2:true,w3:'11.3',r3:'12',c3:true},C4:{w1:'15',r1:'12',c1:true,w2:'15',r2:'12',c2:true,w3:'15',r3:'12',c3:true},A5:{w1:'14',r1:'10',c1:true,w2:'14',r2:'10',c2:true,w3:'16',r3:'10',c3:true},C6:{w1:'31.8',r1:'15',c1:true,w2:'36.3',r2:'15',c2:true,w3:'40.8',r3:'15',c3:true},C8:{w1:'12',r1:'12',c1:true,w2:'12',r2:'12',c2:true},C9:{w1:'15',r1:'12',c1:true,w2:'15',r2:'12',c2:true}}},
+  {day:'A',date:'2026-05-25',ex:{A3:{w1:'20',r1:'12',c1:true,w2:'24',r2:'8',c2:true},B4:{w1:'32',r1:'10',c1:true,w2:'45',r2:'10',c2:true},A5:{w1:'14',r1:'10',c1:true,w2:'14',r2:'10',c2:true},A4:{w1:'68',r1:'10',c1:true,w2:'68',r2:'8',c2:true},B5:{w1:'4.5',r1:'15',c1:true,w2:'4.5',r2:'15',c2:true},A7:{w1:'15',r1:'12',c1:true},A8:{w1:'18.14',r1:'12',c1:true}}},
+  {day:'B',date:'2026-05-29',ex:{B3:{w1:'24',r1:'10',c1:true,w2:'24',r2:'8',c2:true,w3:'24',r3:'9',c3:true}}},
+  {day:'B',date:'2026-05-31',ex:{B4:{w1:'45',r1:'10',c1:true,w2:'50',r2:'10',c2:true,w3:'50',r3:'10',c3:true},B5:{w1:'6',r1:'12',c1:true,w2:'6',r2:'12',c2:true},B6:{w1:'31.5',r1:'15',c1:true,w2:'31.5',r2:'15',c2:true,w3:'22.5',r3:'15',c3:true},B8:{w1:'8',r1:'12',c1:true,w2:'8',r2:'12',c2:true},B9:{w1:'36',r1:'10',c1:true,w2:'27',r2:'12',c2:true}}},
+  {day:'C',date:'2026-06-04',ex:{C3:{w1:'11.3',r1:'12',c1:true,w2:'11.3',r2:'12',c2:true,w3:'11.3',r3:'12',c3:true},C4:{w1:'15',r1:'12',c1:true,w2:'15',r2:'12',c2:true,w3:'15',r3:'12',c3:true},A5:{w1:'14',r1:'10',c1:true,w2:'14',r2:'10',c2:true,w3:'16',r3:'10',c3:true},C6:{w1:'31.8',r1:'15',c1:true,w2:'36.3',r2:'15',c2:true,w3:'40.8',r3:'15',c3:true},C8:{w1:'12',r1:'12',c1:true,w2:'12',r2:'12',c2:true},C9:{w1:'15',r1:'12',c1:true,w2:'15',r2:'12',c2:true}}},
   {day:'A',date:'2026-06-08',ex:{A3:{w1:'24',r1:'12',c1:true,w2:'28',r2:'10',c2:true,w3:'28',r3:'10',c3:true},A4:{w1:'68',r1:'10',c1:true,w2:'68',r2:'8',c2:true,w3:'64',r3:'6',c3:true},A5:{w1:'18',r1:'12',c1:true,w2:'20',r2:'8',c2:true,w3:'20',r3:'5',c3:true},A7:{w1:'14',r1:'12',c1:true,w2:'15',r2:'18',c2:true},A8:{w1:'18',r1:'12',c1:true,w2:'18',r2:'14',c2:true}}},
   {day:'B',date:'2026-06-11',ex:{B3:{w1:'28',r1:'10',c1:true,w2:'28',r2:'8',c2:true,w3:'28',r3:'8',c3:true},B4:{w1:'59',r1:'10',c1:true,w2:'63.5',r2:'10',c2:true,w3:'77.11',r3:'10',c3:true},B5:{w1:'4.5',r1:'15',c1:true,w2:'6',r2:'15',c2:true,w3:'6',r3:'15',c3:true},B6:{w1:'40.5',r1:'15',c1:true,w2:'31.5',r2:'15',c2:true,w3:'31.5',r3:'15',c3:true},B8:{w1:'10',r1:'12',c1:true,w2:'10',r2:'15',c2:true},B9:{w1:'26',r1:'12',c1:true,w2:'36',r2:'12',c2:true}}},
   {day:'C',date:'2026-06-18',ex:{C3:{w1:'15.9',r1:'12',c1:true,w2:'15.9',r2:'12',c2:true,w3:'15.9',r3:'12',c3:true},C4:{w1:'17.5',r1:'12',c1:true,w2:'22.5',r2:'10',c2:true,w3:'32.5',r3:'10',c3:true},A5:{w1:'30',r1:'10',c1:true,w2:'40',r2:'10',c2:true,w3:'45',r3:'8',c3:true,impl:'Barbell'},C6:{w1:'45.3',r1:'12',c1:true,w2:'45.3',r2:'15',c2:true,w3:'45.2',r3:'15',c3:true},C8:{w1:'20',r1:'12',c1:true,w2:'20',r2:'7',c2:true},C9:{w1:'18.14',r1:'12',c1:true,w2:'22.6',r2:'17',c2:true}}},
-  {day:'A',date:'2026-06-20',ex:{A3:{w1:'30',r1:'10',c1:true,w2:'30',r2:'9',c2:true,w3:'30',r3:'9',c3:true},A4:{w1:'68.04',r1:'10',c1:true,w2:'68.04',r2:'10',c2:true,w3:'68.04',r3:'10',c3:true},A5:{w1:'50',r1:'10',c1:true,w2:'50',r2:'9',c2:true,w3:'50',r3:'8',c3:true,impl:'Barbell'},A7:{w1:'12',r1:'12',c1:true,w2:'12',r2:'10',c2:true,impl:'Dumbbell'},A8:{w1:'18.14',r1:'12',c1:true,w2:'18.14',r2:'12',c2:true}}}
+  {day:'A',date:'2026-06-20',ex:{A3:{w1:'30',r1:'10',c1:true,w2:'30',r2:'9',c2:true,w3:'30',r3:'9',c3:true},A4:{w1:'68.04',r1:'10',c1:true,w2:'68.04',r2:'10',c2:true,w3:'68.04',r3:'10',c3:true},A5:{w1:'50',r1:'10',c1:true,w2:'50',r2:'9',c2:true,w3:'50',r3:'8',c3:true,impl:'Barbell'},A7:{w1:'12',r1:'12',c1:true,w2:'12',r2:'10',c2:true,impl:'Dumbbell'},A8:{w1:'18.14',r1:'12',c1:true,w2:'18.14',r2:'12',c2:true}}},
+  {day:'B',date:'2026-06-22',ex:{B3:{w1:'30',r1:'10',c1:true,w2:'30',r2:'7',c2:true,w3:'30',r3:'7',c3:true},B4:{w1:'77.11',r1:'10',c1:true,w2:'68.04',r2:'10',c2:true,w3:'68.04',r3:'10',c3:true},B5:{w1:'6',r1:'15',c1:true,w2:'6',r2:'15',c2:true,w3:'6',r3:'15',c3:true,impl:'Dumbbell'},B6:{w1:'40.82',r1:'15',c1:true,w2:'40.82',r2:'15',c2:true,w3:'40.82',r3:'10',c3:true},B8:{w1:'14',r1:'12',c1:true,w2:'14',r2:'12',c2:true},B9:{w1:'18.14',r1:'12',c1:true,w2:'18.14',r2:'12',c2:true}}}
   ];
 
   function maybeSeed() {
-    // SEED v7 (2026-06-22): the COMPLETE FitNotes history, so the app and FitNotes hold the same
-    // data and the Coach has full per-exercise history. NON-DESTRUCTIVE: replaces only prior
-    // _seeded rows; a session you logged in-app (no _seeded flag) is never touched or duplicated.
-    if (localStorage.getItem('wo:_seeded') === 'v7') return;
+    // SEED v8 (2026-06-24): the COMPLETE FitNotes history MINUS legs (legs removed from the app),
+    // so the app and FitNotes hold the same non-leg data and the Coach has full per-exercise history.
+    // NON-DESTRUCTIVE: replaces only prior _seeded rows (purging old leg seed data); a session you
+    // logged in-app (no _seeded flag) is never touched or duplicated.
+    if (localStorage.getItem('wo:_seeded') === 'v8') return;
 
     // (1) Drop stale seed-only sessions from earlier versions — _seeded:true payloads only.
     const stale = [];
@@ -2200,19 +2339,13 @@
       localStorage.setItem(k, JSON.stringify(
         Object.assign({ exercises: ex, warmup:{}, cooldown:{}, ts: 1780000000000, _seeded: true }, extra || {})));
     };
-    SEED_V7.forEach(s => put(s.day, s.date, s.ex, s.extra));
+    SEED_V8.forEach(s => put(s.day, s.date, s.ex, s.extra));
 
-    localStorage.setItem('wo:_seeded', 'v7');
+    localStorage.setItem('wo:_seeded', 'v8');
   }
 
-  // Default to the matching day-of-week from the example week (Mon→A, Wed→B, Sat→C)
-  function dayFromDOW() {
-    const dow = new Date().getDay(); // 0=Sun..6=Sat
-    if (dow === 1) return 'A';
-    if (dow === 3) return 'B';
-    if (dow === 6) return 'C';
-    return null; // off day — fall through to last opened
-  }
+  // Next day in the A→B→C→A rotation.
+  function nextDay(d) { return ({ A:'B', B:'C', C:'A' })[d] || 'A'; }
 
   // ============================================================
   // INIT
@@ -2243,15 +2376,20 @@
   function init() {
     maybeSeed();
 
-    // Auto-pick today's day (Mon/Wed/Sat), else fall back to last opened, else A
-    const suggested = dayFromDOW();
-    if (suggested) {
-      currentDay = suggested;
-    } else {
-      const lastRaw = localStorage.getItem(LAST_KEY);
-      if (lastRaw) {
-        const last = JSON.parse(lastRaw);
-        if (last.day && PROGRAM[last.day]) currentDay = last.day;
+    // Auto-rotate: open to the day AFTER the most recent logged workout (A→B→C→A).
+    // If a session already exists for today, show THAT day (mid / just-finished today).
+    currentDay = 'A';
+    const sessions = allSessions();   // newest-first by date
+    if (sessions.length) {
+      const today = todayStr();
+      const todays = sessions.filter(s => s.date === today);
+      if (todays.length) {
+        let pick = todays[0].day;
+        try { const last = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
+              if (last && last.date === today && todays.some(s => s.day === last.day)) pick = last.day; } catch (e) {}
+        currentDay = pick;
+      } else {
+        currentDay = nextDay(sessions[0].day);
       }
     }
 
@@ -2272,6 +2410,9 @@
 
     // Kick off offline-video setup (download on first online open; instant after)
     ensureVideos();
+
+    // Tick the live workout duration once a second (cheap — only rewrites #statDur).
+    setInterval(updateDuration, 1000);
   }
 
   // Keep screen awake during workout
