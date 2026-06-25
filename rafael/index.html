@@ -1,0 +1,2322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Rafael · 3-Day Recomp</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Rafael Gym">
+<link rel="apple-touch-icon" href="https://mikhaeelatefrizk.github.io/workout-tracker/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="https://mikhaeelatefrizk.github.io/workout-tracker/icon-192.png">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --ease:cubic-bezier(.4,0,.2,1);
+    --ease-out:cubic-bezier(.16,1,.3,1);
+    --spring:cubic-bezier(.34,1.4,.5,1);
+    --r-sm:9px; --r-md:13px; --r-lg:16px; --r-xl:22px;
+    --dur:.22s;
+  }
+  /* ===== Pure monochrome themes — black / white + greys only ===== */
+  :root, body[data-theme="dark"]{
+    --bg:#000000; --card:#141416; --card2:#1c1c20; --border:#2c2c31;
+    --text:#fafafa; --muted:#a2a2a8; --muted2:#6c6c74;
+    --accent:#ffffff; --accent2:#ffffff; --accent-rgb:255,255,255;
+    --on-accent:#000000; --field:#17171a; --tint:255,255,255;
+    --good:#ffffff; --warn:#c9c9cf; --bad:#bdbdc4;
+    --hairline:rgba(var(--tint),.06);
+    --elev-1:0 1px 2px rgba(0,0,0,.5);
+    --elev-2:0 6px 22px rgba(0,0,0,.5);
+    --elev-3:0 16px 46px rgba(0,0,0,.62);
+    --ring:0 0 0 2px rgba(var(--tint),.5);
+    color-scheme:dark;
+  }
+  body[data-theme="light"]{
+    --bg:#ffffff; --card:#f4f4f6; --card2:#e9e9ee; --border:#d7d7de;
+    --text:#0b0b0c; --muted:#5b5b63; --muted2:#9a9aa2;
+    --accent:#0b0b0c; --accent2:#0b0b0c; --accent-rgb:0,0,0;
+    --on-accent:#ffffff; --field:#ffffff; --tint:0,0,0;
+    --good:#0b0b0c; --warn:#555555; --bad:#666666;
+    --hairline:rgba(var(--tint),.10);
+    --elev-1:0 1px 2px rgba(0,0,0,.07);
+    --elev-2:0 6px 20px rgba(0,0,0,.10);
+    --elev-3:0 14px 38px rgba(0,0,0,.16);
+    --ring:0 0 0 2px rgba(var(--tint),.45);
+    color-scheme:light;
+  }
+  html{font-size:clamp(15px,4.1vw,17px)}
+  html,body{min-height:100%}
+  body{
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    line-height:1.5;
+    background:var(--bg);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    padding:env(safe-area-inset-top) max(14px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 132px) max(14px,env(safe-area-inset-left));
+    max-width:760px; margin:0 auto; overscroll-behavior:none;
+    transition:background .45s var(--ease);
+  }
+  ::selection{background:rgba(var(--accent-rgb),.3)}
+  :focus-visible{outline:none; box-shadow:var(--ring)}
+  /* Monochrome: all days share one accent (from the active theme) — differentiated by label, not colour */
+
+  /* HEADER */
+  header{
+    padding:14px 0 12px; margin-bottom:14px; position:sticky; top:0; z-index:9;
+    background:var(--bg); border-bottom:1px solid var(--border);
+  }
+  h1{font-size:1.34rem;font-weight:800;letter-spacing:-0.025em;display:flex;align-items:center;gap:10px}
+  h1 .dot{width:9px;height:9px;border-radius:50%;background:var(--text);transition:background .3s var(--ease)}
+  .theme-btn{margin-left:auto;flex-shrink:0;width:44px;height:44px;border-radius:11px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:1.05rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;transition:transform .12s var(--ease),background var(--dur),border-color var(--dur)}
+  .theme-btn:active{transform:scale(.9)}
+  .sub{color:var(--muted);font-size:.78rem;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .sub b{color:var(--accent2)}
+  .sub .offline{color:var(--good);font-weight:700}
+
+  /* DAY TABS */
+  .tabs{display:flex;gap:5px;margin-top:13px;background:rgba(var(--tint),.035);padding:5px;border-radius:15px;border:1px solid var(--hairline);box-shadow:inset 0 1px 0 var(--hairline),var(--elev-1)}
+  .tab{flex:1;padding:11px 6px;border-radius:11px;font-weight:700;font-size:.84rem;text-align:center;cursor:pointer;color:var(--muted);background:transparent;border:none;font-family:inherit;letter-spacing:0.03em;transition:color var(--dur) var(--ease),background var(--dur) var(--ease),box-shadow var(--dur) var(--ease),transform .12s var(--ease);position:relative}
+  .tab:active{transform:scale(.95)}
+  .tab.active{color:var(--accent);background:rgba(var(--accent-rgb),.11);box-shadow:inset 0 0 0 1px rgba(var(--accent-rgb),.3)}
+  .tab .small{display:block;font-size:.62rem;font-weight:600;opacity:0.62;margin-top:3px;letter-spacing:0.05em;text-transform:uppercase}
+
+  /* DATE PICKER */
+  .date-row{margin-top:11px;display:flex;gap:8px;align-items:center;font-size:.8rem}
+  .date-row label{color:var(--muted2);font-size:.74rem;white-space:nowrap}
+  .date-row input[type="date"]{flex:1;min-height:44px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:var(--r-sm);padding:8px 12px;font-family:inherit;font-size:.82rem;transition:border-color var(--dur),box-shadow var(--dur)}
+  .date-row input[type="date"]:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
+  .date-row button.today{min-height:42px;background:var(--card2);border:1px solid var(--border);color:var(--accent2);border-radius:var(--r-sm);padding:8px 16px;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;transition:transform .12s var(--ease),border-color var(--dur)}
+  .date-row button.today:active{transform:scale(.95)}
+
+  /* UNIT TOGGLE (kg / lb) */
+  .unit-row{margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .unit-cap{font-size:.72rem;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:.1em}
+  .unit-seg{display:inline-flex;background:rgba(var(--tint),.04);border:1px solid var(--border);border-radius:11px;padding:3px;gap:3px}
+  .unit-opt{min-width:48px;min-height:40px;padding:7px 16px;border:none;background:transparent;color:var(--muted);font-weight:800;font-size:.82rem;border-radius:8px;cursor:pointer;font-family:inherit;letter-spacing:.05em;transition:background var(--dur),color var(--dur),transform .12s var(--ease)}
+  .unit-opt:active{transform:scale(.93)}
+  .unit-opt.active{background:var(--text);color:var(--on-accent)}
+  .unit-note{font-size:.66rem;color:var(--muted2);opacity:.85;font-style:italic}
+
+  /* COLLAPSIBLE HEADER CONTROLS (date + default unit) */
+  .hdr-toggle{width:100%;margin-top:11px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:10px 14px;font-family:inherit;font-size:.76rem;font-weight:700;letter-spacing:.01em;color:var(--muted);cursor:pointer;transition:background var(--dur),transform .12s var(--ease)}
+  .hdr-toggle:active{transform:scale(.99)}
+  .hdr-chev{font-size:1.05rem;line-height:1;color:var(--muted2);transition:transform .3s var(--spring);transform:rotate(0deg);flex-shrink:0}
+  .hdr-toggle[aria-expanded="true"] .hdr-chev{transform:rotate(90deg)}
+  .hdr-controls{display:grid;grid-template-rows:1fr;transition:grid-template-rows .3s var(--ease),opacity .25s var(--ease);opacity:1}
+  .hdr-controls.collapsed{grid-template-rows:0fr;opacity:0;pointer-events:none}
+  .hdr-inner{overflow:hidden;min-height:0}
+
+  /* EQUIPMENT SELECTOR (dumbbell / barbell / machine) */
+  .impl-row{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .impl-cap{font-size:.64rem;color:var(--muted2);font-weight:800;text-transform:uppercase;letter-spacing:.1em}
+  .impl-seg{display:inline-flex;background:rgba(var(--tint),.04);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px}
+  .impl-opt{min-height:40px;padding:8px 15px;border:none;background:transparent;color:var(--muted);font-weight:700;font-size:.8rem;border-radius:7px;cursor:pointer;font-family:inherit;transition:background var(--dur),color var(--dur),transform .12s var(--ease)}
+  .impl-opt:active{transform:scale(.92)}
+  .impl-opt.active{background:var(--text);color:var(--on-accent)}
+
+  .progress-bar{height:7px;background:rgba(var(--tint),.05);border-radius:99px;margin-top:13px;overflow:hidden;position:relative;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
+  .progress-fill{height:100%;width:0%;border-radius:99px;background:var(--text);transition:width .45s var(--ease-out)}
+
+  /* RULES */
+  .rules{background:var(--card);border:1px solid var(--border);border-left:2px solid var(--muted2);border-radius:var(--r-md);padding:14px 15px;margin-bottom:14px;box-shadow:var(--elev-1)}
+  .rules h2{font-size:.68rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin-bottom:9px}
+  .rules ul{padding-left:18px;font-size:.84rem;line-height:1.55}
+  .rules li{margin:5px 0}
+  .rules b{color:var(--accent2)}
+
+  /* SECTION */
+  section{margin-bottom:16px}
+  h2.sec{font-size:.68rem;font-weight:800;color:var(--muted2);text-transform:uppercase;letter-spacing:0.18em;margin:20px 0 11px;padding-left:2px;display:flex;align-items:center;gap:8px}
+
+  /* COLLAPSIBLE SECTIONS (minimize/maximize) */
+  .csec{margin:18px 0 16px}
+  .csec-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:transparent;border:none;cursor:pointer;font-family:inherit;text-align:left;padding:7px 2px;-webkit-tap-highlight-color:transparent;transition:opacity var(--dur)}
+  .csec-head:active{opacity:.6}
+  .csec-head .csec-t{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:var(--muted2);display:flex;align-items:baseline;gap:9px;transition:color var(--dur)}
+  .csec:not(.collapsed) .csec-head .csec-t{color:var(--muted)}
+  .csec-head .csec-sub{font-size:.62rem;font-weight:500;letter-spacing:0.02em;color:var(--muted2);text-transform:none;opacity:.85}
+  .csec-chev{font-size:1.1rem;line-height:1;color:var(--muted2);transition:transform .32s var(--spring),color var(--dur);transform:rotate(90deg);flex-shrink:0}
+  .csec.collapsed .csec-chev{transform:rotate(0deg)}
+  .csec.collapsed .csec-head .csec-t{color:var(--muted2)}
+  .csec-body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .34s var(--ease),opacity .26s var(--ease);opacity:1}
+  .csec.collapsed .csec-body{grid-template-rows:0fr;opacity:0}
+  .csec-inner{overflow:hidden;min-height:0}
+  /* rules-box flavour: keep the boxed look, header in accent gold */
+  .rules.csec{padding:6px 13px 4px}
+  .rules.csec.collapsed{padding-bottom:6px}
+  .rules .csec-head{padding:9px 2px}
+  .rules .csec-head .csec-t{color:var(--accent2);font-size:.7rem;letter-spacing:0.13em}
+  .rules.csec:not(.collapsed) .csec-head .csec-t{color:var(--accent2)}
+  .rules .csec-chev{color:var(--accent2)}
+  .rules .csec-inner{padding-bottom:9px}
+
+  /* CARD */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:11px;overflow:hidden;box-shadow:var(--elev-1);transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease),transform var(--dur) var(--ease);animation:card-in .42s var(--ease-out) both;will-change:transform,opacity}
+  @keyframes card-in{from{opacity:0;transform:translateY(12px) scale(.99)}to{opacity:1;transform:none}}
+  .card:nth-child(1){animation-delay:.02s}.card:nth-child(2){animation-delay:.05s}.card:nth-child(3){animation-delay:.08s}.card:nth-child(4){animation-delay:.11s}.card:nth-child(5){animation-delay:.14s}.card:nth-child(6){animation-delay:.17s}.card:nth-child(7){animation-delay:.20s}.card:nth-child(8){animation-delay:.23s}.card:nth-child(9){animation-delay:.26s}
+  .card.open{border-color:rgba(var(--accent-rgb),.3);box-shadow:var(--elev-2),inset 0 1px 0 var(--hairline)}
+  .card.done{border-color:var(--muted2);background:var(--card2);box-shadow:inset 3px 0 0 var(--text),var(--elev-1)}
+  .card-head{display:flex;align-items:center;gap:11px;padding:14px 13px;cursor:pointer;user-select:none;-webkit-user-select:none}
+  .num{flex-shrink:0;width:32px;height:32px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.82rem;color:var(--accent2);box-shadow:inset 0 0 0 1px var(--hairline);transition:background var(--dur),color var(--dur)}
+  .card.open .num{background:rgba(var(--accent-rgb),.16);color:var(--accent);box-shadow:inset 0 0 0 1px rgba(var(--accent-rgb),.35)}
+  .card.done .num{background:rgba(var(--tint),.12);color:var(--text);box-shadow:inset 0 0 0 1px rgba(var(--tint),.3)}
+  .card-title{flex:1;min-width:0}
+  .card-title .name{font-weight:700;font-size:.97rem;letter-spacing:-0.01em;line-height:1.25}
+  .card-title .meta{color:var(--muted2);font-size:.72rem;margin-top:3px}
+  .chev{color:var(--muted2);font-size:1.25rem;line-height:1;transition:transform .3s var(--spring),color var(--dur);flex-shrink:0}
+  .card.open .chev{transform:rotate(90deg);color:var(--accent)}
+
+  /* smooth height via max-height (bulletproof everywhere); inner opacity-fade masks the easing */
+  .card-body{max-height:0;overflow:hidden;border-top:1px solid transparent;transition:max-height .34s var(--ease),border-top-color .24s var(--ease)}
+  .card.open .card-body{max-height:2400px;border-top-color:var(--border)}
+  .card-body-inner{padding:3px 13px 14px;opacity:0;transform:translateY(-6px);transition:opacity .25s var(--ease),transform .28s var(--ease)}
+  .card.open .card-body-inner{opacity:1;transform:none;transition:opacity .3s var(--ease) .06s,transform .34s var(--ease) .06s}
+
+  /* LAST SESSION CHIP */
+  .last-session{background:rgba(var(--tint),.03);border:1px solid var(--hairline);border-left:2px solid var(--muted);border-radius:var(--r-sm);padding:9px 12px;margin-top:12px;font-size:.78rem;color:var(--muted);line-height:1.5}
+  .last-session b{color:var(--text);font-weight:700}
+  .last-session .target{color:var(--text);font-weight:800}
+  .last-session.none{color:var(--muted2);font-style:italic}
+  .coach-tag{display:inline-block;font-size:.58rem;font-weight:800;letter-spacing:.1em;color:var(--on-accent);background:var(--text);border-radius:5px;padding:2px 6px;vertical-align:middle;margin-right:2px}
+  .last-session.is-deload{border-left-color:var(--text);border-left-style:dashed;background:rgba(var(--tint),.05)}
+  .last-session .target.deload{color:var(--text);text-decoration:underline;text-underline-offset:3px}
+
+  /* CUE BLOCKS */
+  .block{background:rgba(var(--tint),.022);border:1px solid var(--hairline);border-radius:var(--r-sm);padding:12px;margin-top:11px}
+  .block h4{font-size:.66rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted2);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .block ul{padding-left:16px;font-size:.86rem;line-height:1.55}
+  .block ul li{margin:4px 0}
+  .block ul li::marker{color:rgba(var(--accent-rgb),.32)}
+  .block.cue{border-left:2px solid var(--text)}
+  .block.cue h4{color:var(--text)}
+  .block.bad{border-left:2px dashed var(--muted)}
+  .block.bad h4{color:var(--muted)}
+  .block.bad ul li::marker{color:var(--muted2)}
+  .block.feel{border-left:2px dotted var(--muted)}
+  .block.feel h4{color:var(--muted)}
+  .block.feel ul li::marker{color:var(--muted2)}
+
+  /* SETS TABLE */
+  .sets{margin-top:13px;background:var(--card2);border-radius:var(--r-sm);padding:10px;border:1px solid var(--hairline)}
+  .sets-header{display:grid;grid-template-columns:24px 1.35fr 1fr 46px;gap:9px;padding:0 4px 7px;font-size:.6rem;text-transform:uppercase;color:var(--muted2);letter-spacing:0.1em;font-weight:700}
+  .sets-header > div{text-align:center}
+  .set-row{display:grid;grid-template-columns:24px 1.35fr 1fr 46px;gap:9px;align-items:center;padding:6px 4px;border-top:1px solid var(--hairline)}
+  .set-row .lbl{font-weight:800;color:var(--muted2);font-size:.8rem;text-align:center}
+  .set-row input[type=number]{background:var(--field);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:13px 6px;font-size:1.08rem;font-weight:700;width:100%;min-width:0;text-align:center;font-family:inherit;font-variant-numeric:tabular-nums;transition:border-color var(--dur),box-shadow var(--dur),background var(--dur);-moz-appearance:textfield}
+  .set-row input[type=number]::-webkit-outer-spin-button,.set-row input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .set-row input:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:var(--ring)}
+  .set-row input::placeholder{color:var(--muted2);font-weight:500}
+  .set-row .check{appearance:none;-webkit-appearance:none;width:36px;height:36px;border:2px solid var(--border);border-radius:10px;cursor:pointer;background:var(--field);justify-self:center;position:relative;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),transform .15s var(--spring)}
+  .set-row .check:active{transform:scale(.88)}
+  .set-row .check:checked{background:var(--good);border-color:var(--good);animation:check-pop .28s var(--spring)}
+  .set-row .check:checked::after{content:"";position:absolute;left:12px;top:5px;width:9px;height:16px;border:solid var(--on-accent);border-width:0 3px 3px 0;transform:rotate(45deg)}
+  @keyframes check-pop{0%{transform:scale(.6)}55%{transform:scale(1.18)}100%{transform:scale(1)}}
+  /* add / remove a set */
+  .set-ctl{display:flex;gap:8px;justify-content:flex-end;padding:9px 4px 1px;border-top:1px solid var(--hairline);margin-top:2px}
+  .set-ctl-btn{min-height:34px;padding:6px 14px;border:1px solid var(--border);background:var(--card2);color:var(--muted);border-radius:var(--r-sm);font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer;transition:transform .12s var(--ease),color var(--dur),border-color var(--dur)}
+  .set-ctl-btn:active{transform:scale(.94)}
+  .set-ctl-btn:disabled{opacity:.34;cursor:default}
+  .set-ctl-btn:not(:disabled):hover{color:var(--text);border-color:var(--text)}
+
+  /* BUTTONS */
+  .btn-row{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .btn{position:relative;overflow:hidden;flex:1;min-width:110px;min-height:44px;padding:11px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:.82rem;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;transition:transform .12s var(--ease),border-color var(--dur),background var(--dur)}
+  .btn:active{transform:scale(0.96)}
+  .btn::after{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at center,rgba(var(--accent-rgb),.22),transparent 60%);opacity:0;transform:scale(.3);transition:transform .5s var(--ease-out),opacity .6s}
+  .btn:active::after{opacity:1;transform:scale(1.1);transition-duration:0s}
+
+  /* VIDEO */
+  .video-wrap{margin-top:12px}
+  .video-btn{width:100%;min-height:48px;border:1px solid var(--border);background:var(--card2);color:var(--text);border-radius:var(--r-md);font-family:inherit;font-weight:700;font-size:.86rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .12s var(--ease),background var(--dur),border-color var(--dur)}
+  .video-btn:active{transform:scale(.98)}
+  .form-video{width:100%;display:block;max-height:42vh;background:#000;border:1px solid var(--border);border-radius:var(--r-md)}
+  .form-video[hidden]{display:none}
+
+  /* Collapsible form-cues disclosure (glance-once reference, below the sets) */
+  .form-notes{margin-top:12px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--card2);overflow:hidden}
+  .form-notes summary{list-style:none;cursor:pointer;min-height:46px;padding:12px 14px;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .form-notes summary::-webkit-details-marker{display:none}
+  .form-notes summary::after{content:'›';margin-left:auto;font-size:1.15rem;color:var(--muted2);transition:transform .3s var(--spring)}
+  .form-notes[open] summary::after{transform:rotate(90deg)}
+  .form-notes-body{padding:0 12px 12px}
+  .form-notes-body .block:first-child{margin-top:0}
+
+  /* WARMUP / STRETCH lists */
+  .checklist{list-style:none;padding:0}
+  .checklist li{display:flex;align-items:flex-start;gap:11px;padding:12px 13px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:8px;cursor:pointer;font-size:.86rem;box-shadow:var(--elev-1);transition:opacity var(--dur),border-color var(--dur),transform .12s var(--ease);animation:card-in .4s var(--ease-out) both}
+  .checklist li:active{transform:scale(.99)}
+  .checklist li.done{opacity:0.5}
+  .checklist li.done > div > b{text-decoration:line-through}
+  .checklist li input{appearance:none;-webkit-appearance:none;flex-shrink:0;width:24px;height:24px;border:2px solid var(--border);border-radius:8px;cursor:pointer;background:var(--field);position:relative;margin-top:1px;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),transform .15s var(--spring)}
+  .checklist li input:checked{background:var(--good);border-color:var(--good);animation:check-pop .28s var(--spring)}
+  .checklist li input:checked::after{content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;border:solid var(--on-accent);border-width:0 3px 3px 0;transform:rotate(45deg)}
+  .checklist li b{font-weight:700}
+  .checklist .det{color:var(--muted2);font-size:.74rem;margin-top:3px;line-height:1.45}
+
+  /* TIMER */
+  .timer-fab{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom));left:12px;right:12px;max-width:736px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:10px 11px;display:flex;align-items:center;gap:9px;box-shadow:var(--elev-3);z-index:20;animation:fab-in .5s var(--ease-out) both}
+  @keyframes fab-in{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.timer-fab{background:var(--card)}}
+  .timer-display{flex:1;font-variant-numeric:tabular-nums;font-weight:800;font-size:1.4rem;letter-spacing:-0.02em;padding-left:6px;color:var(--muted2);transition:color var(--dur)}
+  .timer-display.run{color:var(--text)}
+  .timer-display.done{color:var(--text);animation:pulse 0.9s var(--ease) infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+  .tbtn{min-height:42px;padding:9px 13px;border-radius:11px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-weight:800;font-size:.78rem;cursor:pointer;font-family:inherit;transition:transform .12s var(--ease)}
+  .tbtn:active{transform:scale(.93)}
+  .tbtn.go{background:var(--text);border-color:transparent;color:var(--on-accent)}
+
+  /* FOOTER */
+  footer{margin-top:30px;padding:20px 12px;text-align:center;color:var(--muted2);font-size:.74rem;border-top:1px solid var(--hairline)}
+  .footer-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+  .footer-btns button{min-height:44px;padding:10px 18px;border-radius:var(--r-sm);font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .12s var(--ease)}
+  .footer-btns button:active{transform:scale(.96)}
+  .export-btn{color:var(--on-accent);background:var(--text);border:none}
+  .save-btn{color:var(--text);background:transparent;border:1px solid var(--muted2)}
+  .load-btn{color:var(--text);background:transparent;border:1px solid var(--border)}
+  .reset-btn{color:var(--muted);background:transparent;border:1px solid var(--border)}
+  .persist-note{margin-top:12px;font-size:.7rem;color:var(--muted2);line-height:1.5}
+  /* loud at-risk banner (monochrome but high-contrast, so it stands out in B&W) */
+  .persist-warn{margin:0 0 12px;padding:11px 14px;border:2px solid var(--text);border-radius:var(--r-md);background:var(--text);color:var(--bg);font-size:.76rem;line-height:1.45;font-weight:600}
+  .persist-warn b{font-weight:800}
+  .persist-warn button{margin-left:6px;border:1px solid var(--bg);background:transparent;color:var(--bg);font-family:inherit;font-weight:800;font-size:.72rem;border-radius:8px;padding:5px 12px;min-height:34px;cursor:pointer}
+
+  /* EXPORT MODAL — premium bottom sheet */
+  .modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);animation:overlay-in .22s var(--ease) both}
+  @keyframes overlay-in{from{opacity:0}to{opacity:1}}
+  .modal-card{position:relative;width:100%;max-width:760px;max-height:90vh;display:flex;flex-direction:column;gap:11px;background:var(--card);border:1px solid var(--border);border-bottom:0;border-radius:var(--r-xl) var(--r-xl) 0 0;padding:22px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:var(--elev-3);animation:sheet-up .34s var(--ease-out) both}
+  .modal-card::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:40px;height:4px;border-radius:99px;background:var(--border)}
+  @keyframes sheet-up{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+  .modal-card h3{color:var(--text);font-size:1.02rem;font-weight:800;margin-top:2px}
+  .modal .pick{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .modal .pick button,.modal .row button{min-height:50px;border-radius:var(--r-md);font-family:inherit;font-weight:700;font-size:.82rem;cursor:pointer;transition:transform .12s var(--ease)}
+  .modal .pick button:active,.modal .row button:active{transform:scale(.96)}
+  .modal .pick button{padding:12px 10px;border:1px solid var(--border);background:var(--card2);color:var(--text)}
+  .modal .pick small{opacity:.55;font-weight:400;display:block;font-size:.66rem;margin-top:3px}
+  .modal textarea{flex:1;min-height:40vh;background:var(--field);color:var(--text);border:1px solid var(--border);border-radius:var(--r-md);padding:13px;font-size:.72rem;line-height:1.5;font-family:ui-monospace,Menlo,monospace;resize:none;white-space:pre}
+  .modal .row{display:flex;gap:8px;flex-wrap:wrap}
+  .modal .row button{flex:1;min-width:80px;border:1px solid var(--border)}
+  .modal .share{background:var(--text);color:var(--on-accent);border-color:var(--text)}
+  .modal .copy{background:var(--card2);color:var(--text)}
+  .modal .copy.ok{background:var(--accent);color:var(--on-accent);border-color:var(--accent)} .modal .copy.fail{background:var(--card2);color:var(--text);border-style:dashed}
+  .modal .dl{background:var(--card2);color:var(--text)}
+  .modal .close{background:var(--card2);color:var(--text)}
+
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;vertical-align:middle}
+  .pill.opt{background:rgba(var(--tint),.1);color:var(--muted);border:1px solid var(--border)}
+
+  details summary{cursor:pointer;color:var(--muted);font-size:.8rem;padding:4px 0}
+  details[open] summary{color:var(--text)}
+
+  .hint{color:var(--muted2);font-size:.72rem;padding:2px 4px 0;font-weight:400;letter-spacing:0;text-transform:none}
+
+  /* DOWNLOAD BAR (first-run video caching) */
+  .dlbar{display:none;align-items:center;gap:11px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:11px 14px;margin:8px 0 0;font-size:.78rem;color:var(--muted);box-shadow:var(--elev-1)}
+  .dlbar.show{display:flex;animation:card-in .35s var(--ease-out) both}
+  .dlbar #dlmsg{flex:1;min-width:0}
+  .dlbar .bar{width:84px;flex-shrink:0;height:7px;background:var(--card2);border-radius:99px;overflow:hidden}
+  .dlbar .bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--text);transition:width .35s var(--ease-out)}
+  .dlbar.warn{background:var(--card);color:var(--text);border-color:var(--muted2);border-style:dashed}
+  .dlbar.done{background:var(--card);color:var(--text);border-color:var(--muted)}
+  .dlbar.done .bar i{background:var(--text)}
+
+  /* VIDEO substitution note */
+  .video-note{background:rgba(var(--tint),.03);border:1px solid var(--hairline);border-left:3px solid var(--muted2);border-radius:var(--r-sm);padding:10px 12px;margin-top:9px;font-size:.74rem;color:var(--muted);line-height:1.5}
+
+  /* ===================== v3 ENHANCEMENTS ===================== */
+  /* (Monochrome: ambient glow removed entirely for a calm, flat backdrop) */
+  body::before{content:none}
+
+  /* Stepper number inputs */
+  .st:active{transform:scale(.85);background:rgba(var(--accent-rgb),.2);color:var(--accent)}
+
+  /* completed set row highlight */
+  .set-row{transition:background .25s var(--ease),box-shadow .25s var(--ease)}
+  .set-row.set-done{background:rgba(var(--tint),.05);box-shadow:inset 3px 0 0 var(--text)}
+  .set-row.set-done input[type=number]{border-color:rgba(var(--tint),.28)}
+
+  /* header live session stats */
+  .stats{margin-top:10px;display:flex;align-items:center;gap:9px;font-size:.72rem;color:var(--muted2);font-variant-numeric:tabular-nums;flex-wrap:wrap}
+  .stats .stat{display:inline-flex;align-items:baseline;gap:4px}
+  .stats .stat b{color:var(--text);font-weight:800;font-size:.82rem;transition:color var(--dur)}
+  .stats .stat.vol b{color:var(--accent2)}
+  .stats .stat.complete b{color:var(--good)}
+  .stats .dot-sep{width:3px;height:3px;border-radius:50%;background:var(--border);align-self:center}
+  .stats .stat.dur b{color:var(--text)}
+
+  /* stats: per-workout summary + history modal */
+  .sum-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 12px}
+  .sum-grid > div{background:var(--field);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 6px;text-align:center;display:flex;flex-direction:column;gap:2px}
+  .sum-grid b{color:var(--text);font-size:1.05rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .sum-grid span{color:var(--muted2);font-size:.6rem;text-transform:uppercase;letter-spacing:.06em}
+  .sum-tbl{width:100%;border-collapse:collapse;font-size:.76rem;font-variant-numeric:tabular-nums}
+  .sum-tbl th{text-align:left;color:var(--muted2);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;padding:4px 6px;border-bottom:1px solid var(--border)}
+  .sum-tbl td{padding:6px;border-bottom:1px solid var(--hairline);color:var(--text)}
+  .sum-tbl td:first-child{color:var(--muted)}
+  .sum-tbl td:not(:first-child),.sum-tbl th:not(:first-child){text-align:right}
+
+  /* auto-rest toggle (in timer bar) */
+  .auto-toggle{flex-shrink:0;min-height:42px;padding:6px 11px;border-radius:11px;border:1px solid var(--border);background:var(--card2);color:var(--muted2);font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:.05em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.05;transition:color var(--dur),background var(--dur),border-color var(--dur),transform .12s var(--ease)}
+  .auto-toggle:active{transform:scale(.94)}
+  .auto-toggle .al{font-size:.52rem;opacity:.8}
+  .auto-toggle .av{font-size:.66rem;font-weight:800}
+  .auto-toggle.on{color:var(--accent);background:rgba(var(--accent-rgb),.14);border-color:rgba(var(--accent-rgb),.42)}
+
+  /* Toasts */
+  #toastWrap{position:fixed;left:0;right:0;bottom:calc(86px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:8px;z-index:1100;pointer-events:none;padding:0 16px}
+  .toast{max-width:94%;background:var(--card);border:1px solid var(--border);border-radius:99px;padding:11px 18px;font-size:.8rem;font-weight:600;color:var(--text);box-shadow:var(--elev-3);display:flex;align-items:center;gap:8px;animation:toast-in .32s var(--ease-out) both}
+  .toast .ti{font-size:1rem}
+  .toast.good{border-color:rgba(var(--tint),.4)}
+  .toast.out{animation:toast-out .3s var(--ease) forwards}
+  @keyframes toast-in{from{opacity:0;transform:translateY(18px) scale(.94)}to{opacity:1;transform:none}}
+  @keyframes toast-out{to{opacity:0;transform:translateY(10px) scale(.96)}}
+
+  /* Confetti burst on completion */
+  .confetti{position:fixed;top:-14px;z-index:1200;width:9px;height:14px;border-radius:2px;pointer-events:none;will-change:transform,opacity;animation:confetti-fall linear forwards}
+  @keyframes confetti-fall{0%{opacity:1;transform:translateY(-10px) rotate(0)}100%{opacity:0;transform:translateY(110vh) rotate(680deg)}}
+
+  /* REDUCED MOTION */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  }
+</style>
+</head>
+<body data-day="A">
+
+<div class="dlbar" id="dlbar">
+  <span id="dlmsg">Preparing videos…</span>
+  <div class="bar"><i id="dlfill"></i></div>
+</div>
+
+<div class="persist-warn" id="persistWarn" hidden>
+  ℹ <b>Make it permanent:</b> open this page in Safari → Share → <b>Add to Home Screen</b>, then use the icon (works offline, data stays put). Tip: tap <b>⬇ Export</b> after a session to keep a WhatsApp backup too. <button type="button" onclick="installHelp()">How?</button>
+</div>
+
+<header>
+  <h1><span class="dot"></span><span id="programTitle">Rafael · Recomp</span><button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle light or dark mode">☀</button></h1>
+  <div class="sub">
+    <span id="daySub">Day A · Upper</span> · 1–2 RIR · <span class="offline">● OFFLINE</span>
+  </div>
+  <div class="tabs" role="tablist">
+    <button class="tab" data-day="A" onclick="switchDay('A')">A<span class="small">Chest · Back · Arms</span></button>
+    <button class="tab" data-day="B" onclick="switchDay('B')">B<span class="small">Lats · Shoulders</span></button>
+    <button class="tab" data-day="C" onclick="switchDay('C')">C<span class="small">Arms · Delts · Mix</span></button>
+  </div>
+  <button class="hdr-toggle" id="hdrToggle" onclick="toggleHdr()" aria-expanded="false">
+    <span id="hdrSummary">📅 Today · kg</span><span class="hdr-chev">›</span>
+  </button>
+  <div class="hdr-controls collapsed" id="hdrControls"><div class="hdr-inner">
+    <div class="date-row">
+      <label for="dateInp">Session date:</label>
+      <input type="date" id="dateInp" oninput="onDateChange()">
+      <button class="today" onclick="setToday()">Today</button>
+    </div>
+    <div class="unit-row">
+      <span class="unit-cap">Default unit</span>
+      <div class="unit-seg" role="group" aria-label="Default weight unit">
+        <button class="unit-opt active" data-u="kg" onclick="setUnit('kg')">kg</button>
+        <button class="unit-opt" data-u="lb" onclick="setUnit('lb')">lb</button>
+      </div>
+      <span class="unit-note">set per-exercise too · saved as kg</span>
+    </div>
+  </div></div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="stats" id="statsLine">
+    <span class="stat" id="statSets"><b id="statDone">0</b>/<span id="statTotal">0</span> sets done</span>
+    <span class="dot-sep"></span>
+    <span class="stat dur"><b id="statDur">—</b> elapsed</span>
+    <span class="dot-sep"></span>
+    <span class="stat vol"><b id="statVol">0</b> <span id="volUnit">kg</span> volume</span>
+  </div>
+</header>
+
+<div class="rules csec" data-key="plan">
+  <button class="csec-head"><span class="csec-t" id="planTitle">▣ Rafael's plan — read first</span><span class="csec-chev">›</span></button>
+  <div class="csec-body"><div class="csec-inner">
+
+    <div class="block bad"><h4>⚕ Before you start — health first</h4><ul>
+      <li>Get a quick doctor check given your starting numbers (BMI 36.8, visceral fat 14): <b>resting blood pressure, fasting glucose/HbA1c, a lipid panel and liver enzymes.</b></li>
+      <li><b>Don't load heavy until your blood pressure is confirmed not high.</b> On every hard rep, exhale through the effort — never hold your breath and strain. Dizzy, seeing stars, head or chest pressure → rack it and stop.</li>
+      <li>If a <b>joint</b> (shoulder, elbow, wrist) hurts during a movement — not just muscle burn — stop that exercise and go lighter. Loud snoring or daytime sleepiness? Ask your doctor about a sleep-apnea screen.</li>
+    </ul></div>
+
+    <div class="block cue"><h4>◆ The goal — recomposition</h4><ul>
+      <li>You already carry a <b>strong muscle base</b> (≈39 kg of muscle) hidden under the fat. The plan is to <b>lose fat — especially the visceral fat — while keeping (and likely adding a little) muscle</b>, so you end up looking leaner AND more muscular.</li>
+      <li><b>Honest timeline:</b> the first 12 weeks is mostly fat loss and sharper definition — real muscle gain is modest and not guaranteed. <b>Abs are a 6–12-month job</b>, not a 12-week one. The first 2–3 weeks of scale drop is partly water.</li>
+      <li>The <b>scale will undersell you</b> (muscle up, fat down). Judge progress by <b>photos, a waist measurement, and the same InBody scan every 4–8 weeks</b> — not bodyweight alone.</li>
+    </ul></div>
+
+    <div class="block cue"><h4>🍽 Eat — this is what actually drives it</h4><ul>
+      <li>Start at <b>~2,400 kcal/day</b> (≈2,350–2,450). Hold it for 2–3 weeks and watch your <b>weekly-average</b> weight: aim for <b>~0.6–0.8 kg/week</b> down. Dropping faster than ~0.9 kg/week → eat a bit more (you'll keep more muscle).</li>
+      <li><b>Protein ~160 g/day</b> — set off your lean mass, not the scale. This is the single most important food rule for keeping muscle while dieting. (Assumes healthy kidneys — worth confirming in that check-up.)</li>
+      <li>Fill the rest with ~60–70 g fat and the remainder carbs, mostly around training. Keep <b>fiber and water high</b> — they kill hunger at this calorie level.</li>
+    </ul></div>
+
+    <div class="block feel"><h4>🚶 Move — legs are out, so this matters MORE</h4><ul>
+      <li><b>8,000–10,000 steps every day</b>, training and rest days. At your bodyweight this quietly burns the most fat of anything you'll do — it replaces the calories a leg day would have burned.</li>
+      <li><b>3× per week, 30–40 min easy cardio</b> at a conversational pace — incline-treadmill walk, bike, elliptical, or rower (<b>not running</b> yet, at your weight). After lifting or on off days. This is also what lowers your visceral fat the most.</li>
+      <li>Steps + protein, hit daily, <b>decide your results more than any exercise choice.</b></li>
+    </ul></div>
+
+    <div class="block cue"><h4>🏋 Lift — 3 days, A → B → C</h4><ul>
+      <li>Each muscle is trained 2–3× a week. <b>Back gets the most</b> — it's your biggest payoff and builds the V-taper that makes your waist look smaller.</li>
+      <li><b>Double progression:</b> beat last session by a rep; hit the top of the range on every set and the Coach adds weight and resets you. Keep 1–2 reps in reserve on the compounds.</li>
+      <li><b>Deload</b> one light week when your logged lifts stall ~2 weeks across several exercises, or sleep/joints/appetite tank — or just every 6–8 weeks. In a deficit, deload a little early rather than grind.</li>
+      <li><b>Later, for your health,</b> it's worth adding some leg work back once you're settled in — lower-body muscle is one of the best tools against the exact visceral-fat / blood-sugar risk you're targeting. Your call, no rush.</li>
+    </ul></div>
+
+  </div></div>
+</div>
+
+<div class="rules csec" data-key="rules">
+  <button class="csec-head"><span class="csec-t" id="rulesTitle">★ Execution rules</span><span class="csec-chev">›</span></button>
+  <div class="csec-body"><div class="csec-inner">
+    <ul>
+      <li><b>Lead with the big lift.</b> Do the first (compound) exercise while you're freshest — log its weight × reps first.</li>
+      <li><b>Leave 1–2 reps in the tank</b> on compounds. Only the last set of cable/machine isolations goes to failure. <b>Form &gt; weight, always.</b></li>
+      <li><b>Breathe — never strain silently.</b> Exhale as you push through the hardest part of every rep. Dizzy, seeing stars, or head/chest pressure → rack it and stop.</li>
+      <li><b>Progression:</b> add a rep each session; hit the top of the range on all sets → the Coach adds weight and you reset to the bottom → climb again.</li>
+      <li><b>Rest</b> ~2–3 min on the heavy compounds, ~60–90 sec on isolations. Use the timer below.</li>
+      <li><b>Log every set.</b> If the numbers aren't climbing over a few weeks, fix sleep, food, or effort — that's the signal, not more exercises.</li>
+    </ul>
+  </div></div>
+</div>
+
+<!-- ====================== WARMUP ====================== -->
+<div class="csec" data-key="warmup">
+  <button class="csec-head"><span class="csec-t">▸ Warm-up <span class="csec-sub">≈5–7 min</span></span><span class="csec-chev">›</span></button>
+  <div class="csec-body"><div class="csec-inner">
+    <ul class="checklist" id="warmupList"></ul>
+  </div></div>
+</div>
+
+<!-- ====================== MAIN WORKOUT ====================== -->
+<div class="csec" data-key="main">
+  <button class="csec-head"><span class="csec-t">▸ Main lifts <span class="csec-sub">tap a card to expand</span></span><span class="csec-chev">›</span></button>
+  <div class="csec-body"><div class="csec-inner">
+    <div id="exerciseContainer"></div>
+  </div></div>
+</div>
+
+<!-- ====================== WORKOUT SUMMARY ====================== -->
+<div class="csec" data-key="summary">
+  <button class="csec-head"><span class="csec-t">📊 Workout summary <span class="csec-sub">this session</span></span><span class="csec-chev">›</span></button>
+  <div class="csec-body"><div class="csec-inner">
+    <div id="summaryBody"></div>
+  </div></div>
+</div>
+
+<!-- ====================== COOLDOWN ====================== -->
+<div class="csec" data-key="cooldown">
+  <button class="csec-head"><span class="csec-t">▸ Cooldown <span class="csec-sub">≈5 min · hold 30–45s</span></span><span class="csec-chev">›</span></button>
+  <div class="csec-body"><div class="csec-inner">
+    <p class="hint">Hold each <b>30–45 sec</b>, no bouncing. Reduces tomorrow's soreness.</p>
+    <ul class="checklist" id="cooldownList"></ul>
+  </div></div>
+</div>
+
+<!-- POST WORKOUT REMINDER -->
+<div class="rules csec" data-key="after">
+  <button class="csec-head"><span class="csec-t">● After your workout</span><span class="csec-chev">›</span></button>
+  <div class="csec-body"><div class="csec-inner">
+    <ul>
+      <li><b>Log your sets</b> before you leave the gym — next session's targets depend on it.</li>
+      <li><b>Eat protein within a couple hours</b> (~40–50g) toward your ~160g for the day. Total daily protein matters most.</li>
+      <li><b>Bank your steps</b> — a 20–30 min walk now is the easiest way to hit 8–10k and burn what a leg day would have.</li>
+      <li><b>Hydrate</b> — aim for pale/clear urine the rest of the day.</li>
+      <li><b>Stay in your deficit.</b> A hard upper-body session burns fewer calories than it feels — don't "reward" it with extra food.</li>
+      <li><b>Sleep 7–9 h tonight.</b> In a deficit, keeping your muscle lives or dies on sleep.</li>
+    </ul>
+  </div></div>
+</div>
+
+<footer>
+  Saved on this device and resumes automatically. For a backup you can keep, save it to your Downloads folder.<br>
+  <div class="footer-btns">
+    <button class="export-btn" onclick="openExport()">⬇ Export / Backup</button>
+    <button class="load-btn" onclick="openStats()">📊 Stats</button>
+    <button class="save-btn" onclick="saveToDownloads()">💾 Save to Downloads</button>
+    <button class="load-btn" onclick="document.getElementById('loadFile').click()">📂 Load backup</button>
+    <button class="reset-btn" onclick="resetCurrent()">↻ Reset this session</button>
+  </div>
+  <input type="file" id="loadFile" accept=".json,application/json" style="display:none" onchange="loadFromFile(event)">
+  <div class="persist-note" id="persistNote"></div>
+</footer>
+
+<!-- REST TIMER FAB -->
+<div class="timer-fab">
+  <div class="timer-display" id="timerDisplay">--:--</div>
+  <button class="auto-toggle" id="autoToggle" onclick="toggleAutoRest()" title="Auto-start rest timer when you check a set"><span class="al">auto</span><span class="av" id="autoVal">ON</span></button>
+  <button class="tbtn go" onclick="startRest(90)">90s</button>
+  <button class="tbtn go" onclick="startRest(120)">120s</button>
+  <button class="tbtn" onclick="stopRest()">Stop</button>
+</div>
+
+<script>
+  // ============================================================
+  // VIDEOS — offline cache.
+  // On first open WITH internet, the 23 AthleanX clips are downloaded
+  // once from VIDEO_BASE and stored permanently in IndexedDB on the
+  // phone. Every open after that (even with zero signal) serves them
+  // straight from local storage. The HTML file itself stays tiny.
+  // ============================================================
+  // Absolute URL to the hosted form clips so this SINGLE FILE works opened straight from
+  // WhatsApp / Files on an iPhone (there's no local videos/ folder and no server). Each clip
+  // streams on tap, and is also cached into IndexedDB for offline use when the browser allows.
+  const VIDEO_BASE = 'https://mikhaeelatefrizk.github.io/workout-tracker/videos/';
+  const VIDEO_VERSION = '1';  // bump to force re-download
+  const IDB_NAME = 'athleanVideos';
+  const IDB_STORE = 'clips';
+  const _objUrls = {};   // slug -> object URL (in-memory cache)
+  let _dbPromise = null;
+
+  function idb() {
+    if (_dbPromise) return _dbPromise;
+    _dbPromise = new Promise((res, rej) => {
+      const r = indexedDB.open(IDB_NAME, 1);
+      r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    return _dbPromise;
+  }
+  function idbGet(db, key) {
+    return new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const rq = tx.objectStore(IDB_STORE).get(key);
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error);
+    });
+  }
+  function idbPut(db, key, val) {
+    return new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(val, key);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  }
+  function idbKeys(db) {
+    return new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const rq = tx.objectStore(IDB_STORE).getAllKeys();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error);
+    });
+  }
+
+  const vkey = slug => `${slug}@${VIDEO_VERSION}`;
+
+  // Return an object URL for a cached clip, or null if not cached yet.
+  async function getVideoURL(slug) {
+    if (_objUrls[slug]) return _objUrls[slug];
+    try {
+      const db = await idb();
+      const blob = await idbGet(db, vkey(slug));
+      if (!blob) return null;
+      const url = URL.createObjectURL(blob);
+      _objUrls[slug] = url;
+      return url;
+    } catch (e) { return null; }
+  }
+
+  // Wire a <video> element to its cached clip (lazy — only when its card opens).
+  async function wireVideo(videoEl) {
+    if (!videoEl || videoEl.dataset.wired) return;
+    const slug = videoEl.closest('.video-wrap').dataset.slug;
+    let url = await getVideoURL(slug);              // cached offline blob, if we have it
+    if (!url) url = VIDEO_BASE + slug + '.mp4';     // otherwise stream the hosted clip live
+    videoEl.src = url; videoEl.dataset.wired = '1';
+  }
+  function wireOpenCards() {
+    document.querySelectorAll('.card.open video.form-video').forEach(wireVideo);
+  }
+
+  // List of all slugs used by the program (computed once).
+  function allSlugs() {
+    const s = new Set();
+    for (const d of Object.values(PROGRAM)) for (const e of d.exercises) s.add(e.video);
+    return [...s];
+  }
+
+  // First-run / resume download of any missing clips. Shows a progress bar.
+  async function ensureVideos() {
+    const bar = document.getElementById('dlbar');
+    const msg = document.getElementById('dlmsg');
+    const fill = document.getElementById('dlfill');
+    let db;
+    try { db = await idb(); }
+    catch (e) { return; } // IndexedDB unavailable — videos just won't show; tracker still works
+
+    const slugs = allSlugs();
+    const have = new Set(await idbKeys(db));
+    const missing = slugs.filter(s => !have.has(vkey(s)));
+
+    if (missing.length === 0) { wireOpenCards(); return; }
+
+    if (!navigator.onLine) return;   // offline now — clips will stream + cache next time online
+
+    bar.className = 'dlbar show';
+    let done = slugs.length - missing.length;
+    for (const slug of missing) {
+      msg.textContent = `Downloading AthleanX videos for offline use… ${done}/${slugs.length}`;
+      fill.style.width = Math.round(done / slugs.length * 100) + '%';
+      try {
+        const resp = await fetch(VIDEO_BASE + slug + '.mp4', { cache: 'no-store' });
+        if (!resp.ok) throw new Error('http ' + resp.status);
+        const blob = await resp.blob();
+        await idbPut(db, vkey(slug), blob);
+        done++;
+        wireOpenCards();
+      } catch (e) { return; }   // a clip didn't cache — wireVideo just streams it instead (no alarm)
+    }
+    fill.style.width = '100%';
+    bar.className = 'dlbar done show';
+    msg.textContent = `✓ All ${slugs.length} videos saved. Works fully offline now.`;
+    wireOpenCards();
+    setTimeout(() => bar.classList.remove('show'), 4000);
+  }
+
+  // ============================================================
+  // PROGRAM DEFINITION
+  // ============================================================
+  const PROGRAM = {
+    A: {
+      name: "Day A — Horizontal Push/Pull + Arms",
+      shortName: "Day A",
+      exercises: [
+        { id:'A1', name:'Flat Dumbbell Bench Press', fn:'Dumbbell Bench Press', cat:'Chest',
+          sets:4, reps:10, compound:true, inc:2, video:'03-db-bench',
+          variants:[{label:'Dumbbell',fn:'Dumbbell Bench Press',inc:2},{label:'Barbell',fn:'Barbell Bench Press',inc:2.5}],
+          note:'Your heaviest chest movement — lead the day with it while you are freshest. Dumbbells are the safe default (you can drop them if a rep stalls — no spotter needed). You can run this in the 8–12 range; keep 1–2 reps in the tank.',
+          cues:[
+            'Sit on bench with DBs on thighs. Lie back and kick them up one at a time.',
+            'Pinch shoulder blades together and DOWN (away from ears). Slight arch in lower back.',
+            'Feet flat on the floor — strong base = strong press.',
+            'Elbows ~45–60° from torso (not flared to 90°). Forearms vertical at the bottom.',
+            'Lower 2–3 sec under control. DBs to chest level or just below.',
+            'EXHALE as you press up — never hold your breath and strain. Press in an arc, ending over upper chest. Stop ~5cm apart.',
+            "Don't fully lock the elbows at the top."
+          ],
+          mistakes:[
+            'Flaring elbows to 90° — wrecks shoulders. Tuck slightly.',
+            'Bouncing DBs off chest — slow the eccentric',
+            'Holding your breath through the rep — exhale through the hard part',
+            'Going to failure on every set — leave 1–2 reps in the tank on this one'
+          ],
+          feel:'Chest (mid/lower), front delts, triceps. NO shoulder joint pain — if you feel it, tuck elbows more.'
+        },
+        { id:'A2', name:'Chest-Supported Row', fn:'Chest-Supported T-Bar Row', cat:'Back',
+          sets:4, reps:10, compound:true, video:'20-chest-supported-row',
+          note:'Chest on the pad removes ALL lower-back and leg involvement — perfect for you: it keeps the work strictly upper-body and spine-safe so you can pull hard. AthleanX row-form video — the shoulder-blades-first, drive-elbows-back cues apply directly.',
+          cues:[
+            'Chest fully on the pad. This eliminates lower-back involvement so back muscles do the work.',
+            'Neutral or pronated grip.',
+            'INITIATE with shoulder blades — squeeze them together first.',
+            'Pull elbows BACK and slightly DOWN. Bring handles to lower ribs.',
+            'Squeeze mid-back hard at the top for 1 sec.',
+            'Slow return — let blades wrap around at the stretch.'
+          ],
+          mistakes:[
+            'Pulling with the arms first — back muscles miss the work',
+            'Lifting the chest off the pad — defeats the point of the bench',
+            'Going too heavy — partial reps don\'t build the back'
+          ],
+          feel:'Mid-back, lats, rear delts. Biceps assist. NO lower back.'
+        },
+        { id:'A3', name:'Incline Dumbbell Bench Press', fn:'Incline Dumbbell Bench Press', cat:'Chest',
+          sets:3, reps:10, compound:true, inc:2, video:'13-incline-db-bench',
+          variants:[{label:'Dumbbell',fn:'Incline Dumbbell Bench Press',inc:2},{label:'Barbell',fn:'Incline Barbell Bench Press',inc:2.5}],
+          note:'Hits the upper chest the flat press under-trains — this is the "shelf" that makes a leaner chest look fuller as you drop fat.',
+          cues:[
+            'Bench angle 30–45° (closer to 30° = more upper chest, less front delt).',
+            'Same setup as flat: shoulder blades pinned down and back, slight arch.',
+            'Start with DBs at upper-chest height, palms facing forward.',
+            'Press up and slightly in. Triceps lock just shy of full extension.',
+            'Lower 2–3 sec. Stop when DBs reach chest level.',
+            'Don\'t let elbows flare — keep ~45° tuck.'
+          ],
+          mistakes:[
+            'Bench angle too steep (60°+) — becomes a shoulder press',
+            'Letting the DBs drift backward over the face',
+            'Going to failure too early — 1–2 RIR'
+          ],
+          feel:'Upper chest, front delt. NO shoulder pain — adjust elbow tuck if so.'
+        },
+        { id:'A4', name:'Cable Lateral Raise', fn:'Cable Lateral Raise', cat:'Shoulders',
+          sets:3, reps:15, compound:false, inc:2.3, video:'07-lateral-raise',
+          variants:[{label:'Cable',fn:'Cable Lateral Raise',inc:2.3},{label:'Dumbbell',fn:'Dumbbell Lateral Raise',inc:2},{label:'Machine',fn:'Machine Lateral Raise',inc:5}],
+          note:'Side-delt width is your single highest-payoff look — wider shoulders make the waist look smaller as you lean out. AthleanX side-delt raise video; run the cable across your body as written.',
+          cues:[
+            'Pulley at lowest setting. Stand side-on, cable from the OPPOSITE side (across body).',
+            'Slight elbow bend — lock that angle for the whole rep.',
+            'LEAD WITH THE ELBOW, not the hand. Pretend you\'re pouring a jug at the top.',
+            'Raise to shoulder height — no higher. Going above shifts work to traps.',
+            'Slow descent (2 sec). Cable keeps tension at the bottom.',
+            'Stand tall — no swinging from hips. You can run 12–20 reps here; the last set can go to failure.'
+          ],
+          mistakes:[
+            'Too heavy — this is a light, high-rep movement. Not a strength lift.',
+            'Raising arms in FRONT (front raise) — keep arc to the side',
+            'Shrugging — keep traps relaxed'
+          ],
+          feel:'Specific burn on the SIDE of the shoulder (medial delt). If you feel traps, drop weight and lead with the elbow.'
+        },
+        { id:'A5', name:'Cable Pushdown', fn:'Cable Pushdown', cat:'Triceps',
+          sets:3, reps:12, compound:false, inc:2.3, video:'10-tricep-pushdown',
+          note:'Triceps are about two-thirds of your arm size — direct work here is key for the visible-arms goal. Cable is elbow-friendly; the last set can go to failure.',
+          cues:[
+            'Cable at the top. Rope or straight bar.',
+            'Elbows pinned to your sides — they don\'t move forward, back, or out.',
+            'Push down by EXTENDING only at the elbow joint.',
+            'Fully straighten arms at the bottom. Squeeze triceps hard.',
+            'Return slowly until forearms touch biceps. No higher.'
+          ],
+          mistakes:[
+            'Elbows drifting forward at the top — recruits shoulders',
+            'Cutting the rep short at the bottom — you miss the peak contraction',
+            'Leaning over the cable — keep it a pushdown, not a press'
+          ],
+          feel:'Whole tricep, especially the long head. Burn at the bottom of each rep.'
+        },
+        { id:'A6', name:'Incline Dumbbell Curl', fn:'Incline Dumbbell Curl', cat:'Biceps',
+          sets:3, reps:12, compound:false, inc:2, video:'16-incline-db-curl',
+          variants:[{label:'Dumbbell',fn:'Incline Dumbbell Curl',inc:2},{label:'Barbell',fn:'Barbell Curl',inc:2.5},{label:'Cable',fn:'Cable Curl',inc:2.3}],
+          cues:[
+            'Bench at 45–60°. Sit back fully — shoulders touch the pad.',
+            'Let arms hang straight down — this PRE-STRETCHES the bicep (long head).',
+            'Curl by bending only the elbow. Elbows stay back, behind the torso line.',
+            'Squeeze hard at the top, slow on the way down.',
+            'Fully extend at the bottom — get the stretch.'
+          ],
+          mistakes:[
+            'Letting elbows drift forward — kills the stretch',
+            'Not fully extending — losing the unique benefit of this exercise',
+            'Half-reps — controlled full range is what makes this exercise valuable'
+          ],
+          feel:'Stretch at the bottom (long head of bicep), squeeze at the top.'
+        }
+      ]
+    },
+
+    B: {
+      name: "Day B — Vertical Pull/Push + Delts",
+      shortName: "Day B",
+      exercises: [
+        { id:'B1', name:'Lat Pulldown', fn:'Lat Pulldown', cat:'Back',
+          sets:4, reps:10, compound:true, video:'06-lat-pulldown',
+          note:'Builds back WIDTH — the single best lever for the V-taper that makes your trunk look smaller as you lean out. Fully supported and easy to push hard.',
+          cues:[
+            'Grip slightly wider than shoulder-width, overhand.',
+            'Thighs locked under the pad. Sit tall, slight backward lean (~10–15°).',
+            'INITIATE with shoulder blade depression — pull blades DOWN first, like putting them in your back pockets.',
+            'Drive elbows down and slightly back. Bar travels to upper chest.',
+            'Squeeze lats hard for 1 second at the bottom.',
+            'Return slowly. Full stretch at the top — let shoulders rise slightly.',
+            'No torso swinging. Momentum = weight too heavy.'
+          ],
+          mistakes:[
+            'Pulling with biceps only — focus on driving elbows down',
+            'Behind-the-neck pulldown — bad for shoulders, skip it',
+            'Excessive backward lean (turns into a row)',
+            "Not letting arms fully extend at the top — losing the stretch"
+          ],
+          feel:'Lats (sides of upper back, under armpits). Mid-back contracting. Some bicep.'
+        },
+        { id:'B2', name:'Seated Dumbbell Shoulder Press', fn:'Dumbbell Shoulder Press', cat:'Shoulders',
+          sets:4, reps:10, compound:true, inc:2, video:'05-shoulder-press',
+          variants:[{label:'Dumbbell',fn:'Dumbbell Shoulder Press',inc:2},{label:'Barbell',fn:'Barbell Shoulder Press',inc:2.5},{label:'Machine',fn:'Machine Shoulder Press',inc:5}],
+          note:'Your only overhead press of the week — it caps the delts and widens the frame. Groove it LIGHT for the first 2–3 weeks. EXHALE as you press, never hold your breath; if you feel pressure in your head, lightheadedness, or a shoulder pinch, stop and switch to a low-incline press.',
+          cues:[
+            'Upright bench with back support. Sit with back firmly against pad, feet flat.',
+            'Start with DBs at ear height, palms facing forward, elbows slightly in FRONT of body (not straight out to sides).',
+            'Wrists straight, stacked over elbows.',
+            'Press up and slightly in. EXHALE through the press. DBs meet near the top without clanking.',
+            'Don\'t fully lock elbows — stop just shy of lockout for constant tension.',
+            'Lower with control until elbows are ~90° (DBs at ear height). Don\'t go deeper today.',
+            'Brace your core — don\'t arch the lower back.'
+          ],
+          mistakes:[
+            'Elbows flared straight out to sides (90°) — impinges the shoulder',
+            'Lower-back arch turning it into a decline press — keep ribs down',
+            'Holding your breath and straining — exhale on the way up',
+            'Going too deep at the bottom — stop at ear height'
+          ],
+          feel:'Front and side delts, triceps, upper chest a bit. NO sharp shoulder pinch.'
+        },
+        { id:'B3', name:'Seated Cable Row (Neutral Grip)', fn:'Seated Cable Row', cat:'Back',
+          sets:3, reps:12, compound:true, video:'04-cable-row',
+          note:'A second back angle. Seated and chest-tall keeps the spine safe; neutral grip is shoulder-friendly.',
+          cues:[
+            'Close/neutral V-handle. Feet on platform, slight knee bend, chest up.',
+            'Sit tall — torso ~80–90°. Slight backward lean only.',
+            'INITIATE with shoulder blades — squeeze back and down BEFORE the arms bend.',
+            'Pull handle to lower ribs / belly button. Elbows close to body.',
+            'Squeeze mid-back HARD for 1 second.',
+            'Slow return. Let arms stretch forward fully — let blades wrap around.',
+            'No torso swinging or yanking from the lower back.'
+          ],
+          mistakes:[
+            'Yanking with the lower back (rocking)',
+            'Pulling to chest with flared elbows — turns into a rear delt row',
+            'Rounding upper back during the stretch'
+          ],
+          feel:'Mid-back (rhomboids, mid-traps), lats, biceps. NO lower back working hard.'
+        },
+        { id:'B4', name:'Rear Delt Fly Machine', fn:'Rear Delt Machine Fly', cat:'Shoulders',
+          sets:3, reps:15, compound:false, inc:4.5, video:'14-rear-delt-fly',
+          note:'Rear delts round out the 3D shoulder and pull your posture back — important after a lot of sitting and all the pressing you do.',
+          cues:[
+            'Chest against pad, sit upright. Adjust handle/seat so arms are at shoulder height.',
+            'Slight bend in elbows — locked for the rep.',
+            'LEAD WITH THE ELBOWS, pull arms OUT and BACK.',
+            'Squeeze rear delts hard at the back. Hold 1 sec.',
+            'Slow return — feel the stretch across the back.',
+            'Don\'t let the weight stack touch between reps.'
+          ],
+          mistakes:[
+            'Pulling with bent elbows — turns into a row, recruits mid-back',
+            'Going too heavy — rear delts are small. 1–2 RIR.',
+            'Shrugging during the pull'
+          ],
+          feel:'Burn at the back of the shoulder (posterior delt). A bit of mid-back.'
+        },
+        { id:'B5', name:'Dumbbell Lateral Raise', fn:'Dumbbell Lateral Raise', cat:'Shoulders',
+          sets:3, reps:15, compound:false, inc:2, video:'07-lateral-raise',
+          variants:[{label:'Dumbbell',fn:'Dumbbell Lateral Raise',inc:2},{label:'Cable',fn:'Cable Lateral Raise',inc:2.3},{label:'Machine',fn:'Machine Lateral Raise',inc:5}],
+          note:'Second side-delt session of the week, with a different load feel than the cable. Shoulder width is your best aesthetic lever — train it often.',
+          cues:[
+            'Stand tall, a DB in each hand at your sides, slight elbow bend (locked for the rep).',
+            'LEAD WITH THE ELBOW, raise out to the sides — pour-the-jug at the top.',
+            'Raise to shoulder height only — no higher (above that, traps take over).',
+            'Slow 2-sec descent. Control it; don\'t drop.',
+            'No swinging or heaving from the hips — if you swing, go lighter.'
+          ],
+          mistakes:[
+            'Using momentum / swinging the body — go lighter and strict',
+            'Raising in front of you instead of out to the side',
+            'Shrugging the traps up at the top'
+          ],
+          feel:'Burn on the SIDE of the shoulder. If traps take over, lighten and lead with the elbow.'
+        },
+        { id:'B6', name:'Cable Curl', fn:'Cable Curl', cat:'Biceps',
+          sets:3, reps:12, compound:false, inc:2.3, video:'09-bicep-curl',
+          variants:[{label:'Cable',fn:'Cable Curl',inc:2.3},{label:'Dumbbell',fn:'Dumbbell Curl',inc:2},{label:'Barbell',fn:'Barbell Curl',inc:2.5}],
+          note:'Second biceps angle of the week — constant cable tension complements the stretch curl on Day A. The last set can go to failure.',
+          cues:[
+            'Stand tall, elbows pinned to ribs — they don\'t move forward or back.',
+            'Curl by bending ONLY at the elbow joint.',
+            'Squeeze hard at the top.',
+            'Slow on the way down — control the stretch.',
+            'No swinging. If you swing, lower weight.'
+          ],
+          mistakes:[
+            'Elbows drifting forward — turns it into a partial front raise',
+            'Swinging the torso — momentum cheats the bicep',
+            "Not finishing the rep — let arm fully extend, but don\'t lose tension"
+          ],
+          feel:'Belly of the bicep contracting on every rep. Some forearm.'
+        }
+      ]
+    },
+
+    C: {
+      name: "Day C — Mixed Upper + Arms & Delts",
+      shortName: "Day C",
+      exercises: [
+        { id:'C1', name:'Machine Chest Press', fn:'Machine Chest Press', cat:'Chest',
+          sets:4, reps:10, compound:true, inc:5, video:'03-db-bench',
+          note:'A third chest stimulus with ZERO balance/stability tax — ideal late in the week and for safely pushing close to failure as a beginner. AthleanX has no machine-press clip; this is his flat-press tutorial — apply the same elbow path and controlled tempo to the machine.',
+          cues:[
+            'Set the seat so the handles line up with the middle of your chest.',
+            'Shoulder blades pinned back and down into the pad; feet flat.',
+            'Press the handles forward and slightly together — EXHALE through the press.',
+            'Stop just shy of locking the elbows (keep tension on the chest).',
+            'Lower under control (2–3 sec) until you feel a stretch across the chest — don\'t let the stack slam.',
+            'Keep wrists straight and elbows about 45° from the torso, not flared to 90°.'
+          ],
+          mistakes:[
+            'Flaring the elbows straight out — shoulder strain',
+            'Letting the weight stack crash at the start of each rep',
+            'Shrugging the shoulders up toward the ears — keep them down and back'
+          ],
+          feel:'Chest doing the work, with triceps and front delts assisting. No shoulder-joint pinch.'
+        },
+        { id:'C2', name:'Wide-Grip Lat Pulldown', fn:'Wide Grip Lat Pulldown', cat:'Back',
+          sets:4, reps:10, compound:true, video:'06-lat-pulldown',
+          note:'Third back session — wider grip biases outer-lat width. As you get stronger and leaner, graduate toward the ASSISTED PULL-UP machine (less help over time), then real pull-ups: a powerful, motivating long-term progression.',
+          cues:[
+            'Grip wider than shoulder-width, overhand.',
+            'Thighs locked under the pad, sit tall with a slight backward lean.',
+            'Pull the shoulder blades DOWN first, then drive the elbows down to the chest.',
+            'Bar to upper chest; squeeze the lats hard for 1 sec.',
+            'Slow return to a full overhead stretch — control it.',
+            'No swinging or heaving with the body.'
+          ],
+          mistakes:[
+            'Curling with the arms instead of driving the elbows down',
+            'Behind-the-neck pulling — hard on the shoulders, skip it',
+            'Bouncing out of the bottom stretch'
+          ],
+          feel:'Outer lats and upper back. Some biceps assist.'
+        },
+        { id:'C3', name:'Cable Lateral Raise', fn:'Cable Lateral Raise', cat:'Shoulders',
+          sets:3, reps:15, compound:false, inc:2.3, video:'07-lateral-raise',
+          variants:[{label:'Cable',fn:'Cable Lateral Raise',inc:2.3},{label:'Dumbbell',fn:'Dumbbell Lateral Raise',inc:2},{label:'Machine',fn:'Machine Lateral Raise',inc:5}],
+          note:'Third weekly side-delt dose. Delts recover fast and love frequency — this is your highest-leverage look, so it earns the extra volume.',
+          cues:[
+            'Pulley at the lowest setting. Stand side-on, cable from the OPPOSITE side (across body).',
+            'Slight elbow bend, locked for the rep.',
+            'LEAD WITH THE ELBOW, raise to shoulder height — no higher.',
+            'Slow 2-sec descent; the cable keeps tension at the bottom.',
+            'Stand tall — no swinging. Last set can go to failure.'
+          ],
+          mistakes:[
+            'Going too heavy and swinging',
+            'Raising in front instead of out to the side',
+            'Shrugging the traps'
+          ],
+          feel:'Side of the shoulder (medial delt) burning. Not the traps.'
+        },
+        { id:'C4', name:'Overhead Cable Tricep Extension', fn:'Overhead Cable Tricep Extension', cat:'Triceps',
+          sets:3, reps:12, compound:false, inc:2.3, video:'17-overhead-cable-tri',
+          note:'Overhead puts the triceps long head on STRETCH — the highest-growth position for the muscle that gives the arm its size. Different angle than Day A pushdowns.',
+          cues:[
+            'Cable at low or mid setting. Rope attachment.',
+            'Face AWAY from the cable. Hold rope behind head, elbows pointing forward and up.',
+            'Lean forward slightly. Step one foot forward for stability.',
+            'Extend the elbows — drive hands forward and slightly up.',
+            'Squeeze triceps at full extension.',
+            'Slow return — get a deep stretch in the back of the arm.'
+          ],
+          mistakes:[
+            'Elbows flaring out to the sides — keep them tight, pointed forward',
+            'Using shoulders or back to swing the weight',
+            'Cutting the stretch short at the start of each rep'
+          ],
+          feel:'Stretch and burn in the LONG HEAD of the tricep (back of the upper arm).'
+        },
+        { id:'C5', name:'Preacher Curl', fn:'Preacher Curl', cat:'Biceps',
+          sets:3, reps:12, compound:false, inc:2.5, video:'22-preacher-curl',
+          variants:[{label:'Bar',fn:'Preacher Curl',inc:2.5},{label:'Dumbbell',fn:'Dumbbell Preacher Curl',inc:2},{label:'Machine',fn:'Machine Preacher Curl',inc:5}],
+          note:'The braced pad removes all swing — perfect for actually feeling the biceps work and progressing cleanly. AthleanX curl-mechanics video; apply the no-full-lockout-at-bottom and hard-squeeze cues.',
+          cues:[
+            'Sit at preacher bench. Armpit firmly into the top of the pad — elbows DEEP into the pad.',
+            'Grip EZ bar or DBs.',
+            'Curl SLOWLY — the preacher position eliminates cheating, so go slow.',
+            'Don\'t fully straighten the arm at the bottom — keeps tension on the bicep and protects the elbow.',
+            'Squeeze hard at the top.',
+            'Slow eccentric.'
+          ],
+          mistakes:[
+            'Coming off the pad with the elbows — defeats the whole point',
+            'Locking the elbow fully at the bottom — stresses the joint',
+            'Bouncing out of the bottom'
+          ],
+          feel:'Direct bicep contraction. NO shoulder or back involvement.'
+        },
+        { id:'C6', name:'Cable Face Pull', fn:'Cable Face Pull', cat:'Shoulders',
+          sets:3, reps:15, compound:false, inc:4.5, video:'21-face-pull', isFinisher:true,
+          note:'Shoulder-health insurance against all your pressing — trains the rear delts and the rotator cuff. Light, high-rep, joint-friendly. Do it every Day C.',
+          cues:[
+            'Cable at upper-chest height. Rope attachment.',
+            'Step back so the cable has tension at full arm extension.',
+            'Pull the rope toward your FACE — not your chest.',
+            'Spread the rope ends OUT as you pull, ending with hands beside your ears, elbows HIGH.',
+            'External rotation at the end — knuckles point up/back.',
+            'Squeeze rear delts and mid-traps. Pause 1 sec.',
+            'Slow return.'
+          ],
+          mistakes:[
+            'Pulling to the chest — it\'s a FACE pull for a reason',
+            'Elbows dropping — keep them high, level with the shoulders',
+            'No external rotation — kills 80% of the rear-delt work'
+          ],
+          feel:'Rear delts, mid-traps, external rotators (rotator cuff). Crucial for shoulder health.'
+        }
+      ]
+    }
+  };
+
+  // Warmup and cooldown items (shared across all days)
+  const WARMUP = [
+    { key:'w1', title:'5 min easy cardio', det:'Bike, treadmill or rower. Conversational pace, just enough for a light sweat — and it banks steps.' },
+    { key:'w2', title:'10 arm circles each direction', det:'Small → large. Lubricates the shoulder joint before pressing.' },
+    { key:'w3', title:'15 band pull-aparts', det:'Arms straight, pull a light band apart to your chest. Wakes up rear delts + mid-back for healthy pressing.' },
+    { key:'w4', title:'10 scapular wall-slides + 5 cat-cows', det:'Primes the shoulder blades and upper spine for pressing and pulling.' },
+    { key:'w5', title:'10 shoulder dislocates (band or broomstick)', det:'Wide grip, slow. Opens the shoulders so overhead and incline work feels clean.' },
+    { key:'w6', title:'1–2 ramp-up sets on the first lift', det:'Before your first working compound: 1 set at ~50% × 5, then 1 set at ~75% × 3. Groove the pattern — no failure.' }
+  ];
+
+  const COOLDOWN = [
+    { key:'c1', title:'Doorway chest stretch — 30s each side', det:'Forearm on the doorframe at 90°, step through gently. Opens a chest tightened by pressing.' },
+    { key:'c2', title:'Cross-body shoulder stretch — 30s each side', det:'Pull the arm across your chest with the other hand.' },
+    { key:'c3', title:'Overhead triceps/lat stretch — 30s each side', det:'Reach a hand down your back, gently press the elbow with the other hand.' },
+    { key:'c5', title:"Child's pose — 60s", det:'Knees wide, hips back to heels, arms reaching forward. Decompresses the spine, stretches the lats.' },
+    { key:'c4', title:'Neck + upper-trap stretch — 30s each side', det:'Ease your ear toward your shoulder. Releases pressing and desk tension.' },
+    { key:'c6', title:'10–20 min easy walk', det:'Conversational pace. Clears the session, lowers heart rate — and banks a big chunk of your daily steps.' }
+  ];
+
+  // ============================================================
+  // STORAGE LAYER
+  // ============================================================
+  const KEY_PREFIX = 'wo:';
+  const LAST_KEY = 'wo:_last';
+
+  function sessionKey(day, date) { return `${KEY_PREFIX}${day}:${date}`; }
+
+  function loadSession(day, date) {
+    const raw = localStorage.getItem(sessionKey(day, date));
+    try { if (raw) return JSON.parse(raw); } catch (e) {}
+    return { exercises:{}, warmup:{}, cooldown:{}, ts:Date.now() };
+  }
+
+  let _saveWarned = false;
+  function saveSession(day, date, data) {
+    data.ts = Date.now();
+    try {
+      localStorage.setItem(sessionKey(day, date), JSON.stringify(data));
+      localStorage.setItem(LAST_KEY, JSON.stringify({ day, date }));
+    } catch (e) {
+      // storage full / blocked — keep the app usable, warn once per load
+      if (!_saveWarned && typeof toast === 'function') {
+        _saveWarned = true;
+        toast('⚠ Could not save — storage unavailable');
+      }
+    }
+  }
+
+  function allSessions() {
+    const out = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k.startsWith(KEY_PREFIX) || k === LAST_KEY) continue;
+      const parts = k.slice(KEY_PREFIX.length).split(':');
+      if (parts.length !== 2) continue;
+      const [day, date] = parts;
+      let data;
+      try { data = JSON.parse(localStorage.getItem(k)); } catch (e) { continue; }  // skip a corrupt key instead of bricking
+      if (!data || typeof data !== 'object') continue;
+      out.push({ day, date, data });
+    }
+    return out.sort((a,b) => b.date.localeCompare(a.date));
+  }
+
+  // ---- Equipment variants (dumbbell / barbell / machine) ----
+  // Each variant maps to its own FitNotes exercise name + increment, so the
+  // Coach tracks each implement's progression separately (different lifts).
+  function variantFor(ex, exData){
+    if (!ex.variants) return null;
+    const label = exData && exData.impl;
+    if (label){ const v = ex.variants.find(v => v.label === label); if (v) return v; }
+    return ex.variants.find(v => v.fn === ex.fn) || ex.variants[0];  // default = the exercise's own fn
+  }
+  function effectiveFn(ex, exData){ const v = variantFor(ex, exData); return v ? v.fn : ex.fn; }
+  function effectiveInc(ex, exData){ const v = variantFor(ex, exData); return (v && v.inc) || ex.inc; }
+
+  // Legs are no longer trained in this tracker — strip every leg exercise from the program before
+  // anything reads it, so they never render, get recommended, or count. Touches ONLY cat:'Legs';
+  // all other exercises are untouched. (FitNotes leg history is left intact.)
+  for (const day of Object.keys(PROGRAM)){
+    PROGRAM[day].exercises = PROGRAM[day].exercises.filter(ex => ex.cat !== 'Legs');
+  }
+
+  // ---- Global exercise lookups (built once from PROGRAM) ----
+  // EXERCISE_BY_ID lets history readers iterate a session's OWN exercise ids regardless of
+  // which day the session is labelled (real/imported dates mix exercises across program days).
+  // EXERCISE_BY_FN maps every fn (including variant fns) to its canonical exDef (first-wins,
+  // so a fn shared by two ids resolves to the lower/default id — matching is by fn anyway).
+  const EXERCISE_BY_ID = {};
+  const EXERCISE_BY_FN = {};
+  (function buildExerciseMaps(){
+    for (const day of Object.keys(PROGRAM)){
+      for (const ex of PROGRAM[day].exercises){
+        if (!EXERCISE_BY_ID[ex.id]) EXERCISE_BY_ID[ex.id] = ex;
+        const fns = [ex.fn].concat((ex.variants || []).map(v => v.fn));
+        for (const fn of fns){ if (!EXERCISE_BY_FN[fn]) EXERCISE_BY_FN[fn] = ex; }
+      }
+    }
+  })();
+
+  // Find prior sessions for a given FITNOTES NAME, matching by the implement actually used in
+  // each past session. Day-agnostic: scans each session's own exercise ids via EXERCISE_BY_ID,
+  // so an exercise is found no matter which day the session is labelled. n defaults to the full
+  // history (the Coach uses ALL of it); pass a number to cap.
+  function recentSessionsFor(targetFn, beforeDate, n=Infinity) {
+    const all = allSessions().filter(s => s.date < beforeDate);
+    const found = [];
+    for (const s of all) {
+      for (const id in s.data.exercises) {
+        const exDef = EXERCISE_BY_ID[id];
+        if (!exDef) continue;                       // unknown id — skip defensively
+        const exData = s.data.exercises[id];
+        if (!exData) continue;
+        if (effectiveFn(exDef, exData) !== targetFn) continue;
+        const sets = [];
+        for (let i = 1; i <= 8; i++) {
+          const w = exData[`w${i}`], r = exData[`r${i}`];
+          if (w && r && exData[`c${i}`]) sets.push({ w: w.toString(), r: r.toString() });
+        }
+        // one id per fn per session is enough (a fn won't legitimately appear twice on one date)
+        if (sets.length > 0) { found.push({ date: s.date, day: s.day, sets }); break; }
+      }
+      if (found.length >= n) break;
+    }
+    return found;
+  }
+
+  // Science-based progression engine. Uses the FULL per-exercise history (passed in), not just
+  // the last session: Epley estimated-1RM per session, double progression for the load step,
+  // an e1RM trend (least-squares slope) for hold messaging, and an e1RM-based plateau check for
+  // autoregulated deloads. Recommends next WEIGHT and REPS. Deterministic, offline, no ML.
+  function topWeight(sets) {
+    // The working weight = the heaviest set logged (handles ascending warm-up sets
+    // correctly; for straight sets every set is equal so this is a no-op).
+    let max = NaN;
+    for (const s of sets) {
+      const w = parseFloat(s.w);
+      if (!isNaN(w) && (isNaN(max) || w > max)) max = w;
+    }
+    return max;
+  }
+
+  function suggestNext(exDef, history, dispUnit, todayDate) {
+    if (!history || history.length === 0) return null;
+    const last = history[0];
+    if (!last.sets || last.sets.length === 0) return null;
+    const lastWork = topWeight(last.sets);
+    if (isNaN(lastWork)) return null;
+
+    const targetReps = exDef.reps;
+    const inc = exDef.inc || (exDef.compound ? 2.5 : 1);   // equipment-aware increment
+    const U = dispUnit || unit;
+    const today = todayDate || currentDate;
+
+    // Unit-aware phrasing (engine math stays in kg; only the words change)
+    const showKg   = (kg) => kgToDisp(kg, U) + ' ' + U;
+    const dispBump = (kgBump) => (U === 'kg' ? trimNum(kgBump) : trimNum(Math.round(kgBump / KG_PER_LB * 10) / 10));
+    const roundToInc = (w) => (inc > 0 ? Math.round(Math.round(w / inc) * inc * 100) / 100 : Math.round(w * 100) / 100);
+    // Snap a recommended kg weight to a CLEAN value in the user's display unit, so lb-stack
+    // machines land on real pins (nearest 5 lb) and kg lifts land on the increment grid.
+    const stepKg = (U === 'lb') ? 5 * KG_PER_LB : inc;
+    const snap = (kg) => (U === 'lb')
+      ? Math.round(Math.max(0, Math.round((kg / KG_PER_LB) / 5) * 5) * KG_PER_LB * 100) / 100
+      : roundToInc(kg);
+
+    // Estimated 1RM per session over the FULL history (Epley: w·(1+reps/30)).
+    //  - CAPPED variant (reps→12): an accurate strength estimate, used for the "best e1RM" display.
+    //  - UNCAPPED variant: a progress signal that keeps rising when high-rep work (laterals/calves
+    //    at 15) adds reps past 12 — so trend/stall detection isn't blind to high-rep gains.
+    const epley   = (w, r, cap) => { const W = parseFloat(w), R = parseInt(r); return (isNaN(W) || isNaN(R) || W <= 0) ? 0 : W * (1 + Math.min(R, cap ? 12 : 99) / 30); };
+    const sessBest = (s, cap) => s.sets.reduce((m, x) => Math.max(m, epley(x.w, x.r, cap)), 0);
+    const totalReps = (s) => s.sets.reduce((a, x) => a + (parseInt(x.r) || 0), 0);
+    const eCap  = history.map(s => sessBest(s, true));     // newest-first — for strength display
+    const ePerf = history.map(s => sessBest(s, false));    // newest-first — for trend/progress
+    let bestE1RM = 0, bestIdx = 0;
+    eCap.forEach((v, i) => { if (v > bestE1RM) { bestE1RM = v; bestIdx = i; } });
+    const meanPerf = ePerf.reduce((a, b) => a + b, 0) / (ePerf.length || 1);
+    const eps = Math.max(0.005 * meanPerf, 0.01);          // ignore rounding-level noise
+    // performance trend: least-squares slope over the last up-to-5 sessions (oldest→newest)
+    const win = ePerf.slice(0, Math.min(5, ePerf.length)).reverse();
+    let slope = 0;
+    if (win.length >= 2) {
+      const m = win.length, xm = (m - 1) / 2, ym = win.reduce((a, b) => a + b, 0) / m;
+      let num = 0, den = 0;
+      win.forEach((y, x) => { num += (x - xm) * (y - ym); den += (x - xm) * (x - xm); });
+      slope = den ? num / den : 0;
+    }
+    const agoPhrase = bestIdx === 0 ? 'your best yet' : `best was ${bestIdx} session${bestIdx > 1 ? 's' : ''} ago`;
+
+    // Last-session quality (double progression: every logged set at/above target reps)
+    const setsAtTarget = last.sets.filter(s => { const r = parseInt(s.r); return !isNaN(r) && r >= targetReps; }).length;
+    const hitAll = last.sets.length >= exDef.sets && setsAtTarget === last.sets.length;
+    const daysSince = (() => {
+      const d = Math.round((new Date(today + 'T00:00:00') - new Date(last.date + 'T00:00:00')) / 86400000);
+      return isNaN(d) ? 0 : d;
+    })();
+
+    // 1) BODYWEIGHT
+    if (lastWork === 0) {
+      return hitAll
+        ? { w: roundToInc(inc).toString(), reps: targetReps, kind: 'bump',
+            note: `bodyweight cleared on all ${last.sets.length} sets — add about ${dispBump(inc)} ${U}.` }
+        : { w: '0', reps: targetReps, kind: 'hold',
+            note: `build to ${targetReps} reps on every set at bodyweight before adding load.` };
+    }
+
+    // 2) STALE → re-baseline instead of progressing off old data
+    if (daysSince > 21) {
+      return { w: lastWork.toString(), reps: targetReps, kind: 'hold',
+        note: `last logged ${daysSince} days ago — repeat ${showKg(lastWork)} × ${targetReps} to re-baseline, then push up.` };
+    }
+
+    // 3) BUMP → clean double progression. The +1-increment step is itself the safety cap:
+    //    one increment above a weight just completed for ALL sets at target is never an unseen jump.
+    if (hitAll) {
+      let next = snap(lastWork + stepKg);
+      if (next <= lastWork) next = Math.round((lastWork + stepKg) * 100) / 100;   // guarantee real progress
+      const gained = Math.round((next - lastWork) * 100) / 100;
+      return { w: next.toString(), reps: targetReps, kind: 'bump',
+        note: `+${dispBump(gained)} ${U} earned — you hit ${targetReps} on all ${last.sets.length} sets. Reps may dip; rebuild then climb. (best e1RM ${showKg(snap(bestE1RM))}, ${agoPhrase}.)` };
+    }
+
+    // 4) DELOAD → 3 sessions at ~the same load with no e1RM gain = a true plateau.
+    //    (Rising reps at the same load is double progression working, so e1RM would climb.)
+    if (history.length >= 3 && lastWork > 0) {
+      const w3 = [topWeight(history[0].sets), topWeight(history[1].sets), topWeight(history[2].sets)];
+      const sameLoad = w3.every(w => !isNaN(w) && Math.abs(w - lastWork) < 0.5);
+      const repsProgressing = totalReps(history[0]) > Math.max(totalReps(history[1]), totalReps(history[2]));
+      if (sameLoad && !repsProgressing) {
+        return { w: snap(lastWork * 0.9).toString(), reps: targetReps, kind: 'deload',
+          note: `−10% deload — 3 sessions stuck at ${showKg(lastWork)} with no added reps or load. Drop, rebuild clean reps, then climb.` };
+      }
+    }
+
+    // 5) HOLD → trend-aware double-progression coaching
+    let note;
+    if (last.sets.length < exDef.sets) {
+      note = `match ${showKg(lastWork)} across all ${exDef.sets} sets at ${targetReps} reps before adding load.`;
+    } else if (slope > eps) {
+      note = `progressing — hold ${showKg(lastWork)} and drive every set toward ${targetReps} (e1RM trending up).`;
+    } else {
+      note = `hold ${showKg(lastWork)} and reclaim reps toward ${targetReps} — e1RM flat over your last ${win.length} session${win.length > 1 ? 's' : ''}.`;
+    }
+    return { w: lastWork.toString(), reps: targetReps, kind: 'hold', note };
+  }
+
+  // ============================================================
+  // STATE
+  // ============================================================
+  // Local calendar date (NOT UTC) so the session date matches the phone's day, even late at night
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  let currentDay = 'A';
+  let currentDate = todayStr();
+  let session = null;  // current loaded session
+
+  // ============================================================
+  // UNITS — data is ALWAYS stored in kg (FitNotes-canonical).
+  // You may type/read in kg or lb; conversion happens at the edge.
+  // ============================================================
+  const UNIT_KEY = 'wo:_unit';
+  const EXUNIT_KEY = 'wo:_exunits';
+  let unit = (localStorage.getItem(UNIT_KEY) === 'lb') ? 'lb' : 'kg';   // global DEFAULT unit
+  let exUnits = (function(){ try { return JSON.parse(localStorage.getItem(EXUNIT_KEY) || '{}') || {}; } catch(e){ return {}; } })();
+  const KG_PER_LB = 0.45359237;
+  function trimNum(n){ return String(Math.round(n * 100) / 100); }
+  // unit defaults to the global one; pass an explicit unit for a specific exercise
+  function kgToDisp(kg, u){
+    u = u || unit;
+    const n = parseFloat(kg);
+    if (isNaN(n)) return '';
+    return (u === 'kg') ? trimNum(n) : trimNum(Math.round((n / KG_PER_LB) * 10) / 10);   // lb to 1 decimal
+  }
+  function dispToKg(v, u){
+    u = u || unit;
+    const n = parseFloat(v);
+    if (isNaN(n)) return '';
+    return (u === 'kg') ? trimNum(n) : trimNum(Math.round(n * KG_PER_LB * 100) / 100);
+  }
+  function unitFor(exId){ return exUnits[exId] || unit; }                   // per-exercise override, else global
+  function setExUnit(exId, u){ exUnits[exId] = u; localStorage.setItem(EXUNIT_KEY, JSON.stringify(exUnits)); }
+  function setUnit(u){
+    if (u === unit) return;
+    unit = u; localStorage.setItem(UNIT_KEY, u);
+    updateUnitUI(); render(); if (typeof updateHdrSummary === 'function') updateHdrSummary();
+    if (typeof toast === 'function') toast(`Default unit: ${u} · per-exercise choices kept`);
+  }
+  function updateUnitUI(){
+    document.querySelectorAll('.unit-row .unit-opt').forEach(b => b.classList.toggle('active', b.dataset.u === unit));
+  }
+
+  // ---- Theme: dark (default) / light, pure monochrome ----
+  const THEME_KEY = 'wo:_theme';
+  let theme = (localStorage.getItem(THEME_KEY) === 'light') ? 'light' : 'dark';
+  function applyTheme(){
+    document.body.setAttribute('data-theme', theme);
+    const m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute('content', theme === 'light' ? '#ffffff' : '#000000');
+    const b = document.getElementById('themeBtn');
+    if (b) b.textContent = theme === 'light' ? '☾' : '☀';
+  }
+  function toggleTheme(){
+    theme = (theme === 'light') ? 'dark' : 'light';
+    localStorage.setItem(THEME_KEY, theme);
+    applyTheme();
+    if (typeof toast === 'function') toast(theme === 'light' ? '☀ Light mode' : '☾ Dark mode');
+  }
+
+  // ---- Collapsible header controls (date + default unit) — compact by default ----
+  const HDR_KEY = 'wo:_hdr';
+  function updateHdrSummary(){
+    const el = document.getElementById('hdrSummary');
+    if (!el) return;
+    const label = (currentDate === todayStr()) ? 'Today' : currentDate;
+    el.textContent = '📅 ' + label + ' · ' + unit;
+  }
+  function setHdrState(collapsed){
+    const c = document.getElementById('hdrControls');
+    const t = document.getElementById('hdrToggle');
+    if (c) c.classList.toggle('collapsed', collapsed);
+    if (t) t.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+  function toggleHdr(){
+    const c = document.getElementById('hdrControls');
+    const collapsed = !c.classList.contains('collapsed');
+    setHdrState(collapsed);
+    localStorage.setItem(HDR_KEY, collapsed ? '1' : '0');
+  }
+  function initHdr(){
+    setHdrState(localStorage.getItem(HDR_KEY) !== '0');   // default collapsed
+    updateHdrSummary();
+  }
+
+  function loadCurrentSession() {
+    session = loadSession(currentDay, currentDate);
+  }
+
+  function persist() {
+    saveSession(currentDay, currentDate, session);
+    updateProgress();
+  }
+
+  // ============================================================
+  // RENDERING
+  // ============================================================
+  function switchDay(day) {
+    currentDay = day;
+    document.body.setAttribute('data-day', day);
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.day === day));
+    document.getElementById('daySub').textContent = `${PROGRAM[day].shortName} · ${PROGRAM[day].name.split('— ')[1]}`;
+    loadCurrentSession();
+    render();
+  }
+
+  function setToday() {
+    currentDate = todayStr();
+    document.getElementById('dateInp').value = currentDate;
+    loadCurrentSession();
+    render();
+    if (typeof updateHdrSummary === 'function') updateHdrSummary();
+  }
+
+  function onDateChange() {
+    const v = document.getElementById('dateInp').value;
+    if (!v) return;
+    currentDate = v;
+    loadCurrentSession();
+    render();
+    if (typeof updateHdrSummary === 'function') updateHdrSummary();
+  }
+
+  let _renderingNow = false;
+  function render() {
+    _renderingNow = true;
+    renderWarmup();
+    renderExercises();
+    renderCooldown();
+    updateProgress();
+    _renderingNow = false;
+  }
+
+  function renderWarmup() {
+    const ul = document.getElementById('warmupList');
+    ul.innerHTML = '';
+    for (const item of WARMUP) {
+      const li = document.createElement('li');
+      li.dataset.key = item.key;
+      const checked = session.warmup[item.key] ? ' checked' : '';
+      li.innerHTML = `<input type="checkbox"${checked}><div><b>${item.title}</b><div class="det">${item.det}</div></div>`;
+      if (session.warmup[item.key]) li.classList.add('done');
+      li.addEventListener('click', (e) => {
+        const cb = li.querySelector('input');
+        if (e.target.tagName !== 'INPUT') cb.checked = !cb.checked;
+        session.warmup[item.key] = cb.checked;
+        li.classList.toggle('done', cb.checked);
+        persist();
+      });
+      ul.appendChild(li);
+    }
+  }
+
+  function renderCooldown() {
+    const ul = document.getElementById('cooldownList');
+    ul.innerHTML = '';
+    for (const item of COOLDOWN) {
+      const li = document.createElement('li');
+      li.dataset.key = item.key;
+      const checked = session.cooldown[item.key] ? ' checked' : '';
+      li.innerHTML = `<input type="checkbox"${checked}><div><b>${item.title}</b><div class="det">${item.det}</div></div>`;
+      if (session.cooldown[item.key]) li.classList.add('done');
+      li.addEventListener('click', (e) => {
+        const cb = li.querySelector('input');
+        if (e.target.tagName !== 'INPUT') cb.checked = !cb.checked;
+        session.cooldown[item.key] = cb.checked;
+        li.classList.toggle('done', cb.checked);
+        persist();
+      });
+      ul.appendChild(li);
+    }
+  }
+
+  // Effective number of sets for an exercise THIS session. Defaults to the program's
+  // prescription, but the user can add/remove sets (stored as exData._sets). Capped 1..8
+  // (recentSessionsFor / export read up to 8 sets).
+  function setCount(ex, exData) {
+    const n = exData && exData._sets ? parseInt(exData._sets, 10) : ex.sets;
+    return Math.max(1, Math.min(8, n || ex.sets));
+  }
+
+  function renderExercises() {
+    const container = document.getElementById('exerciseContainer');
+    // Preserve which cards are expanded across a re-render (so changing unit/equipment or
+    // adding a set never collapses the cards you're working in).
+    const openIds = new Set(Array.from(container.querySelectorAll('.card.open')).map(c => c.dataset.id));
+    container.innerHTML = '';
+    const dayDef = PROGRAM[currentDay];
+
+    dayDef.exercises.forEach((ex, idx) => {
+      const exData = session.exercises[ex.id] || {};
+      const nSets = setCount(ex, exData);   // dynamic — user can add/remove sets this session
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.id = ex.id;
+
+      // Header (reflects the current session's set count, not just the prescription)
+      const setsLabel = ex.perSide
+        ? `${nSets} × ${ex.reps} each leg`
+        : `${nSets} × ${ex.reps}`;
+      const finisherPill = ex.isFinisher ? ' <span class="pill opt">Finisher</span>' : '';
+
+      // This exercise's unit (per-exercise override, else the global default)
+      const u = unitFor(ex.id);
+      // Build last session hint + progression suggestion (based on up to last 3 sessions
+      // of the CURRENTLY-SELECTED implement, so dumbbell vs barbell history stays separate)
+      const curFn = effectiveFn(ex, exData);
+      const history = recentSessionsFor(curFn, currentDate);   // FULL history — the Coach uses all of it
+      const last = history[0] || null;
+      const suggest = suggestNext(Object.assign({}, ex, { inc: effectiveInc(ex, exData) }), history, u);
+      let lastHtml = '';
+      if (last) {
+        const summary = last.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ');
+        let suggestHtml = '';
+        if (suggest) {
+          const cls = suggest.kind === 'deload' ? 'target deload' : 'target';
+          const recReps = (suggest.reps != null) ? suggest.reps : ex.reps;
+          const repTxt = ex.perSide ? `${recReps}/leg` : `${recReps}`;
+          suggestHtml = `<br><span class="coach-tag">⌾ COACH</span> <span class="${cls}">${kgToDisp(suggest.w, u)} ${u} × ${repTxt}</span> — ${suggest.note}`;
+        }
+        lastHtml = `<div class="last-session ${suggest && suggest.kind === 'deload' ? 'is-deload' : ''}"><b>Last ${last.day} (${last.date}):</b> ${summary}${suggestHtml}</div>`;
+      } else {
+        lastHtml = '<div class="last-session none">No prior data — start light, find the rep target.</div>';
+      }
+
+      // Sets table — large clear inputs; weights shown in this exercise's unit, always stored as kg
+      let setsHtml = '<div class="sets">';
+      setsHtml += `<div class="sets-header"><div></div><div>Weight (${u})</div><div>Reps</div><div>✓</div></div>`;
+      const targetW = (suggest && suggest.w) || '';
+      for (let n = 1; n <= nSets; n++) {
+        const w = kgToDisp(exData[`w${n}`] || '', u);
+        const r = exData[`r${n}`] || '';
+        const c = exData[`c${n}`] ? ' checked' : '';
+        const doneCls = exData[`c${n}`] ? ' set-done' : '';
+        setsHtml += `<div class="set-row${doneCls}">
+          <div class="lbl">${n}</div>
+          <input type="number" inputmode="decimal" data-id="${ex.id}" data-f="w${n}" value="${w}" placeholder="${kgToDisp(targetW, u)}">
+          <input type="number" inputmode="numeric" data-id="${ex.id}" data-f="r${n}" value="${r}" placeholder="${ex.reps}">
+          <input type="checkbox" class="check" data-id="${ex.id}" data-f="c${n}"${c}>
+        </div>`;
+      }
+      setsHtml += `<div class="set-ctl">
+        <button type="button" class="set-ctl-btn" data-ex="${ex.id}" data-act="remove"${nSets <= 1 ? ' disabled' : ''}>− set</button>
+        <button type="button" class="set-ctl-btn" data-ex="${ex.id}" data-act="add"${nSets >= 8 ? ' disabled' : ''}>+ set</button>
+      </div>`;
+      setsHtml += '</div>';
+
+      // Settings: equipment (dumbbell/barbell/machine) when the lift has variants, + per-exercise unit
+      let implHtml = '';
+      if (ex.variants) {
+        const curLabel = (variantFor(ex, exData) || {}).label;
+        implHtml += `<div class="impl-row"><span class="impl-cap">⚙ Equipment</span><div class="impl-seg">` +
+          ex.variants.map(v => `<button type="button" class="impl-opt${v.label === curLabel ? ' active' : ''}" data-ex="${ex.id}" data-impl="${v.label}">${v.label}</button>`).join('') +
+          `</div></div>`;
+      }
+      // Per-exercise unit (some machines load in lb, others kg) — display only; always saved as kg
+      implHtml += `<div class="impl-row"><span class="impl-cap">📏 Unit</span><div class="impl-seg">` +
+        ['kg','lb'].map(uu => `<button type="button" class="impl-opt${uu === u ? ' active' : ''}" data-ex="${ex.id}" data-u="${uu}">${uu}</button>`).join('') +
+        `</div></div>`;
+
+      // Build cues / mistakes / feel — tucked into a collapsed disclosure (glance-once reference)
+      const cuesHtml = `<div class="block cue"><h4>◆ Form cues</h4><ul>${ex.cues.map(c => `<li>${c}</li>`).join('')}</ul></div>`;
+      const mistakesHtml = `<div class="block bad"><h4>✗ Common mistakes</h4><ul>${ex.mistakes.map(c => `<li>${c}</li>`).join('')}</ul></div>`;
+      const feelHtml = `<div class="block feel"><h4>♥ Should feel it in</h4><ul><li>${ex.feel}</li></ul></div>`;
+      const formNotesHtml = `<details class="form-notes"><summary>◆ Form cues, mistakes &amp; what to feel</summary><div class="form-notes-body">${cuesHtml}${mistakesHtml}${feelHtml}</div></details>`;
+
+      // Video — wired lazily from IndexedDB when the card opens (data-slug holds the key)
+      const noteHtml = ex.note ? `<div class="video-note">📹 ${ex.note}</div>` : '';
+      const videoHtml = `<div class="video-wrap" data-slug="${ex.video}"><button type="button" class="video-btn">▶&nbsp; AthleanX form video</button><video class="form-video" controls preload="none" playsinline webkit-playsinline hidden></video></div>${noteHtml}`;
+
+      // Buttons
+      const btnsHtml = `<div class="btn-row">
+        <button class="btn" onclick="startRest(120)">⏱ Rest 120s</button>
+        <button class="btn" onclick="startRest(90)">⏱ Rest 90s</button>
+      </div>`;
+
+      card.innerHTML = `
+        <div class="card-head">
+          <div class="num">${idx+1}</div>
+          <div class="card-title">
+            <div class="name">${ex.name}${finisherPill}</div>
+            <div class="meta">${setsLabel} · ${ex.compound ? '~2 min rest' : '60–90s rest'} · ${ex.isFinisher ? 'Finisher (last set to failure)' : '1–2 RIR'}</div>
+          </div>
+          <div class="chev">›</div>
+        </div>
+        <div class="card-body">
+          <div class="card-body-inner">
+            ${lastHtml}
+            ${setsHtml}
+            ${btnsHtml}
+            ${implHtml}
+            ${formNotesHtml}
+            ${videoHtml}
+          </div>
+        </div>`;
+
+      // Click to expand — and lazily wire the video from IndexedDB when opened
+      card.querySelector('.card-head').addEventListener('click', (e) => {
+        if (e.target.closest('input,button,a')) return;
+        card.classList.toggle('open');
+      });
+
+      // Form video loads only when you tap the button (no big empty player taking up the screen)
+      const vbtn = card.querySelector('.video-btn');
+      if (vbtn) vbtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const v = card.querySelector('video.form-video');
+        vbtn.textContent = '…';
+        await wireVideo(v);
+        if (v.getAttribute('src')) {
+          v.hidden = false; vbtn.style.display = 'none';
+          try { v.play(); } catch (_) {}
+        } else {
+          vbtn.textContent = '▶  Video not saved yet — open once online';
+        }
+      });
+
+      // Inputs — weight/reps persist LIVE while typing (survive screen-lock / backgrounding);
+      // checkbox marks the set done, auto-rests, and auto-fills the Coach target if left blank.
+      card.querySelectorAll('input[data-id]').forEach(inp => {
+        const commit = () => {
+          const id = inp.dataset.id, f = inp.dataset.f;
+          if (!session.exercises[id]) session.exercises[id] = {};
+          if (inp.type === 'checkbox') {
+            session.exercises[id][f] = inp.checked;
+            const row = inp.closest('.set-row');
+            if (row) row.classList.toggle('set-done', inp.checked);
+            if (inp.checked) {
+              // one-tap logging: fill the planned numbers into any empty field on this row
+              const n = f.slice(1);
+              const wEl = card.querySelector(`input[data-f="w${n}"]`);
+              const rEl = card.querySelector(`input[data-f="r${n}"]`);
+              if (wEl && !wEl.value && targetW) { wEl.value = kgToDisp(targetW, u); session.exercises[id]['w' + n] = dispToKg(wEl.value, u); }
+              if (rEl && !rEl.value) { rEl.value = String(ex.reps); session.exercises[id]['r' + n] = String(ex.reps); }
+              // stamp WHEN this set was completed (keep-first) — powers duration + rest timing
+              if (typeof session.exercises[id]['t' + n] !== 'number') session.exercises[id]['t' + n] = Date.now();
+            }
+            updateCardDone(card);
+            if (inp.checked && autoRest.on) startRest(ex.compound ? 120 : 90);
+          } else {
+            session.exercises[id][f] = (f[0] === 'w') ? dispToKg(inp.value, u) : inp.value;
+          }
+          persist();
+        };
+        inp.addEventListener(inp.type === 'checkbox' ? 'change' : 'input', commit);
+      });
+
+
+      // Add / remove a set — stored per exercise; re-render preserves the open card.
+      card.querySelectorAll('button.set-ctl-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.ex;
+          if (!session.exercises[id]) session.exercises[id] = {};
+          const cur = setCount(ex, session.exercises[id]);
+          if (btn.dataset.act === 'add') {
+            if (cur >= 8) return;
+            session.exercises[id]._sets = cur + 1;
+          } else {
+            if (cur <= 1) return;
+            ['w', 'r', 'c', 't'].forEach(p => delete session.exercises[id][p + cur]); // clear the removed row
+            session.exercises[id]._sets = cur - 1;
+          }
+          persist();
+          render();
+          vibrate(8);
+        });
+      });
+      // Equipment selector — switching implement re-evaluates the Coach against that implement's history
+      card.querySelectorAll('button.impl-opt[data-impl]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.ex;
+          if (!session.exercises[id]) session.exercises[id] = {};
+          session.exercises[id].impl = btn.dataset.impl;
+          persist();
+          render();
+          vibrate(8);
+        });
+      });
+      // Per-exercise unit toggle — converts the displayed numbers (data stays in kg)
+      card.querySelectorAll('button.impl-opt[data-u]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setExUnit(btn.dataset.ex, btn.dataset.u);
+          render();
+          vibrate(8);
+        });
+      });
+
+      // Mark done state + restore expanded state from before the re-render
+      if (openIds.has(ex.id)) card.classList.add('open');
+      updateCardDone(card);
+      container.appendChild(card);
+    });
+  }
+
+  function updateCardDone(card) {
+    const checks = card.querySelectorAll('.check');
+    if (checks.length === 0) return;
+    const allDone = Array.from(checks).every(c => c.checked);
+    card.classList.toggle('done', allDone);
+  }
+
+  let _wasComplete = false;
+  const _celebrated = new Set();   // remember which sessions already celebrated (don't re-fire on uncheck/recheck)
+  function updateProgress() {
+    if (!session) return;
+    const dayDef = PROGRAM[currentDay];
+    let totalSets = 0, doneSets = 0, volume = 0;
+    for (const ex of dayDef.exercises) {
+      const d = session.exercises[ex.id] || {};
+      const req = !ex.isFinisher;
+      for (let n = 1; n <= setCount(ex, d); n++) {
+        if (req) { totalSets++; if (d[`c${n}`]) doneSets++; }
+        if (d[`c${n}`]) {
+          const w = parseFloat(d[`w${n}`]), r = parseFloat(d[`r${n}`]);
+          if (!isNaN(w) && !isNaN(r)) volume += w * r * (ex.perSide ? 2 : 1);
+        }
+      }
+    }
+    const pct = totalSets > 0 ? (doneSets / totalSets) * 100 : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    // live session stats
+    const sd = document.getElementById('statDone'), st = document.getElementById('statTotal'), sv = document.getElementById('statVol');
+    if (sd) sd.textContent = doneSets;
+    if (st) st.textContent = totalSets;
+    if (sv) sv.textContent = Math.round(volume).toLocaleString();
+    const vu = document.getElementById('volUnit'); if (vu) vu.textContent = 'kg';
+    const setsStat = document.getElementById('statSets');
+    const complete = pct >= 100 && totalSets > 0;
+    if (setsStat) setsStat.classList.toggle('complete', complete);
+    // completion celebration — fire once PER session (not on day/date switch, not on uncheck/recheck)
+    const sessKey = currentDay + ':' + currentDate;
+    if (complete && !_wasComplete && !_renderingNow && !_celebrated.has(sessKey)) {
+      _celebrated.add(sessKey);
+      celebrate();
+    }
+    _wasComplete = complete;
+    updateDuration();
+    renderSummary();
+  }
+
+  // ============================================================
+  // STATS & TIMING
+  // ============================================================
+  function fmtDur(sec) {
+    if (sec == null || isNaN(sec)) return '—';
+    sec = Math.max(0, Math.round(sec));
+    return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+  }
+
+  // Aggregate ONE session's logged (checked) sets → volume / counts / timing. Day-agnostic:
+  // iterates the session's own ids via EXERCISE_BY_ID, skipping removed/unknown ids (e.g. old legs).
+  function sessionStats(sd) {
+    let volume = 0, sets = 0, reps = 0, wSum = 0;
+    const times = [], perEx = {};
+    for (const id in sd.exercises) {
+      const exDef = EXERCISE_BY_ID[id]; if (!exDef) continue;
+      const d = sd.exercises[id], mult = exDef.perSide ? 2 : 1;
+      for (let n = 1; n <= 8; n++) {
+        if (!d['c' + n]) continue;
+        const w = parseFloat(d['w' + n]), r = parseFloat(d['r' + n]);
+        if (isNaN(w) || isNaN(r)) continue;
+        const vol = w * r * mult;
+        volume += vol; sets++; reps += r; wSum += w;
+        const e = perEx[exDef.name] || (perEx[exDef.name] = { name: exDef.name, volume: 0, sets: 0, topW: 0 });
+        e.volume += vol; e.sets++; if (w > e.topW) e.topW = w;
+        const t = d['t' + n]; if (typeof t === 'number') times.push(t);
+      }
+    }
+    times.sort((a, b) => a - b);
+    const durationSec = times.length >= 2 ? Math.round((times[times.length - 1] - times[0]) / 1000) : null;
+    let avgRestSec = null;
+    if (times.length >= 2) { let g = 0; for (let i = 1; i < times.length; i++) g += times[i] - times[i - 1]; avgRestSec = Math.round(g / (times.length - 1) / 1000); }
+    return { volume, sets, reps, avgWeight: sets ? wSum / sets : 0, durationSec, avgRestSec,
+             perExercise: Object.values(perEx).sort((a, b) => b.volume - a.volume), firstTs: times[0] || null, hasTimes: times.length >= 2 };
+  }
+
+  // Aggregate across ALL logged sessions for the historical Stats view.
+  function historyStats() {
+    const all = allSessions(); let totalVol = 0, durSum = 0, withDur = 0; const perEx = {};
+    for (const s of all) {
+      const st = sessionStats(s.data); totalVol += st.volume;
+      if (st.durationSec != null) { withDur++; durSum += st.durationSec; }
+      for (const pe of st.perExercise) {
+        const e = perEx[pe.name] || (perEx[pe.name] = { name: pe.name, volSum: 0, n: 0, topW: 0 });
+        e.volSum += pe.volume; e.n++; if (pe.topW > e.topW) e.topW = pe.topW;
+      }
+    }
+    return { workouts: all.length, avgVolume: all.length ? totalVol / all.length : 0,
+             avgDurationSec: withDur ? Math.round(durSum / withDur) : null,
+             perExercise: Object.values(perEx).map(e => ({ name: e.name, avgVol: e.volSum / e.n, topW: e.topW, n: e.n })).sort((a, b) => b.avgVol - a.avgVol) };
+  }
+
+  // Live workout duration in the stats bar: first checked set → now (active) / → last set (done).
+  function updateDuration() {
+    const el = document.getElementById('statDur'); if (!el || !session) return;
+    const st = sessionStats(session);
+    if (!st.firstTs) { el.textContent = '—'; return; }
+    let last = st.firstTs;
+    for (const id in session.exercises) { const d = session.exercises[id]; for (let n = 1; n <= 8; n++) { const t = d['t' + n]; if (typeof t === 'number' && t > last) last = t; } }
+    const end = _wasComplete ? last : Date.now();
+    el.textContent = fmtDur((end - st.firstTs) / 1000);
+  }
+
+  // Per-workout summary panel (collapsible section under the exercises).
+  function renderSummary() {
+    const el = document.getElementById('summaryBody'); if (!el || !session) return;
+    const st = sessionStats(session);
+    const rows = st.perExercise.map(p => `<tr><td>${p.name}</td><td>${Math.round(p.volume).toLocaleString()} kg</td><td>${p.sets}</td></tr>`).join('');
+    el.innerHTML = `<div class="sum-grid">
+        <div><b>${fmtDur(st.durationSec)}</b><span>duration</span></div>
+        <div><b>${Math.round(st.volume).toLocaleString()}</b><span>kg volume</span></div>
+        <div><b>${st.sets}</b><span>sets</span></div>
+        <div><b>${st.reps}</b><span>reps</span></div>
+        <div><b>${st.sets ? Math.round(st.avgWeight * 10) / 10 : '—'}</b><span>avg kg/set</span></div>
+        <div><b>${fmtDur(st.avgRestSec)}</b><span>avg gap</span></div>
+      </div>
+      <table class="sum-tbl">${rows || '<tr><td colspan="3">Check sets to see your breakdown.</td></tr>'}</table>`;
+  }
+
+  // Historical Stats modal (reuses the .modal/.modal-card pattern, theme-aware).
+  function openStats() {
+    const h = historyStats();
+    const ex = h.perExercise.map(p => `<tr><td>${p.name}</td><td>${Math.round(p.avgVol).toLocaleString()}</td><td>${trimNum(Math.round(p.topW * 10) / 10)}</td><td>${p.n}</td></tr>`).join('');
+    const m = document.createElement('div');
+    m.className = 'modal';
+    m.innerHTML = `<div class="modal-card">
+        <h3>📊 Your stats — all workouts</h3>
+        <div class="sum-grid">
+          <div><b>${h.workouts}</b><span>workouts</span></div>
+          <div><b>${Math.round(h.avgVolume).toLocaleString()}</b><span>avg kg / workout</span></div>
+          <div><b>${fmtDur(h.avgDurationSec)}</b><span>avg duration</span></div>
+        </div>
+        <table class="sum-tbl"><thead><tr><th>Exercise</th><th>avg vol (kg)</th><th>top kg</th><th>×</th></tr></thead><tbody>${ex || '<tr><td colspan="4">No history yet.</td></tr>'}</tbody></table>
+        <div class="row"><button class="close" onclick="closeStats()">✕ Close</button></div>
+      </div>`;
+    m.addEventListener('click', e => { if (e.target === m) closeStats(); });
+    document.body.appendChild(m);
+  }
+  function closeStats() { const m = document.querySelector('.modal'); if (m) m.remove(); }
+
+  // ============================================================
+  // REST TIMER
+  // ============================================================
+  let timerInt = null, timerEnd = 0;
+  const display = document.getElementById('timerDisplay');
+
+  function fmt(s) {
+    s = Math.max(0, Math.ceil(s));
+    return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+  }
+  const TIMER_KEY = 'wo:_timer';
+  function tick() {
+    const left = (timerEnd - Date.now()) / 1000;
+    if (left <= 0) {
+      display.textContent = '00:00';
+      display.classList.remove('run');
+      display.classList.add('done');
+      clearInterval(timerInt); timerInt = null;
+      try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
+      beep();
+      vibrate();
+      setTimeout(()=>display.classList.remove('done'), 4000);
+      return;
+    }
+    display.textContent = fmt(left);
+  }
+  function startRest(sec) {
+    timerEnd = Date.now() + sec*1000;
+    try { localStorage.setItem(TIMER_KEY, String(timerEnd)); } catch (e) {}   // survive lock/reload/background
+    display.classList.remove('done');
+    display.classList.add('run');
+    display.textContent = fmt(sec);
+    if (timerInt) clearInterval(timerInt);
+    timerInt = setInterval(tick, 250);
+    vibrate(30);
+  }
+  function stopRest() {
+    if (timerInt) clearInterval(timerInt);
+    timerInt = null;
+    try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
+    display.textContent = '--:--';
+    display.classList.remove('run','done');
+  }
+  // Resume a still-running rest timer after a reload / unlock / app-resume
+  function resumeRest() {
+    let te = 0;
+    try { te = parseInt(localStorage.getItem(TIMER_KEY) || '0', 10); } catch (e) {}
+    if (te && te > Date.now()) {
+      timerEnd = te;
+      display.classList.remove('done'); display.classList.add('run');
+      display.textContent = fmt((te - Date.now()) / 1000);
+      if (timerInt) clearInterval(timerInt);
+      timerInt = setInterval(tick, 250);
+    } else if (te) {
+      try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
+    }
+  }
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.25, 0.5].forEach(delay => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = 880; o.type = 'sine';
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
+        g.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + delay + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.2);
+        o.start(ctx.currentTime + delay);
+        o.stop(ctx.currentTime + delay + 0.22);
+      });
+    } catch(e) {}
+  }
+  function vibrate(ms=300) { if (navigator.vibrate) navigator.vibrate(ms); }
+
+  // ============================================================
+  // AUTO-REST + TOASTS + CELEBRATION
+  // ============================================================
+  const AUTOREST_KEY = 'wo:_autorest';
+  const autoRest = { on: localStorage.getItem(AUTOREST_KEY) !== 'off' };   // default ON
+  function toggleAutoRest(){
+    autoRest.on = !autoRest.on;
+    localStorage.setItem(AUTOREST_KEY, autoRest.on ? 'on' : 'off');
+    updateAutoToggleUI();
+    toast(autoRest.on ? '⏱ Auto-rest ON — timer starts when you check a set' : '⏸ Auto-rest off');
+  }
+  function updateAutoToggleUI(){
+    const b = document.getElementById('autoToggle');
+    if (b) b.classList.toggle('on', autoRest.on);
+    const v = document.getElementById('autoVal');
+    if (v) v.textContent = autoRest.on ? 'ON' : 'OFF';
+  }
+
+  function toast(msg, type){
+    let wrap = document.getElementById('toastWrap');
+    if (!wrap){ wrap = document.createElement('div'); wrap.id = 'toastWrap'; document.body.appendChild(wrap); }
+    const t = document.createElement('div');
+    t.className = 'toast' + (type ? ' ' + type : '');
+    t.innerHTML = msg;
+    wrap.appendChild(t);
+    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 320); }, 2100);
+  }
+
+  function confettiBurst(){
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const colors = (typeof theme !== 'undefined' && theme === 'light')
+      ? ['#000000','#333333','#555555','#222222','#444444','#111111']
+      : ['#ffffff','#d4d4d8','#a1a1aa','#e4e4e7','#b4b4ba','#f4f4f5'];
+    for (let i = 0; i < 90; i++){
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = colors[i % colors.length];
+      if (i % 2) { c.style.width = '7px'; c.style.height = '10px'; }
+      const dur = 1.7 + Math.random() * 1.5;
+      c.style.animationDuration = dur + 's';
+      c.style.animationDelay = (Math.random() * 0.35) + 's';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), (dur + 0.6) * 1000);
+    }
+  }
+  function celebrate(){
+    confettiBurst();
+    vibrate([40, 50, 90]);
+    toast(`<span class="ti">💪</span> ${PROGRAM[currentDay].shortName} complete — every set done!`, 'good');
+    // Auto-save a real backup file to Downloads so a completed workout can never be lost to
+    // browser-storage eviction. Fires inside the checkbox gesture, so the download is allowed.
+    try { downloadText(buildJSONBackup(), 'workout-db.json'); setTimeout(() => toast('<span class="ti">💾</span> Backup saved to Downloads', 'good'), 1300); } catch (e) {}
+  }
+
+  // ============================================================
+  // EXPORT
+  // ============================================================
+  // CSV cell escaping (RFC 4180): quote fields containing comma / quote / newline.
+  function csvCell(v){
+    v = (v == null ? '' : String(v));
+    if (/[",\r\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+    return v;
+  }
+  function buildFitNotesCSV(scope='current') {
+    const rows = [['Date','Exercise','Category','Weight (kgs)','Reps','Distance','Distance Unit','Time','Comment']];
+    const sessions = scope === 'current'
+      ? [{ day: currentDay, date: currentDate, data: session }]
+      : allSessions();
+    for (const s of sessions) {
+      // Day-agnostic: iterate the session's OWN exercise ids so cross-day / imported
+      // sessions export losslessly (mirror of recentSessionsFor).
+      for (const id in s.data.exercises) {
+        const ex = EXERCISE_BY_ID[id];
+        if (!ex) continue;
+        const d = s.data.exercises[id] || {};
+        const fnName = effectiveFn(ex, d);   // implement-aware FitNotes name
+        for (let n = 1; n <= setCount(ex, d); n++) {
+          const w = (d[`w${n}`] || '').toString().trim();
+          const r = (d[`r${n}`] || '').toString().trim();
+          if (!d[`c${n}`] || !w || !r) continue;
+          rows.push([s.date, fnName, ex.cat, w, r, '', '', '0:00:00', '']);
+        }
+      }
+    }
+    return rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+  }
+
+  function buildJSONBackup() {
+    const all = { _exportedAt: new Date().toISOString() };
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k.startsWith(KEY_PREFIX)) continue;
+      const raw = localStorage.getItem(k);
+      try { all[k] = JSON.parse(raw); } catch(e) { all[k] = raw; } // keep plain strings (e.g. wo:_seeded)
+    }
+    return JSON.stringify(all, null, 2);
+  }
+
+  // ---- export helpers ----
+  function stampNow(){ return new Date().toISOString().slice(0,19).replace(/[:T]/g,'-'); }
+  function mimeFor(fn){
+    if (fn.endsWith('.csv'))  return 'text/csv;charset=utf-8';
+    if (fn.endsWith('.json')) return 'application/json;charset=utf-8';
+    return 'text/plain;charset=utf-8';
+  }
+  function downloadText(content, filename){
+    const blob = new Blob([content], { type: mimeFor(filename) });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  async function copyText(text, taEl){
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text); return true;
+      }
+    } catch(e) {}
+    try {
+      if (taEl){ taEl.focus(); taEl.select(); }
+      const ok = document.execCommand('copy');
+      if (taEl){ taEl.setSelectionRange(0,0); taEl.blur(); }
+      return ok;
+    } catch(e) { return false; }
+  }
+  // Share via the OS sheet — sends straight to WhatsApp. Prefers a real FILE attachment.
+  async function shareExport(content, filename, btn){
+    const type = mimeFor(filename).split(';')[0];
+    try {
+      if (navigator.canShare) {
+        const file = new File([content], filename, { type });
+        if (navigator.canShare({ files:[file] })) {
+          await navigator.share({ files:[file], title: filename }); return;
+        }
+      }
+    } catch(e){ if (e && e.name === 'AbortError') return; }
+    try { await navigator.share({ title: filename, text: content }); return; }
+    catch(e){ if (e && e.name === 'AbortError') return; }
+    const ok = await copyText(content, document.getElementById('exportText'));
+    if (btn){ btn.textContent = ok ? '✓ Copied (share n/a)' : '✗ Unavailable'; setTimeout(()=>{ btn.textContent='📤 Share'; }, 2200); }
+  }
+
+  function closeExport(){ const m = document.querySelector('.modal'); if (m) m.remove(); }
+
+  function openExport() {
+    closeExport();                                  // never stack modals (no leak)
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-card">
+        <h3>Export — pick a format</h3>
+        <div class="pick">
+          <button data-act="csv-cur">📊 FitNotes CSV<br><small>this session</small></button>
+          <button data-act="csv-all">📊 FitNotes CSV<br><small>all sessions</small></button>
+          <button data-act="json">⬇ JSON backup<br><small>full data</small></button>
+          <button data-act="close" class="close">✕ Close</button>
+        </div>
+      </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) closeExport(); });  // backdrop tap
+    modal.querySelector('[data-act="csv-cur"]').onclick = () =>
+      showText(buildFitNotesCSV('current'), `FitNotes_${currentDay}_${currentDate}.csv`);
+    modal.querySelector('[data-act="csv-all"]').onclick = () =>
+      showText(buildFitNotesCSV('all'), `FitNotes_all_${stampNow()}.csv`);
+    modal.querySelector('[data-act="json"]').onclick = () =>
+      showText(buildJSONBackup(), `workout-backup_${stampNow()}.json`);
+    modal.querySelector('[data-act="close"]').onclick = closeExport;
+    document.body.appendChild(modal);
+  }
+
+  function showText(content, filename) {
+    const modal = document.querySelector('.modal');
+    if (!modal) return;
+    modal.innerHTML = `
+      <div class="modal-card">
+        <h3>${filename}</h3>
+        <textarea readonly id="exportText" spellcheck="false"></textarea>
+        <div class="row">
+          <button class="share" id="btnShare">📤 Share</button>
+          <button class="copy" id="btnCopy">📋 Copy</button>
+          <button class="dl" id="btnDl">⬇ Download</button>
+          <button class="close" id="btnClose">✕ Close</button>
+        </div>
+      </div>`;
+    const ta = modal.querySelector('#exportText');
+    ta.value = content;                              // value, not innerHTML — byte-exact, no escaping
+
+    const btnCopy = modal.querySelector('#btnCopy');
+    let copyTimer = null;
+    btnCopy.onclick = async () => {
+      const ok = await copyText(content, ta);
+      btnCopy.textContent = ok ? '✓ Copied' : '✗ Failed';
+      btnCopy.classList.toggle('ok', ok);
+      btnCopy.classList.toggle('fail', !ok);
+      if (ok) toast('<span class="ti">📋</span> Copied to clipboard', 'good');
+      clearTimeout(copyTimer);
+      copyTimer = setTimeout(() => { btnCopy.textContent = '📋 Copy'; btnCopy.classList.remove('ok','fail'); }, 2000);
+    };
+
+    modal.querySelector('#btnDl').onclick = () => downloadText(content, filename);
+
+    const btnShare = modal.querySelector('#btnShare');
+    if (!navigator.share) { btnShare.style.display = 'none'; }      // desktop w/o Web Share
+    else { btnShare.onclick = () => shareExport(content, filename, btnShare); }
+
+    modal.querySelector('#btnClose').onclick = closeExport;
+  }
+
+  // ============================================================
+  // SAVE / LOAD a real backup file in the phone's Downloads folder
+  // ============================================================
+  function saveToDownloads() {
+    downloadText(buildJSONBackup(), 'workout-db.json');
+    toast('<span class="ti">💾</span> Saved <b>workout-db.json</b> to Downloads', 'good');
+  }
+  function loadFromFile(ev) {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) { return; }
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const data = JSON.parse(r.result);
+        let n = 0;
+        for (const k in data) {
+          if (k === '_exportedAt' || !k.startsWith('wo:')) continue;
+          const v = data[k];
+          localStorage.setItem(k, (typeof v === 'string') ? v : JSON.stringify(v));
+          n++;
+        }
+        loadCurrentSession(); render(); initCollapsibles(); updateAutoToggleUI(); updateUnitUI();
+        toast(`<span class="ti">📂</span> Restored ${n} entries from backup`, 'good');
+      } catch (e) { toast('✗ That file isn\'t a valid workout backup'); }
+    };
+    r.readAsText(f);
+    ev.target.value = '';
+  }
+  // Reflect whether storage is guaranteed durable
+  async function showPersistState() {
+    let persisted = false;
+    try {
+      if (navigator.storage && navigator.storage.persist && !(await navigator.storage.persisted())) {
+        await navigator.storage.persist();   // (re)request — granted automatically for installed PWAs
+      }
+      if (navigator.storage && navigator.storage.persisted) persisted = await navigator.storage.persisted();
+    } catch (e) {}
+    const el = document.getElementById('persistNote');
+    if (el) el.textContent = persisted
+      ? '✓ Permanent storage on — your data is safe across restarts.'
+      : 'ℹ Not installed yet — open in Safari → Share → Add to Home Screen for permanent storage. (⬇ Export makes a WhatsApp backup anytime.)';
+    const warn = document.getElementById('persistWarn');
+    if (warn) warn.hidden = persisted;       // show the loud banner only when data is at risk
+  }
+  function installHelp() {
+    alert('Make this permanent on your iPhone:\n\n1) Open this page in Safari.\n2) Tap the Share button, then "Add to Home Screen".\n3) From now on, open the app from that icon — it runs full-screen, works offline, and your data stays put.\n\nBackup anytime: tap "⬇ Export", choose Share, and send the file to yourself on WhatsApp. Restore later with "📂 Load backup".');
+  }
+
+  function resetCurrent() {
+    if (!confirm(`Reset this session (${currentDay} on ${currentDate})? All entered values will be cleared. Other sessions are NOT affected.`)) return;
+    localStorage.removeItem(sessionKey(currentDay, currentDate));
+    loadCurrentSession();
+    render();
+  }
+
+  // ============================================================
+  // BASELINE SEED (runs once — populates the user's actual May 25 data
+  // so progression suggestions have something to reference)
+  // ============================================================
+  // The COMPLETE FitNotes history (all dates through 2026-06-22), generated offline by
+  // _build/gen_seed_v7.py from the .fitnotes backup. Each entry is one date; ex is keyed by the
+  // canonical exercise id (variant fns carry impl). The day label is the majority program day for
+  // that date — cosmetic only, since Coach/CSV reads are day-agnostic (EXERCISE_BY_ID).
+  // Leg exercises are excluded (legs removed from the app); their FitNotes history stays in FitNotes.
+  // Rafael starts fresh — no prior history. The Coach fills in from his own logged sessions.
+  const SEED_V8 = [];
+
+    function maybeSeed() {
+    // SEED v8 (2026-06-24): the COMPLETE FitNotes history MINUS legs (legs removed from the app),
+    // so the app and FitNotes hold the same non-leg data and the Coach has full per-exercise history.
+    // NON-DESTRUCTIVE: replaces only prior _seeded rows (purging old leg seed data); a session you
+    // logged in-app (no _seeded flag) is never touched or duplicated.
+    if (localStorage.getItem('wo:_seeded') === 'v8') return;
+
+    // (1) Drop stale seed-only sessions from earlier versions — _seeded:true payloads only.
+    const stale = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !/^wo:[ABC]:\d{4}-\d\d-\d\d$/.test(k)) continue;
+      try { const v = JSON.parse(localStorage.getItem(k)); if (v && v._seeded === true) stale.push(k); } catch (e) {}
+    }
+    stale.forEach(k => localStorage.removeItem(k));
+
+    // (2) Write each historical date only if the user hasn't logged that date themselves.
+    const dateHasUserSession = (date) => {
+      for (const d of ['A','B','C']) {
+        const raw = localStorage.getItem(`wo:${d}:${date}`);
+        if (raw) { try { if (!JSON.parse(raw)._seeded) return true; } catch (e) { return true; } }
+      }
+      return false;
+    };
+    const put = (day, date, ex, extra) => {
+      const k = `wo:${day}:${date}`;
+      if (localStorage.getItem(k)) return;       // exact key already present (user or just-written)
+      if (dateHasUserSession(date)) return;      // user logged this date under another label → leave it
+      localStorage.setItem(k, JSON.stringify(
+        Object.assign({ exercises: ex, warmup:{}, cooldown:{}, ts: 1780000000000, _seeded: true }, extra || {})));
+    };
+    SEED_V8.forEach(s => put(s.day, s.date, s.ex, s.extra));
+
+    localStorage.setItem('wo:_seeded', 'v8');
+  }
+
+  // Next day in the A→B→C→A rotation.
+  function nextDay(d) { return ({ A:'B', B:'C', C:'A' })[d] || 'A'; }
+
+  // ============================================================
+  // INIT
+  // ============================================================
+  // ============================================================
+  // COLLAPSIBLE SECTIONS (minimize/maximize warm-up, cooldown, info)
+  // State persists globally in localStorage; independent of session data.
+  // ============================================================
+  const COLLAPSE_KEY = 'wo:_collapsed';
+  function getCollapsed(){ try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '{}') || {}; } catch(e){ return {}; } }
+  function initCollapsibles(){
+    const map = getCollapsed();
+    document.querySelectorAll('.csec').forEach(sec => {
+      const key = sec.dataset.key;
+      if (map[key]) sec.classList.add('collapsed');
+      const head = sec.querySelector('.csec-head');
+      if (head && !head.dataset.wired){
+        head.dataset.wired = '1';
+        head.addEventListener('click', () => {
+          const m = getCollapsed();
+          m[key] = sec.classList.toggle('collapsed');
+          localStorage.setItem(COLLAPSE_KEY, JSON.stringify(m));
+        });
+      }
+    });
+  }
+
+  function init() {
+    maybeSeed();
+
+    // Auto-rotate: open to the day AFTER the most recent logged workout (A→B→C→A).
+    // If a session already exists for today, show THAT day (mid / just-finished today).
+    currentDay = 'A';
+    const sessions = allSessions();   // newest-first by date
+    if (sessions.length) {
+      const today = todayStr();
+      const todays = sessions.filter(s => s.date === today);
+      if (todays.length) {
+        let pick = todays[0].day;
+        try { const last = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
+              if (last && last.date === today && todays.some(s => s.day === last.day)) pick = last.day; } catch (e) {}
+        currentDay = pick;
+      } else {
+        currentDay = nextDay(sessions[0].day);
+      }
+    }
+
+    currentDate = todayStr();
+    document.getElementById('dateInp').value = currentDate;
+    document.body.setAttribute('data-day', currentDay);
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.day === currentDay));
+    document.getElementById('daySub').textContent = `${PROGRAM[currentDay].shortName} · ${PROGRAM[currentDay].name.split('— ')[1]}`;
+    loadCurrentSession();
+    render();
+    initCollapsibles();
+    applyTheme();
+    updateAutoToggleUI();
+    updateUnitUI();
+    initHdr();
+    resumeRest();
+    showPersistState();
+
+    // Kick off offline-video setup (download on first online open; instant after)
+    ensureVideos();
+
+    // Tick the live workout duration once a second (cheap — only rewrites #statDur).
+    setInterval(updateDuration, 1000);
+  }
+
+  // Keep screen awake during workout
+  let wakeLock = null;
+  async function requestWake() {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { requestWake(); resumeRest(); }
+  });
+
+  init();
+  requestWake();
+
+  // ============================================================
+  // PWA — installable, durable storage so data ALWAYS resumes
+  // ============================================================
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+  // Ask the browser to make storage persistent (won't be evicted) — key to "never start over"
+  (async () => {
+    try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) {}
+  })();
+</script>
+
+</body>
+</html>
