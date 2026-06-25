@@ -1,7 +1,7 @@
 /* Service worker: caches the app shell so the page opens 100% offline.
    The 23 AthleanX videos are cached separately by the app itself (IndexedDB),
    and the video CDN is cross-origin, so we deliberately don't touch it here. */
-const CACHE = 'workout-shell-v7';
+const CACHE = 'workout-shell-v8';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
