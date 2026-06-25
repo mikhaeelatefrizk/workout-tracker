@@ -356,6 +356,13 @@
   .sum-tbl th{text-align:left;color:var(--muted2);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;padding:4px 6px;border-bottom:1px solid var(--border)}
   .sum-tbl td{padding:6px;border-bottom:1px solid var(--hairline);color:var(--text)}
   .sum-tbl td:first-child{color:var(--muted)}
+  .stats-h{margin:14px 0 5px;font-size:.74rem;font-weight:800;color:var(--text);display:flex;justify-content:space-between;align-items:baseline}
+  .stats-h:first-of-type{margin-top:4px}
+  .stats-sub{font-size:.6rem;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em}
+  .vtag{display:inline-block;font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:99px;border:1px solid var(--border)}
+  .vtag.vlow{color:var(--muted);background:var(--card2)}
+  .vtag.vok{color:var(--on-accent);background:var(--good);border-color:var(--good)}
+  .vtag.vhigh{color:var(--on-accent);background:var(--text);border-color:var(--text)}
   .sum-tbl td:not(:first-child),.sum-tbl th:not(:first-child){text-align:right}
 
   /* auto-rest toggle (in timer bar) */
@@ -479,7 +486,8 @@
       <li><b>Leave 1–2 reps in the tank</b> on compounds. Only the last set of cable/machine isolations goes to failure. <b>Form &gt; weight, always.</b></li>
       <li><b>Breathe — never strain silently.</b> Exhale as you push through the hardest part of every rep. Dizzy, seeing stars, or head/chest pressure → rack it and stop.</li>
       <li><b>Progression:</b> add a rep each session; hit the top of the range on all sets → the Coach adds weight and you reset to the bottom → climb again.</li>
-      <li><b>Rest</b> ~2–3 min on the heavy compounds, ~60–90 sec on isolations. Use the timer below.</li>
+      <li><b>Volume drives growth:</b> aim <b>10–20 hard sets per muscle per week</b> — 📊 Stats counts them for you. More isn't always better past ~20.</li>
+      <li><b>Rest</b> ~2–3 min on the heavy compounds, ~60–120 sec on isolations. Use the timer below.</li>
       <li><b>Log every set.</b> If the numbers aren't climbing over a few weeks, fix sleep, food, or effort — that's the signal, not more exercises.</li>
     </ul>
   </div></div>
@@ -1168,10 +1176,38 @@
     return found;
   }
 
-  // Science-based progression engine. Uses the FULL per-exercise history (passed in), not just
-  // the last session: Epley estimated-1RM per session, double progression for the load step,
-  // an e1RM trend (least-squares slope) for hold messaging, and an e1RM-based plateau check for
-  // autoregulated deloads. Recommends next WEIGHT and REPS. Deterministic, offline, no ML.
+  // ---- Evidence-based programming parameters (progressive-overload science) ----
+  // Hypertrophy-primary. Double progression over a REP RANGE: add reps each session toward the top
+  // of the range at the target effort; when the top is hit on every set, add load and reset to the
+  // bottom. Ranges are practical-by-role (compounds ~6-10, isolation ~10-15, delts ~12-20) — load is
+  // "forgiving" for growth (~30-85% 1RM) so effort + volume matter more than the exact range.
+  function repRange(ex){
+    if (ex.repRange) return ex.repRange;
+    if (ex.compound) return [6, 10];
+    if (/lateral|rear delt|face pull/i.test(ex.name)) return [12, 20];
+    return [10, 15];
+  }
+  // Proximity to failure (reps in reserve). Most sets 1-3 RIR; true failure (0) reserved for
+  // lower-fatigue isolation/machine work. Shown as guidance — not logged.
+  function rirText(ex){ return ex.compound ? '1–3 RIR' : '0–2 RIR'; }
+  // Hard sets count toward the muscles worked: primary 1.0, synergists 0.5 (fractional counting),
+  // per the volume literature (count hard sets per muscle per week; ~10 → 12-20 optimal).
+  function musclesFor(ex){
+    const m = {}; const p = ex.cat; if (!p) return m;
+    m[p] = 1;
+    if (ex.compound){
+      if (p === 'Chest'){ m.Triceps = (m.Triceps||0) + 0.5; m.Shoulders = (m.Shoulders||0) + 0.5; }
+      else if (p === 'Back'){ m.Biceps = (m.Biceps||0) + 0.5; }
+      else if (p === 'Shoulders'){ m.Triceps = (m.Triceps||0) + 0.5; }
+    }
+    return m;
+  }
+
+  // Science-based progression engine (hypertrophy-primary; progressive-overload literature).
+  // Double progression over a REP RANGE at a target RIR: add reps each session toward the top of
+  // the range; when EVERY set hits the top, add the smallest load and reset to the bottom. Uses the
+  // FULL per-exercise history — Epley e1RM per session for the strength anchor + trend, and a
+  // multi-session plateau check for an autoregulated deload. Deterministic, offline, no ML.
   function topWeight(sets) {
     // The working weight = the heaviest set logged (handles ascending warm-up sets
     // correctly; for straight sets every set is equal so this is a no-op).
@@ -1190,7 +1226,9 @@
     const lastWork = topWeight(last.sets);
     if (isNaN(lastWork)) return null;
 
-    const targetReps = exDef.reps;
+    const rr = repRange(exDef); const lo = rr[0], hi = rr[1];   // double-progression rep range
+    const rir = rirText(exDef);                                 // effort target (guidance only)
+    const rangeText = lo + '–' + hi;
     const inc = exDef.inc || (exDef.compound ? 2.5 : 1);   // equipment-aware increment
     const U = dispUnit || unit;
     const today = todayDate || currentDate;
@@ -1230,9 +1268,9 @@
     }
     const agoPhrase = bestIdx === 0 ? 'your best yet' : `best was ${bestIdx} session${bestIdx > 1 ? 's' : ''} ago`;
 
-    // Last-session quality (double progression: every logged set at/above target reps)
-    const setsAtTarget = last.sets.filter(s => { const r = parseInt(s.r); return !isNaN(r) && r >= targetReps; }).length;
-    const hitAll = last.sets.length >= exDef.sets && setsAtTarget === last.sets.length;
+    // Double progression: you EARN the load increase only when EVERY set reaches the TOP of the range.
+    const minReps = Math.min.apply(null, last.sets.map(s => parseInt(s.r) || 0));
+    const hitTop = last.sets.length >= exDef.sets && last.sets.every(s => (parseInt(s.r) || 0) >= hi);
     const daysSince = (() => {
       const d = Math.round((new Date(today + 'T00:00:00') - new Date(last.date + 'T00:00:00')) / 86400000);
       return isNaN(d) ? 0 : d;
@@ -1240,51 +1278,51 @@
 
     // 1) BODYWEIGHT
     if (lastWork === 0) {
-      return hitAll
-        ? { w: roundToInc(inc).toString(), reps: targetReps, kind: 'bump',
-            note: `bodyweight cleared on all ${last.sets.length} sets — add about ${dispBump(inc)} ${U}.` }
-        : { w: '0', reps: targetReps, kind: 'hold',
-            note: `build to ${targetReps} reps on every set at bodyweight before adding load.` };
+      return hitTop
+        ? { w: roundToInc(inc).toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
+            note: `bodyweight: ${hi}+ on every set — add about ${dispBump(inc)} ${U} and rebuild from ${lo}.` }
+        : { w: '0', reps: hi, repsText: rangeText, rir, kind: 'hold',
+            note: `build toward ${hi} reps on every set at bodyweight (${rir}) before adding load.` };
     }
 
     // 2) STALE → re-baseline instead of progressing off old data
     if (daysSince > 21) {
-      return { w: lastWork.toString(), reps: targetReps, kind: 'hold',
-        note: `last logged ${daysSince} days ago — repeat ${showKg(lastWork)} × ${targetReps} to re-baseline, then push up.` };
+      return { w: lastWork.toString(), reps: lo, repsText: rangeText, rir, kind: 'hold',
+        note: `last logged ${daysSince} days ago — repeat ${showKg(lastWork)} (${rangeText} reps) to re-baseline, then push up.` };
     }
 
-    // 3) BUMP → clean double progression. The +1-increment step is itself the safety cap:
-    //    one increment above a weight just completed for ALL sets at target is never an unseen jump.
-    if (hitAll) {
+    // 3) BUMP → top of the range hit on EVERY set → add the smallest load, reset to the bottom.
+    //    The +1-increment step is itself the safety cap (one step above a weight just completed).
+    if (hitTop) {
       let next = snap(lastWork + stepKg);
       if (next <= lastWork) next = Math.round((lastWork + stepKg) * 100) / 100;   // guarantee real progress
       const gained = Math.round((next - lastWork) * 100) / 100;
-      return { w: next.toString(), reps: targetReps, kind: 'bump',
-        note: `+${dispBump(gained)} ${U} earned — you hit ${targetReps} on all ${last.sets.length} sets. Reps may dip; rebuild then climb. (best e1RM ${showKg(snap(bestE1RM))}, ${agoPhrase}.)` };
+      return { w: next.toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
+        note: `+${dispBump(gained)} ${U} earned — you topped the range (${hi}) on all ${last.sets.length} sets. Reset to ${lo} reps and climb back (${rir}). (best e1RM ${showKg(snap(bestE1RM))}, ${agoPhrase}.)` };
     }
 
-    // 4) DELOAD → 3 sessions at ~the same load with no e1RM gain = a true plateau.
-    //    (Rising reps at the same load is double progression working, so e1RM would climb.)
+    // 4) DELOAD → a true plateau: 3 sessions at ~the same load with no added reps or load.
+    //    (Rising reps at the same load is double progression working — not a stall.)
     if (history.length >= 3 && lastWork > 0) {
       const w3 = [topWeight(history[0].sets), topWeight(history[1].sets), topWeight(history[2].sets)];
       const sameLoad = w3.every(w => !isNaN(w) && Math.abs(w - lastWork) < 0.5);
       const repsProgressing = totalReps(history[0]) > Math.max(totalReps(history[1]), totalReps(history[2]));
       if (sameLoad && !repsProgressing) {
-        return { w: snap(lastWork * 0.9).toString(), reps: targetReps, kind: 'deload',
-          note: `−10% deload — 3 sessions stuck at ${showKg(lastWork)} with no added reps or load. Drop, rebuild clean reps, then climb.` };
+        return { w: snap(lastWork * 0.9).toString(), reps: lo, repsText: rangeText, rir, kind: 'deload',
+          note: `plateau — 3 sessions stuck at ${showKg(lastWork)} with no added reps or load. Deload ~10%, reset double progression from ${lo} reps, rebuild clean.` };
       }
     }
 
-    // 5) HOLD → trend-aware double-progression coaching
+    // 5) HOLD → keep the load, add reps toward the TOP of the range (double progression in action).
     let note;
     if (last.sets.length < exDef.sets) {
-      note = `match ${showKg(lastWork)} across all ${exDef.sets} sets at ${targetReps} reps before adding load.`;
+      note = `match ${showKg(lastWork)} across all ${exDef.sets} sets in the ${rangeText} range (${rir}) before adding load.`;
     } else if (slope > eps) {
-      note = `progressing — hold ${showKg(lastWork)} and drive every set toward ${targetReps} (e1RM trending up).`;
+      note = `progressing — hold ${showKg(lastWork)} and push every set toward ${hi} reps (${rir}); e1RM trending up.`;
     } else {
-      note = `hold ${showKg(lastWork)} and reclaim reps toward ${targetReps} — e1RM flat over your last ${win.length} session${win.length > 1 ? 's' : ''}.`;
+      note = `hold ${showKg(lastWork)} — add a rep on each set toward ${hi} (${rir}). Top them all out and the load goes up.`;
     }
-    return { w: lastWork.toString(), reps: targetReps, kind: 'hold', note };
+    return { w: lastWork.toString(), reps: Math.min(hi, minReps + 1), repsText: rangeText, rir, kind: 'hold', note };
   }
 
   // ============================================================
@@ -1489,9 +1527,8 @@
       card.dataset.id = ex.id;
 
       // Header (reflects the current session's set count, not just the prescription)
-      const setsLabel = ex.perSide
-        ? `${nSets} × ${ex.reps} each leg`
-        : `${nSets} × ${ex.reps}`;
+      const _rr = repRange(ex);
+      const setsLabel = `${nSets} × ${_rr[0]}–${_rr[1]} · ${rirText(ex)}`;
       const finisherPill = ex.isFinisher ? ' <span class="pill opt">Finisher</span>' : '';
 
       // This exercise's unit (per-exercise override, else the global default)
@@ -1508,9 +1545,9 @@
         let suggestHtml = '';
         if (suggest) {
           const cls = suggest.kind === 'deload' ? 'target deload' : 'target';
-          const recReps = (suggest.reps != null) ? suggest.reps : ex.reps;
-          const repTxt = ex.perSide ? `${recReps}/leg` : `${recReps}`;
-          suggestHtml = `<br><span class="coach-tag">⌾ COACH</span> <span class="${cls}">${kgToDisp(suggest.w, u)} ${u} × ${repTxt}</span> — ${suggest.note}`;
+          const repTxt = suggest.repsText || (suggest.reps != null ? String(suggest.reps) : `${repRange(ex)[0]}–${repRange(ex)[1]}`);
+          const rirTxt = suggest.rir ? ` @ ${suggest.rir}` : '';
+          suggestHtml = `<br><span class="coach-tag">⌾ COACH</span> <span class="${cls}">${kgToDisp(suggest.w, u)} ${u} × ${repTxt}${rirTxt}</span> — ${suggest.note}`;
         }
         lastHtml = `<div class="last-session ${suggest && suggest.kind === 'deload' ? 'is-deload' : ''}"><b>Last ${last.day} (${last.date}):</b> ${summary}${suggestHtml}</div>`;
       } else {
@@ -1521,6 +1558,7 @@
       let setsHtml = '<div class="sets">';
       setsHtml += `<div class="sets-header"><div></div><div>Weight (${u})</div><div>Reps</div><div>✓</div></div>`;
       const targetW = (suggest && suggest.w) || '';
+      const targetR = (suggest && suggest.reps) || repRange(ex)[0];
       for (let n = 1; n <= nSets; n++) {
         const w = kgToDisp(exData[`w${n}`] || '', u);
         const r = exData[`r${n}`] || '';
@@ -1529,7 +1567,7 @@
         setsHtml += `<div class="set-row${doneCls}">
           <div class="lbl">${n}</div>
           <input type="number" inputmode="decimal" data-id="${ex.id}" data-f="w${n}" value="${w}" placeholder="${kgToDisp(targetW, u)}">
-          <input type="number" inputmode="numeric" data-id="${ex.id}" data-f="r${n}" value="${r}" placeholder="${ex.reps}">
+          <input type="number" inputmode="numeric" data-id="${ex.id}" data-f="r${n}" value="${r}" placeholder="${targetR}">
           <input type="checkbox" class="check" data-id="${ex.id}" data-f="c${n}"${c}>
         </div>`;
       }
@@ -1573,7 +1611,7 @@
           <div class="num">${idx+1}</div>
           <div class="card-title">
             <div class="name">${ex.name}${finisherPill}</div>
-            <div class="meta">${setsLabel} · ${ex.compound ? '~2 min rest' : '60–90s rest'} · ${ex.isFinisher ? 'Finisher (last set to failure)' : '1–2 RIR'}</div>
+            <div class="meta">${setsLabel} · ${ex.compound ? '2–3 min rest' : '60–120s rest'}${ex.isFinisher ? ' · ok to failure' : ''}</div>
           </div>
           <div class="chev">›</div>
         </div>
@@ -1625,12 +1663,12 @@
               const wEl = card.querySelector(`input[data-f="w${n}"]`);
               const rEl = card.querySelector(`input[data-f="r${n}"]`);
               if (wEl && !wEl.value && targetW) { wEl.value = kgToDisp(targetW, u); session.exercises[id]['w' + n] = dispToKg(wEl.value, u); }
-              if (rEl && !rEl.value) { rEl.value = String(ex.reps); session.exercises[id]['r' + n] = String(ex.reps); }
+              if (rEl && !rEl.value) { rEl.value = String(targetR); session.exercises[id]['r' + n] = String(targetR); }
               // stamp WHEN this set was completed (keep-first) — powers duration + rest timing
               if (typeof session.exercises[id]['t' + n] !== 'number') session.exercises[id]['t' + n] = Date.now();
             }
             updateCardDone(card);
-            if (inp.checked && autoRest.on) startRest(ex.compound ? 120 : 90);
+            if (inp.checked && autoRest.on) startRest(ex.compound ? 150 : 90);   // 2.5 min compounds, 90s isolation
           } else {
             session.exercises[id][f] = (f[0] === 'w') ? dispToKg(inp.value, u) : inp.value;
           }
@@ -1787,6 +1825,34 @@
              perExercise: Object.values(perEx).map(e => ({ name: e.name, avgVol: e.volSum / e.n, topW: e.topW, n: e.n })).sort((a, b) => b.avgVol - a.avgVol) };
   }
 
+  // Hard sets per muscle over the last 7 days (rolling), with fractional synergist counting
+  // (primary 1.0, synergists 0.5). The single biggest hypertrophy driver — aim ~10 (minimum
+  // effective) → 12–20 (optimal) sets per muscle per week; past ~20 returns diminish.
+  function weeklyVolume(refDate) {
+    const end = refDate || todayStr();
+    const endMs = new Date(end + 'T00:00:00').getTime();
+    const startMs = endMs - 6 * 86400000;                 // inclusive rolling 7-day window
+    const vol = {};
+    for (const s of allSessions()) {
+      const t = new Date(s.date + 'T00:00:00').getTime();
+      if (isNaN(t) || t < startMs || t > endMs) continue;
+      for (const id in s.data.exercises) {
+        const ex = EXERCISE_BY_ID[id]; if (!ex) continue;
+        const d = s.data.exercises[id];
+        let done = 0; for (let n = 1; n <= 8; n++) { if (d['c' + n] && d['w' + n] && d['r' + n]) done++; }
+        if (!done) continue;
+        const mm = musclesFor(ex);
+        for (const mu in mm) vol[mu] = (vol[mu] || 0) + mm[mu] * done;
+      }
+    }
+    return vol;
+  }
+  function volStatus(sets) {
+    if (sets < 10) return { label: 'build up', cls: 'vlow' };
+    if (sets <= 20) return { label: 'optimal', cls: 'vok' };
+    return { label: 'high', cls: 'vhigh' };
+  }
+
   // Live workout duration in the stats bar: first checked set → now (active) / → last set (done).
   function updateDuration() {
     const el = document.getElementById('statDur'); if (!el || !session) return;
@@ -1818,10 +1884,18 @@
   function openStats() {
     const h = historyStats();
     const ex = h.perExercise.map(p => `<tr><td>${p.name}</td><td>${Math.round(p.avgVol).toLocaleString()}</td><td>${trimNum(Math.round(p.topW * 10) / 10)}</td><td>${p.n}</td></tr>`).join('');
+    // This week's hard sets per muscle vs the 10–20 science landmark
+    const wv = weeklyVolume();
+    const order = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'];
+    const muscles = order.filter(mu => wv[mu] != null).concat(Object.keys(wv).filter(mu => order.indexOf(mu) < 0));
+    const volRows = muscles.map(mu => { const st = volStatus(wv[mu]); return `<tr><td>${mu}</td><td>${trimNum(Math.round(wv[mu] * 10) / 10)}</td><td><span class="vtag ${st.cls}">${st.label}</span></td></tr>`; }).join('');
     const m = document.createElement('div');
     m.className = 'modal';
     m.innerHTML = `<div class="modal-card">
-        <h3>📊 Your stats — all workouts</h3>
+        <h3>📊 Your stats</h3>
+        <h4 class="stats-h">This week · hard sets per muscle <span class="stats-sub">target 10–20</span></h4>
+        <table class="sum-tbl"><thead><tr><th>Muscle</th><th>sets (7d)</th><th>vs target</th></tr></thead><tbody>${volRows || '<tr><td colspan="3">No sets logged in the last 7 days.</td></tr>'}</tbody></table>
+        <h4 class="stats-h">All workouts</h4>
         <div class="sum-grid">
           <div><b>${h.workouts}</b><span>workouts</span></div>
           <div><b>${Math.round(h.avgVolume).toLocaleString()}</b><span>avg kg / workout</span></div>
@@ -2057,27 +2131,13 @@
 
   function openExport() {
     closeExport();                                  // never stack modals (no leak)
+    // Rafael doesn't use FitNotes — Export is purely a full-data backup he can send to himself
+    // on WhatsApp (Share) and reload later with "Load backup". Goes straight to the backup sheet.
     const modal = document.createElement('div');
     modal.className = 'modal';
-    modal.innerHTML = `
-      <div class="modal-card">
-        <h3>Export — pick a format</h3>
-        <div class="pick">
-          <button data-act="csv-cur">📊 FitNotes CSV<br><small>this session</small></button>
-          <button data-act="csv-all">📊 FitNotes CSV<br><small>all sessions</small></button>
-          <button data-act="json">⬇ JSON backup<br><small>full data</small></button>
-          <button data-act="close" class="close">✕ Close</button>
-        </div>
-      </div>`;
     modal.addEventListener('click', e => { if (e.target === modal) closeExport(); });  // backdrop tap
-    modal.querySelector('[data-act="csv-cur"]').onclick = () =>
-      showText(buildFitNotesCSV('current'), `FitNotes_${currentDay}_${currentDate}.csv`);
-    modal.querySelector('[data-act="csv-all"]').onclick = () =>
-      showText(buildFitNotesCSV('all'), `FitNotes_all_${stampNow()}.csv`);
-    modal.querySelector('[data-act="json"]').onclick = () =>
-      showText(buildJSONBackup(), `workout-backup_${stampNow()}.json`);
-    modal.querySelector('[data-act="close"]').onclick = closeExport;
     document.body.appendChild(modal);
+    showText(buildJSONBackup(), `rafael-workout-backup_${stampNow()}.json`);
   }
 
   function showText(content, filename) {
@@ -2155,12 +2215,16 @@
       }
       if (navigator.storage && navigator.storage.persisted) persisted = await navigator.storage.persisted();
     } catch (e) {}
+    // iOS home-screen PWAs get durable storage but often report persisted()=false — treat "installed" as safe.
+    const installed = (navigator.standalone === true) ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    const durable = persisted || installed;
     const el = document.getElementById('persistNote');
-    if (el) el.textContent = persisted
-      ? '✓ Permanent storage on — your data is safe across restarts.'
-      : 'ℹ Not installed yet — open in Safari → Share → Add to Home Screen for permanent storage. (⬇ Export makes a WhatsApp backup anytime.)';
+    if (el) el.textContent = durable
+      ? '✓ Installed — your workouts are saved on this phone and kept across restarts.'
+      : 'ℹ Not installed yet — open in Safari → Share → Add to Home Screen so your data is kept permanently. (⬇ Export makes a WhatsApp backup anytime.)';
     const warn = document.getElementById('persistWarn');
-    if (warn) warn.hidden = persisted;       // show the loud banner only when data is at risk
+    if (warn) warn.hidden = durable;       // show the install nudge only until it's installed
   }
   function installHelp() {
     alert('Make this permanent on your iPhone:\n\n1) Open this page in Safari.\n2) Tap the Share button, then "Add to Home Screen".\n3) From now on, open the app from that icon — it runs full-screen, works offline, and your data stays put.\n\nBackup anytime: tap "⬇ Export", choose Share, and send the file to yourself on WhatsApp. Restore later with "📂 Load backup".');
