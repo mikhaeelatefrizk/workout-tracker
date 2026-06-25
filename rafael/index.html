@@ -571,10 +571,7 @@
   // phone. Every open after that (even with zero signal) serves them
   // straight from local storage. The HTML file itself stays tiny.
   // ============================================================
-  // Absolute URL to the hosted form clips so this SINGLE FILE works opened straight from
-  // WhatsApp / Files on an iPhone (there's no local videos/ folder and no server). Each clip
-  // streams on tap, and is also cached into IndexedDB for offline use when the browser allows.
-  const VIDEO_BASE = 'https://mikhaeelatefrizk.github.io/workout-tracker/videos/';
+  const VIDEO_BASE = '../videos/';   // same-origin — the clips live one level up at /workout-tracker/videos/
   const VIDEO_VERSION = '1';  // bump to force re-download
   const IDB_NAME = 'athleanVideos';
   const IDB_STORE = 'clips';
@@ -635,9 +632,8 @@
   async function wireVideo(videoEl) {
     if (!videoEl || videoEl.dataset.wired) return;
     const slug = videoEl.closest('.video-wrap').dataset.slug;
-    let url = await getVideoURL(slug);              // cached offline blob, if we have it
-    if (!url) url = VIDEO_BASE + slug + '.mp4';     // otherwise stream the hosted clip live
-    videoEl.src = url; videoEl.dataset.wired = '1';
+    const url = await getVideoURL(slug);
+    if (url) { videoEl.src = url; videoEl.dataset.wired = '1'; }
   }
   function wireOpenCards() {
     document.querySelectorAll('.card.open video.form-video').forEach(wireVideo);
@@ -665,7 +661,12 @@
 
     if (missing.length === 0) { wireOpenCards(); return; }
 
-    if (!navigator.onLine) return;   // offline now — clips will stream + cache next time online
+    if (!navigator.onLine) {
+      bar.className = 'dlbar warn show';
+      msg.textContent = `⚠ ${missing.length} videos not downloaded yet — open once with internet (Wi-Fi) and they'll save for offline use forever.`;
+      fill.style.width = '0%';
+      return;
+    }
 
     bar.className = 'dlbar show';
     let done = slugs.length - missing.length;
@@ -679,7 +680,11 @@
         await idbPut(db, vkey(slug), blob);
         done++;
         wireOpenCards();
-      } catch (e) { return; }   // a clip didn't cache — wireVideo just streams it instead (no alarm)
+      } catch (e) {
+        bar.className = 'dlbar warn show';
+        msg.textContent = `⚠ Download interrupted (${done}/${slugs.length} saved). Reopen with internet to finish — progress is kept.`;
+        return;
+      }
     }
     fill.style.width = '100%';
     bar.className = 'dlbar done show';
@@ -1526,7 +1531,7 @@
       card.className = 'card';
       card.dataset.id = ex.id;
 
-      // Header (reflects the current session's set count, not just the prescription)
+      // Header (reflects the current session's set count + the science-based rep range)
       const _rr = repRange(ex);
       const setsLabel = `${nSets} × ${_rr[0]}–${_rr[1]} · ${rirText(ex)}`;
       const finisherPill = ex.isFinisher ? ' <span class="pill opt">Finisher</span>' : '';

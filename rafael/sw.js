@@ -5,7 +5,7 @@
      - ignores cross-origin and .mp4 requests,
      - only ever deletes caches whose name starts with 'rafael-',
    so it can never read, evict, or interfere with the main workout app's cache or data. */
-const CACHE = 'rafael-shell-v2';
+const CACHE = 'rafael-shell-v3';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (e) => {
