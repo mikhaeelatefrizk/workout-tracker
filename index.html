@@ -75,7 +75,21 @@
   .theme-btn:active{transform:scale(.9)}
   .sub{color:var(--muted);font-size:.78rem;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .sub b{color:var(--accent2)}
-  .sub .offline{color:var(--good);font-weight:700}
+  .sub .netstat{font-weight:700}
+  .sub .netstat.on{color:var(--good)}
+  .sub .netstat.off{color:var(--muted2)}
+  /* tappable program title (toggles focus / maximize-workout mode) */
+  #programTitle{font:inherit;font-size:1.34rem;font-weight:800;letter-spacing:-0.025em;color:var(--text);background:none;border:none;padding:0;cursor:pointer;display:inline-flex;align-items:center;gap:7px;-webkit-tap-highlight-color:transparent}
+  .hdr-min-chev{font-size:.7rem;color:var(--muted2)}
+  /* FOCUS MODE — hide the header chrome so the workout fills the screen */
+  body.hdr-min .sub,body.hdr-min .tabs,body.hdr-min #hdrToggle,body.hdr-min #hdrControls,body.hdr-min .progress-bar,body.hdr-min #statsLine{display:none !important}
+  body.hdr-min header{padding-bottom:6px}
+  /* START / END workout buttons */
+  .wkbtn{display:block;width:100%;min-height:46px;margin:4px 0 12px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--card2);color:var(--text);font-family:inherit;font-weight:800;font-size:.9rem;cursor:pointer;transition:transform .12s var(--ease),background var(--dur)}
+  .wkbtn:active{transform:scale(.98)}
+  .wkbtn.start{background:var(--text);color:var(--on-accent);border-color:var(--text)}
+  .wkbtn.end{margin:14px 0 4px}
+  .wkbtn.end.done{background:var(--good);color:var(--on-accent);border-color:var(--good)}
 
   /* DAY TABS */
   .tabs{display:flex;gap:5px;margin-top:13px;background:rgba(var(--tint),.035);padding:5px;border-radius:15px;border:1px solid var(--hairline);box-shadow:inset 0 1px 0 var(--hairline),var(--elev-1)}
@@ -265,6 +279,9 @@
   .timer-display.run{color:var(--text)}
   .timer-display.done{color:var(--text);animation:pulse 0.9s var(--ease) infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+  /* rest-over alarm: hard flashing + tappable to silence */
+  .timer-display.alarm{color:var(--on-accent);background:var(--text);border-radius:9px;padding:4px 8px;cursor:pointer;animation:alarmflash .5s steps(1) infinite;font-size:1.05rem}
+  @keyframes alarmflash{0%,100%{background:var(--text);color:var(--on-accent)}50%{background:var(--bg);color:var(--text)}}
   .tbtn{min-height:42px;padding:9px 13px;border-radius:11px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-weight:800;font-size:.78rem;cursor:pointer;font-family:inherit;transition:transform .12s var(--ease)}
   .tbtn:active{transform:scale(.93)}
   .tbtn.go{background:var(--text);border-color:transparent;color:var(--on-accent)}
@@ -403,9 +420,9 @@
 </div>
 
 <header>
-  <h1><span class="dot"></span><span id="programTitle">3-Day Program</span><button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle light or dark mode">☀</button></h1>
+  <h1><span class="dot"></span><button id="programTitle" onclick="toggleFocus()" title="Tap to maximize the workout">3-Day Program <span class="hdr-min-chev">▾</span></button><button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle light or dark mode">☀</button></h1>
   <div class="sub">
-    <span id="daySub">Day A · Full Body</span> · 1–2 RIR · <span class="offline">● OFFLINE</span>
+    <span id="daySub">Day A · Full Body</span> · 1–2 RIR · <span class="netstat" id="netStat">● online</span>
   </div>
   <div class="tabs" role="tablist">
     <button class="tab" data-day="A" onclick="switchDay('A')">A<span class="small">Push · Pull · Arms</span></button>
@@ -465,7 +482,9 @@
 <div class="csec" data-key="main">
   <button class="csec-head"><span class="csec-t">▸ Main lifts <span class="csec-sub">tap a card to expand</span></span><span class="csec-chev">›</span></button>
   <div class="csec-body"><div class="csec-inner">
+    <button class="wkbtn start" id="startWorkoutBtn" onclick="startWorkout()">▶ Start workout</button>
     <div id="exerciseContainer"></div>
+    <button class="wkbtn end" id="endWorkoutBtn" onclick="endWorkout()">■ End workout</button>
   </div></div>
 </div>
 
@@ -772,41 +791,42 @@
           ],
           feel:'Calves (gastroc). Bottom stretch should feel intense. Top should burn.'
         },
-        { id:'A7', name:'Cable Curl', fn:'Cable Curl', cat:'Biceps',
+        { id:'A7', name:'Hammer Curl', fn:'Hammer Curl', cat:'Biceps',
           sets:2, reps:12, compound:false, video:'09-bicep-curl',
-          variants:[{label:'Cable',fn:'Cable Curl',inc:2.3},{label:'Dumbbell',fn:'Dumbbell Curl',inc:2},{label:'Barbell',fn:'Barbell Curl',inc:2.5}],
+          variants:[{label:'Dumbbell',fn:'Hammer Curl',inc:2},{label:'Barbell',fn:'Barbell Hammer Curl',inc:2.5}],
           isFinisher:true,
-          note:'AthleanX curl-form video (shown with dumbbells) — the elbows-pinned, no-swing, controlled-lowering cues apply identically to the cable curl.',
+          note:'Neutral-grip (thumbs-up) curl — targets the brachialis & brachioradialis to add arm thickness/width. AthleanX curl cues (elbows pinned, no swing, slow lowering) apply.',
           cues:[
-            'Stand tall, elbows pinned to ribs — they don\'t move forward or back.',
-            'Curl by bending ONLY at the elbow joint.',
-            'Squeeze hard at the top.',
-            'Slow on the way down — control the stretch.',
-            'No swinging. If you swing, lower weight.'
+            'Hold dumbbells NEUTRAL — palms facing each other (thumbs up), like holding hammers.',
+            'Elbows pinned to your ribs — they don\'t drift forward.',
+            'Curl by bending only at the elbow; keep the wrist neutral the whole way.',
+            'Squeeze at the top, slow controlled lowering.',
+            'No swinging — if you swing, lower the weight.'
           ],
           mistakes:[
-            'Elbows drifting forward — turns it into a partial front raise',
-            'Swinging the torso — momentum cheats the bicep',
-            "Not finishing the rep — let arm fully extend, but don\'t lose tension"
+            'Rotating to a palms-up curl — keep it neutral the whole rep',
+            'Swinging the torso for momentum',
+            'Elbows drifting forward — turns it into a front raise'
           ],
-          feel:'Belly of the bicep contracting on every rep. Some forearm.'
+          feel:'Brachialis (under the bicep) and forearm/brachioradialis — builds arm width.'
         },
-        { id:'A8', name:'Cable Pushdown', fn:'Cable Pushdown', cat:'Triceps',
+        { id:'A8', name:'Reverse-Grip Cable Pushdown', fn:'Reverse-Grip Cable Pushdown', cat:'Triceps',
           sets:2, reps:12, compound:false, video:'10-tricep-pushdown',
           isFinisher:true,
+          note:'Underhand (supinated) cable pushdown — biases the often-neglected MEDIAL head of the triceps.',
           cues:[
-            'Cable at the top. Rope or straight bar.',
+            'Cable at the top, straight bar. Grip UNDERHAND (palms up), hands shoulder-width.',
             'Elbows pinned to your sides — they don\'t move forward, back, or out.',
-            'Push down by EXTENDING only at the elbow joint.',
-            'Fully straighten arms at the bottom. Squeeze triceps hard.',
-            'Return slowly until forearms touch biceps. No higher.'
+            'Push down by extending only at the elbow; keep the wrists firm and flat.',
+            'Fully straighten at the bottom, squeeze the triceps hard.',
+            'Return slowly until forearms touch biceps.'
           ],
           mistakes:[
-            'Elbows drifting forward at the top — recruits shoulders',
-            'Cutting the rep short at the bottom — you miss the peak contraction',
-            'Leaning over the cable — turn it into a pushdown, not a press'
+            'Wrists collapsing under load — keep them neutral and firm',
+            'Elbows drifting forward — recruits shoulders',
+            'Cutting the bottom short — you miss the medial-head contraction'
           ],
-          feel:'Whole tricep, especially the long head. Burn at the bottom of each rep.'
+          feel:'Triceps, especially the inner/medial head. Burn at full extension.'
         }
       ]
     },
@@ -943,7 +963,7 @@
         },
         { id:'B8', name:'Incline Dumbbell Curl', fn:'Incline Dumbbell Curl', cat:'Biceps',
           sets:2, reps:12, compound:false, inc:2, video:'16-incline-db-curl',
-          variants:[{label:'Dumbbell',fn:'Incline Dumbbell Curl',inc:2},{label:'Barbell',fn:'Barbell Curl',inc:2.5},{label:'Cable',fn:'Cable Curl',inc:2.3}],
+          variants:[{label:'Dumbbell',fn:'Incline Dumbbell Curl',inc:2},{label:'Barbell',fn:'Incline Barbell Curl',inc:2.5}],
           isFinisher:true,
           cues:[
             'Bench at 45–60°. Sit back fully — shoulders touch the pad.',
@@ -1112,7 +1132,7 @@
         },
         { id:'C8', name:'Preacher Curl', fn:'Preacher Curl', cat:'Biceps',
           sets:2, reps:12, compound:false, video:'22-preacher-curl',
-          variants:[{label:'Bar',fn:'Preacher Curl',inc:2.5},{label:'Dumbbell',fn:'Dumbbell Preacher Curl',inc:2},{label:'Machine',fn:'Machine Preacher Curl',inc:5}],
+          variants:[{label:'Bar',fn:'Preacher Curl',inc:2.5},{label:'Dumbbell',fn:'Dumbbell Preacher Curl',inc:2}],
           isFinisher:true,
           note:'AthleanX curl-mechanics video — covers the preacher/peak-contraction position. Apply the no-full-lockout-at-bottom and hard-squeeze cues on the preacher bench.',
           cues:[
@@ -1130,23 +1150,23 @@
           ],
           feel:'Direct bicep contraction. NO shoulder or back involvement.'
         },
-        { id:'C9', name:'Skull Crusher', fn:'Skull Crusher', cat:'Triceps',
-          sets:2, reps:12, compound:false, video:'23-skullcrusher',
+        { id:'C9', name:'Cable Pushdown', fn:'Cable Pushdown', cat:'Triceps',
+          sets:2, reps:12, compound:false, video:'10-tricep-pushdown',
           isFinisher:true,
+          note:'Standard overhand cable pushdown — biases the LATERAL head of the triceps (the outer sweep).',
           cues:[
-            'EZ bar (easier on wrists) or DBs. Lie on flat bench.',
-            'Press the bar to lockout above your face. Elbows pointed at the ceiling — that\'s your start.',
-            'Lower the bar by BENDING ONLY at the elbows — upper arms stay vertical.',
-            'Aim the bar BEHIND your head — past the forehead — to maximize tricep stretch.',
-            'Slow descent (2–3 sec).',
-            'Extend back to start. Don\'t lock out at the top.'
+            'Cable at the top, rope or straight bar, overhand grip.',
+            'Elbows pinned to your sides — they don\'t move forward, back, or out.',
+            'Push down by extending only at the elbow joint.',
+            'Fully straighten at the bottom, squeeze the triceps hard.',
+            'Return slowly until forearms touch biceps. No higher.'
           ],
           mistakes:[
-            'Elbows drifting toward the feet — turns it into a press',
-            'Bringing the bar to the forehead only — kills the stretch',
-            'Going too heavy — tricep tendon needs to be respected'
+            'Elbows drifting forward at the top — recruits shoulders',
+            'Cutting the rep short at the bottom — you miss the peak contraction',
+            'Leaning over the cable — turns it into a press'
           ],
-          feel:'Stretch in the long head of the tricep, burn on the way up. Don\'t feel this in the elbow joint — if you do, lighten up.'
+          feel:'Triceps, especially the outer/lateral head. Burn at full lockout.'
         }
       ]
     }
@@ -1333,20 +1353,23 @@
     const rr = repRange(exDef); const lo = rr[0], hi = rr[1];   // double-progression rep range
     const rir = rirText(exDef);                                 // effort target (guidance only)
     const rangeText = lo + '–' + hi;
-    const inc = exDef.inc || (exDef.compound ? 2.5 : 1);   // equipment-aware increment
     const U = dispUnit || unit;
     const today = todayDate || currentDate;
+
+    // REAL load increment: the smallest jump YOU have actually made on this lift (your machine's
+    // true pin / plate step), learned from history. This auto-calibrates per machine — e.g. a lat
+    // pulldown that only goes 150→170 lb yields a 20 lb step, so the Coach recommends 170, not 155.
+    // Anchoring at your last (real) weight + this step lands exactly on the next real pin.
+    const fallbackInc = exDef.inc || (exDef.compound ? 2.5 : (U === 'lb' ? 10 * KG_PER_LB : 1));
+    let inc = fallbackInc;
+    { const ws = history.map(s => topWeight(s.sets)).filter(w => !isNaN(w)); let mn = Infinity;
+      for (let i = 0; i < ws.length - 1; i++) { const dd = Math.abs(ws[i] - ws[i + 1]); if (dd >= 0.5 && dd < mn) mn = dd; }
+      if (mn !== Infinity) inc = mn; }
 
     // Unit-aware phrasing (engine math stays in kg; only the words change)
     const showKg   = (kg) => kgToDisp(kg, U) + ' ' + U;
     const dispBump = (kgBump) => (U === 'kg' ? trimNum(kgBump) : trimNum(Math.round(kgBump / KG_PER_LB * 10) / 10));
-    const roundToInc = (w) => (inc > 0 ? Math.round(Math.round(w / inc) * inc * 100) / 100 : Math.round(w * 100) / 100);
-    // Snap a recommended kg weight to a CLEAN value in the user's display unit, so lb-stack
-    // machines land on real pins (nearest 5 lb) and kg lifts land on the increment grid.
-    const stepKg = (U === 'lb') ? 5 * KG_PER_LB : inc;
-    const snap = (kg) => (U === 'lb')
-      ? Math.round(Math.max(0, Math.round((kg / KG_PER_LB) / 5) * 5) * KG_PER_LB * 100) / 100
-      : roundToInc(kg);
+    const round2 = (w) => Math.round(w * 100) / 100;     // recs anchor at the real last weight + real step
 
     // Estimated 1RM per session over the FULL history (Epley: w·(1+reps/30)).
     //  - CAPPED variant (reps→12): an accurate strength estimate, used for the "best e1RM" display.
@@ -1383,7 +1406,7 @@
     // 1) BODYWEIGHT
     if (lastWork === 0) {
       return hitTop
-        ? { w: roundToInc(inc).toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
+        ? { w: round2(inc).toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
             note: `bodyweight: ${hi}+ on every set — add about ${dispBump(inc)} ${U} and rebuild from ${lo}.` }
         : { w: '0', reps: hi, repsText: rangeText, rir, kind: 'hold',
             note: `build toward ${hi} reps on every set at bodyweight (${rir}) before adding load.` };
@@ -1398,11 +1421,10 @@
     // 3) BUMP → top of the range hit on EVERY set → add the smallest load, reset to the bottom.
     //    The +1-increment step is itself the safety cap (one step above a weight just completed).
     if (hitTop) {
-      let next = snap(lastWork + stepKg);
-      if (next <= lastWork) next = Math.round((lastWork + stepKg) * 100) / 100;   // guarantee real progress
-      const gained = Math.round((next - lastWork) * 100) / 100;
+      const next = round2(lastWork + inc);                  // last real pin + your real step = next pin
+      const gained = round2(next - lastWork);
       return { w: next.toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
-        note: `+${dispBump(gained)} ${U} earned — you topped the range (${hi}) on all ${last.sets.length} sets. Reset to ${lo} reps and climb back (${rir}). (best e1RM ${showKg(snap(bestE1RM))}, ${agoPhrase}.)` };
+        note: `+${dispBump(gained)} ${U} earned — you topped the range (${hi}) on all ${last.sets.length} sets. Reset to ${lo} reps and climb back (${rir}). (best e1RM ${showKg(round2(bestE1RM))}, ${agoPhrase}.)` };
     }
 
     // 4) DELOAD → a true plateau: 3 sessions at ~the same load with no added reps or load.
@@ -1412,7 +1434,7 @@
       const sameLoad = w3.every(w => !isNaN(w) && Math.abs(w - lastWork) < 0.5);
       const repsProgressing = totalReps(history[0]) > Math.max(totalReps(history[1]), totalReps(history[2]));
       if (sameLoad && !repsProgressing) {
-        return { w: snap(lastWork * 0.9).toString(), reps: lo, repsText: rangeText, rir, kind: 'deload',
+        return { w: round2(lastWork * 0.9).toString(), reps: lo, repsText: rangeText, rir, kind: 'deload',
           note: `plateau — 3 sessions stuck at ${showKg(lastWork)} with no added reps or load. Deload ~10%, reset double progression from ${lo} reps, rebuild clean.` };
       }
     }
@@ -1517,6 +1539,26 @@
   function initHdr(){
     setHdrState(localStorage.getItem(HDR_KEY) !== '0');   // default collapsed
     updateHdrSummary();
+  }
+
+  // Tap the program title → maximize the workout (hide the whole header chrome). State persists.
+  const FOCUS_KEY = 'wo:_focus';
+  function setFocus(on){
+    document.body.classList.toggle('hdr-min', !!on);
+    const chev = document.querySelector('.hdr-min-chev'); if (chev) chev.textContent = on ? '▸' : '▾';
+  }
+  function toggleFocus(){
+    const on = !document.body.classList.contains('hdr-min');
+    setFocus(on); localStorage.setItem(FOCUS_KEY, on ? '1' : '0');
+  }
+  function initFocus(){ setFocus(localStorage.getItem(FOCUS_KEY) === '1'); }
+
+  // Online/offline indicator in the header.
+  function updateNetStat(){
+    const el = document.getElementById('netStat'); if (!el) return;
+    const on = navigator.onLine;
+    el.textContent = on ? '● online' : '● offline';
+    el.classList.toggle('on', on); el.classList.toggle('off', !on);
   }
 
   function loadCurrentSession() {
@@ -1906,11 +1948,19 @@
       }
     }
     times.sort((a, b) => a - b);
-    const durationSec = times.length >= 2 ? Math.round((times[times.length - 1] - times[0]) / 1000) : null;
+    // Duration prefers the explicit Start/End workout buttons (most accurate); falls back to the
+    // first→last checked-set timestamps for sessions logged before those buttons were used.
+    let durationSec = null;
+    if (typeof sd.startTs === 'number' && typeof sd.endTs === 'number' && sd.endTs > sd.startTs) {
+      durationSec = Math.round((sd.endTs - sd.startTs) / 1000);
+    } else if (times.length >= 2) {
+      durationSec = Math.round((times[times.length - 1] - times[0]) / 1000);
+    }
     let avgRestSec = null;
     if (times.length >= 2) { let g = 0; for (let i = 1; i < times.length; i++) g += times[i] - times[i - 1]; avgRestSec = Math.round(g / (times.length - 1) / 1000); }
     return { volume, sets, reps, avgWeight: sets ? wSum / sets : 0, durationSec, avgRestSec,
-             perExercise: Object.values(perEx).sort((a, b) => b.volume - a.volume), firstTs: times[0] || null, hasTimes: times.length >= 2 };
+             perExercise: Object.values(perEx).sort((a, b) => b.volume - a.volume),
+             firstTs: (typeof sd.startTs === 'number' ? sd.startTs : (times[0] || null)), hasTimes: times.length >= 2 };
   }
 
   // Aggregate across ALL logged sessions for the historical Stats view.
@@ -1957,15 +2007,44 @@
     return { label: 'high', cls: 'vhigh' };
   }
 
-  // Live workout duration in the stats bar: first checked set → now (active) / → last set (done).
+  // Live workout duration in the stats bar. Prefers the explicit Start→End buttons; while a
+  // workout is running it ticks to now; falls back to checked-set timestamps for legacy sessions.
   function updateDuration() {
-    const el = document.getElementById('statDur'); if (!el || !session) return;
-    const st = sessionStats(session);
-    if (!st.firstTs) { el.textContent = '—'; return; }
-    let last = st.firstTs;
-    for (const id in session.exercises) { const d = session.exercises[id]; for (let n = 1; n <= 8; n++) { const t = d['t' + n]; if (typeof t === 'number' && t > last) last = t; } }
-    const end = _wasComplete ? last : Date.now();
-    el.textContent = fmtDur((end - st.firstTs) / 1000);
+    const el = document.getElementById('statDur'); if (!el || !session) { updateWorkoutBtns(); return; }
+    const start = (typeof session.startTs === 'number') ? session.startTs : sessionStats(session).firstTs;
+    if (!start) { el.textContent = '—'; updateWorkoutBtns(); return; }
+    let end;
+    if (typeof session.endTs === 'number') end = session.endTs;                 // ended → frozen
+    else if (typeof session.startTs === 'number') end = Date.now();             // running → live
+    else {                                                                       // legacy set-based
+      let last = start;
+      for (const id in session.exercises) { const d = session.exercises[id]; for (let n = 1; n <= 8; n++) { const t = d['t' + n]; if (typeof t === 'number' && t > last) last = t; } }
+      end = _wasComplete ? last : Date.now();
+    }
+    el.textContent = fmtDur((end - start) / 1000);
+    updateWorkoutBtns();
+  }
+
+  // Explicit workout clock — Start before the first lift, End after the last (more accurate than
+  // inferring from checkmarks; lets warm-up/rest time be included exactly as the user wants).
+  function startWorkout() { if (!session.startTs) { session.startTs = Date.now(); delete session.endTs; persist(); } updateDuration(); }
+  function endWorkout() {
+    if (!session.startTs) session.startTs = sessionStats(session).firstTs || Date.now();
+    session.endTs = Date.now(); persist(); renderSummary(); updateDuration();
+    try { toast(`<span class="ti">⏱</span> Workout ended — ${fmtDur((session.endTs - session.startTs) / 1000)}`, 'good'); } catch (e) {}
+  }
+  function updateWorkoutBtns() {
+    const sb = document.getElementById('startWorkoutBtn'), eb = document.getElementById('endWorkoutBtn');
+    if (!sb || !eb || !session) return;
+    const started = typeof session.startTs === 'number', ended = typeof session.endTs === 'number';
+    if (ended) {
+      sb.style.display = 'none'; eb.style.display = '';
+      eb.classList.add('done'); eb.textContent = `✓ Ended · ${fmtDur((session.endTs - session.startTs) / 1000)}`;
+    } else if (started) {
+      sb.style.display = 'none'; eb.style.display = ''; eb.classList.remove('done'); eb.textContent = '■ End workout';
+    } else {
+      sb.style.display = ''; eb.style.display = 'none';
+    }
   }
 
   // Per-workout summary panel (collapsible section under the exercises).
@@ -2027,14 +2106,12 @@
   function tick() {
     const left = (timerEnd - Date.now()) / 1000;
     if (left <= 0) {
-      display.textContent = '00:00';
+      display.textContent = '⏰ TAP';
       display.classList.remove('run');
-      display.classList.add('done');
+      display.classList.add('done', 'alarm');
       clearInterval(timerInt); timerInt = null;
       try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
-      beep();
-      vibrate();
-      setTimeout(()=>display.classList.remove('done'), 4000);
+      startAlarm();   // keeps ringing loudly until dismissed (tap timer or Stop)
       return;
     }
     display.textContent = fmt(left);
@@ -2050,11 +2127,12 @@
     vibrate(30);
   }
   function stopRest() {
+    stopAlarm();
     if (timerInt) clearInterval(timerInt);
     timerInt = null;
     try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
     display.textContent = '--:--';
-    display.classList.remove('run','done');
+    display.classList.remove('run','done','alarm');
   }
   // Resume a still-running rest timer after a reload / unlock / app-resume
   function resumeRest() {
@@ -2070,22 +2148,39 @@
       try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
     }
   }
-  function beep() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0, 0.25, 0.5].forEach(delay => {
-        const o = ctx.createOscillator(), g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.frequency.value = 880; o.type = 'sine';
-        g.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
-        g.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + delay + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.2);
-        o.start(ctx.currentTime + delay);
-        o.stop(ctx.currentTime + delay + 0.22);
-      });
-    } catch(e) {}
+  // Loud, repeating "rest over" alarm — keeps ringing until you dismiss it (tap the timer or Stop).
+  let _ac = null, alarmInt = null;
+  function audioCtx() {
+    try { if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)(); if (_ac.state === 'suspended') _ac.resume(); } catch (e) { _ac = null; }
+    return _ac;
   }
-  function vibrate(ms=300) { if (navigator.vibrate) navigator.vibrate(ms); }
+  function loudBeep() {
+    const ctx = audioCtx(); if (!ctx) return;
+    const t0 = ctx.currentTime;
+    [[880, 0], [1320, 0.18], [1760, 0.36]].forEach(([f, d]) => {   // urgent rising 3-tone
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'square'; o.frequency.value = f;                    // square wave = harsher / louder
+      g.gain.setValueAtTime(0.0001, t0 + d);
+      g.gain.exponentialRampToValueAtTime(0.95, t0 + d + 0.01);    // ~max web volume (caps at system level)
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.16);
+      o.start(t0 + d); o.stop(t0 + d + 0.17);
+    });
+  }
+  function startAlarm() {
+    if (alarmInt) return;
+    loudBeep(); vibrate([500, 200, 500, 200, 600]);
+    alarmInt = setInterval(() => { loudBeep(); vibrate([500, 200, 500]); }, 1100);   // ring until dismissed
+  }
+  function stopAlarm() {
+    if (alarmInt) { clearInterval(alarmInt); alarmInt = null; }
+    display.classList.remove('alarm', 'done');
+    if (display.textContent === '⏰ TAP') display.textContent = '--:--';
+  }
+  function beep() { loudBeep(); }
+  function vibrate(ms = 300) { if (navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} }
+  // Tap the timer display to silence the alarm.
+  if (display) display.addEventListener('click', () => { if (alarmInt) stopAlarm(); });
 
   // ============================================================
   // AUTO-REST + TOASTS + CELEBRATION
@@ -2478,6 +2573,10 @@
     updateAutoToggleUI();
     updateUnitUI();
     initHdr();
+    initFocus();
+    updateNetStat();
+    window.addEventListener('online', updateNetStat);
+    window.addEventListener('offline', updateNetStat);
     resumeRest();
     showPersistState();
 
