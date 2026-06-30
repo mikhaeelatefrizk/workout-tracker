@@ -196,6 +196,10 @@
   .last-session .target{color:var(--text);font-weight:800}
   .last-session.none{color:var(--muted2);font-style:italic}
   .coach-tag{display:inline-block;font-size:.58rem;font-weight:800;letter-spacing:.1em;color:var(--on-accent);background:var(--text);border-radius:5px;padding:2px 6px;vertical-align:middle;margin-right:2px}
+  .coach-hands{margin:5px 0 2px;display:flex;flex-direction:column;gap:3px}
+  .coach-hands > div{color:var(--muted);font-weight:600}
+  .coach-hands > div.coach-live{color:var(--text);font-weight:800}
+  .coach-hands > div.deload{text-decoration:underline;text-underline-offset:3px}
   .last-session.is-deload{border-left-color:var(--text);border-left-style:dashed;background:rgba(var(--tint),.05)}
   .last-session .target.deload{color:var(--text);text-decoration:underline;text-underline-offset:3px}
 
@@ -1256,6 +1260,17 @@
     PROGRAM[day].exercises = PROGRAM[day].exercises.filter(ex => ex.cat !== 'Legs');
   }
 
+  // ---- Single-arm (unilateral) TRICEPS option ----
+  // Triceps work can be logged single-arm (one hand at a time) or both-arm. Single-arm is tracked as
+  // its OWN FitNotes/Coach lift (lighter per-arm loads must never mix with two-arm history). Applies
+  // to cat:'Triceps' ONLY — every other exercise is completely unaffected.
+  const SINGLE_ARM_PREFIX = 'Single-Arm ';
+  function armsMode(ex, exData){ return (ex && ex.cat === 'Triceps' && exData && exData.arms === 'single') ? 'single' : 'both'; }
+  function armsFn(ex, exData){
+    const base = effectiveFn(ex, exData);                  // triceps have no variants → base === ex.fn
+    return armsMode(ex, exData) === 'single' ? SINGLE_ARM_PREFIX + base : base;
+  }
+
   // ---- Global exercise lookups (built once from PROGRAM) ----
   // EXERCISE_BY_ID lets history readers iterate a session's OWN exercise ids regardless of
   // which day the session is labelled (real/imported dates mix exercises across program days).
@@ -1268,6 +1283,7 @@
       for (const ex of PROGRAM[day].exercises){
         if (!EXERCISE_BY_ID[ex.id]) EXERCISE_BY_ID[ex.id] = ex;
         const fns = [ex.fn].concat((ex.variants || []).map(v => v.fn));
+        if (ex.cat === 'Triceps') fns.push(SINGLE_ARM_PREFIX + ex.fn);   // single-arm twin fn resolves to this exDef
         for (const fn of fns){ if (!EXERCISE_BY_FN[fn]) EXERCISE_BY_FN[fn] = ex; }
       }
     }
@@ -1313,7 +1329,7 @@
         if (!exDef) continue;                       // unknown id — skip defensively
         const exData = s.data.exercises[id];
         if (!exData) continue;
-        if (effectiveFn(exDef, exData) !== targetFn) continue;
+        if (armsFn(exDef, exData) !== targetFn) continue;   // arms-aware (single-arm triceps tracked separately)
         const sets = [];
         for (let i = 1; i <= 8; i++) {
           const w = exData[`w${i}`], r = exData[`r${i}`];
@@ -1451,6 +1467,37 @@
     return { w: lastWork.toString(), reps: Math.min(hi, minReps + 1), repsText: rangeText, rir, kind: 'hold', note };
   }
 
+  // TRICEPS-ONLY dual recommendation. Computes the recommendation for the CURRENT hand mode from its
+  // own history via suggestNext, then derives the OTHER mode via the bilateral-deficit factor so both
+  // are shown and stay scientifically consistent (same reps/RIR, load differs by ×1.8). If the current
+  // mode has no history yet, it seeds the target by converting the OTHER mode's history (continuity on
+  // switch). Returns {single:{wKg,repsText,rir}, both:{...}, kind, note, primary} or null.
+  function tricepsDualSuggest(ex, exData, dispUnit, todayDate) {
+    const mode = armsMode(ex, exData);                              // 'single' | 'both'
+    const incEx = Object.assign({}, ex, { inc: effectiveInc(ex, exData) });
+    const baseFn = effectiveFn(ex, exData);
+    const curFn = mode === 'single' ? SINGLE_ARM_PREFIX + baseFn : baseFn;
+    let basis = recentSessionsFor(curFn, currentDate);
+    if (!basis.length) {                                            // fall back to the other mode, converted
+      const otherFn = mode === 'single' ? baseFn : SINGLE_ARM_PREFIX + baseFn;
+      const histOther = recentSessionsFor(otherFn, currentDate);
+      if (histOther.length) {
+        const conv = mode === 'single' ? biToUni : uniToBi;
+        basis = histOther.map(s => ({ date: s.date, day: s.day, sets: s.sets.map(x => ({ w: String(conv(x.w)), r: x.r })) }));
+      }
+    }
+    const s = suggestNext(incEx, basis, dispUnit, todayDate);
+    if (!s) return null;
+    const curKg = parseFloat(s.w) || 0;
+    const singleKg = mode === 'single' ? curKg : biToUni(curKg);
+    const bothKg   = mode === 'both'   ? curKg : uniToBi(curKg);
+    return {
+      single: { wKg: singleKg, repsText: s.repsText, rir: s.rir },
+      both:   { wKg: bothKg,   repsText: s.repsText, rir: s.rir },
+      kind: s.kind, note: s.note, primary: mode
+    };
+  }
+
   // ============================================================
   // STATE
   // ============================================================
@@ -1489,6 +1536,20 @@
   }
   function unitFor(exId){ return exUnits[exId] || unit; }                   // per-exercise override, else global
   function setExUnit(exId, u){ exUnits[exId] = u; localStorage.setItem(EXUNIT_KEY, JSON.stringify(exUnits)); }
+
+  // ---- Bilateral deficit (single-arm vs both-arm), TRICEPS only ----
+  // Both arms working together produce LESS than the sum of each arm alone — the bilateral deficit.
+  // Upper-limb elbow extension BLD is ~5–25% in the literature; ~10% is a defensible central value.
+  // So both-hands total load ≈ single-hand × BI_PER_UNI;  single-hand ≈ both-hands ÷ BI_PER_UNI.
+  const BI_PER_UNI = 1.8;                                   // = 2 × (1 − 0.10); single tunable constant
+  const uniToBi = (kg) => (parseFloat(kg) || 0) * BI_PER_UNI;   // single-arm load → both-hands load
+  const biToUni = (kg) => (parseFloat(kg) || 0) / BI_PER_UNI;   // both-hands load → single-arm load
+  // Round a kg load to a clean number in the DISPLAY unit (lb → nearest 1 lb pin/plate; kg → 0.5 kg),
+  // returned in kg, so derived hand-mode loads never show e.g. 13.6077 lb.
+  function roundDisp(kg, u){
+    u = u || unit;
+    return (u === 'lb') ? Math.round((kg / KG_PER_LB)) * KG_PER_LB : Math.round(kg * 2) / 2;
+  }
   function setUnit(u){
     if (u === unit) return;
     unit = u; localStorage.setItem(UNIT_KEY, u);
@@ -1681,12 +1742,31 @@
       const u = unitFor(ex.id);
       // Build last session hint + progression suggestion (based on up to last 3 sessions
       // of the CURRENTLY-SELECTED implement, so dumbbell vs barbell history stays separate)
-      const curFn = effectiveFn(ex, exData);
+      const curFn = armsFn(ex, exData);                        // arms-aware for triceps; = effectiveFn otherwise
       const history = recentSessionsFor(curFn, currentDate);   // FULL history — the Coach uses all of it
       const last = history[0] || null;
       const suggest = suggestNext(Object.assign({}, ex, { inc: effectiveInc(ex, exData) }), history, u);
       let lastHtml = '';
-      if (last) {
+      if (ex.cat === 'Triceps') {
+        // Triceps: dual single/both-hand recommendation. Renders even if the current hand-mode has
+        // no history yet — tricepsDualSuggest derives it from the other mode via the bilateral deficit.
+        const dual = tricepsDualSuggest(ex, exData, u, currentDate);
+        if (dual) {
+          const cls = dual.kind === 'deload' ? 'target deload' : 'target';
+          const rirTxt = dual.rir ? ` @ ${dual.rir}` : '';
+          const fmtW = (wKg) => `${kgToDisp(roundDisp(wKg, u), u)} ${u}`;
+          const head = last
+            ? `<b>Last ${last.day} (${last.date}):</b> ${last.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ')}`
+            : `<b>${armsMode(ex, exData) === 'single' ? '🖐️ Single-arm' : '🙌 Both-arm'} — first time:</b>`;
+          lastHtml = `<div class="last-session ${dual.kind === 'deload' ? 'is-deload' : ''}">${head}` +
+            `<br><span class="coach-tag">⌾ COACH</span><div class="coach-hands">` +
+            `<div class="${cls}${dual.primary === 'single' ? ' coach-live' : ''}">🖐️ Single hand: ${fmtW(dual.single.wKg)} × ${dual.single.repsText}${rirTxt}</div>` +
+            `<div class="${cls}${dual.primary === 'both' ? ' coach-live' : ''}">🙌 Both hands: ${fmtW(dual.both.wKg)} × ${dual.both.repsText}${rirTxt}</div>` +
+            `</div>— ${dual.note}</div>`;
+        } else {
+          lastHtml = '<div class="last-session none">No prior data — start light, find the rep target.</div>';
+        }
+      } else if (last) {
         const summary = last.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ');
         let suggestHtml = '';
         if (suggest) {
@@ -1729,6 +1809,13 @@
         const curLabel = (variantFor(ex, exData) || {}).label;
         implHtml += `<div class="impl-row"><span class="impl-cap">⚙ Equipment</span><div class="impl-seg">` +
           ex.variants.map(v => `<button type="button" class="impl-opt${v.label === curLabel ? ' active' : ''}" data-ex="${ex.id}" data-impl="${v.label}">${v.label}</button>`).join('') +
+          `</div></div>`;
+      }
+      // Hands mode (TRICEPS only): both-arm vs single-arm — tracked as separate lifts, dual rec shown
+      if (ex.cat === 'Triceps') {
+        const curArms = armsMode(ex, exData);
+        implHtml += `<div class="impl-row"><span class="impl-cap">✋ Hands</span><div class="impl-seg">` +
+          [['both','🙌 Both'],['single','🖐️ Single']].map(([val,lab]) => `<button type="button" class="impl-opt${val === curArms ? ' active' : ''}" data-ex="${ex.id}" data-arms="${val}">${lab}</button>`).join('') +
           `</div></div>`;
       }
       // Per-exercise unit (some machines load in lb, others kg) — display only; always saved as kg
@@ -1856,6 +1943,18 @@
           vibrate(8);
         });
       });
+      // Hands toggle (triceps) — single vs both arm; switches the Coach history + dual recommendation
+      card.querySelectorAll('button.impl-opt[data-arms]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.ex;
+          if (!session.exercises[id]) session.exercises[id] = {};
+          session.exercises[id].arms = btn.dataset.arms;
+          persist();
+          render();
+          vibrate(8);
+        });
+      });
       // Per-exercise unit toggle — converts the displayed numbers (data stays in kg)
       card.querySelectorAll('button.impl-opt[data-u]').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -1908,12 +2007,8 @@
     const setsStat = document.getElementById('statSets');
     const complete = pct >= 100 && totalSets > 0;
     if (setsStat) setsStat.classList.toggle('complete', complete);
-    // completion celebration — fire once PER session (not on day/date switch, not on uncheck/recheck)
-    const sessKey = currentDay + ':' + currentDate;
-    if (complete && !_wasComplete && !_renderingNow && !_celebrated.has(sessKey)) {
-      _celebrated.add(sessKey);
-      celebrate();
-    }
+    // NOTE: the celebration NO LONGER fires automatically here — it only fires when the user taps
+    // "End workout" (see endWorkout). The progress bar / stats / .complete styling stay informational.
     _wasComplete = complete;
     updateDuration();
     renderSummary();
@@ -2032,6 +2127,9 @@
     if (!session.startTs) session.startTs = sessionStats(session).firstTs || Date.now();
     session.endTs = Date.now(); persist(); renderSummary(); updateDuration();
     try { toast(`<span class="ti">⏱</span> Workout ended — ${fmtDur((session.endTs - session.startTs) / 1000)}`, 'good'); } catch (e) {}
+    // Celebration fires ONLY here (on End), once per session — never auto on the last checkbox.
+    const sessKey = currentDay + ':' + currentDate;
+    if (!_celebrated.has(sessKey)) { _celebrated.add(sessKey); celebrate(); }
   }
   function updateWorkoutBtns() {
     const sb = document.getElementById('startWorkoutBtn'), eb = document.getElementById('endWorkoutBtn');
@@ -2258,7 +2356,7 @@
         const ex = EXERCISE_BY_ID[id];
         if (!ex) continue;
         const d = s.data.exercises[id] || {};
-        const fnName = effectiveFn(ex, d);   // implement-aware FitNotes name
+        const fnName = armsFn(ex, d);        // implement- AND hands-aware FitNotes name
         for (let n = 1; n <= setCount(ex, d); n++) {
           const w = (d[`w${n}`] || '').toString().trim();
           const r = (d[`r${n}`] || '').toString().trim();
