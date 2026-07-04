@@ -1359,6 +1359,74 @@
     return max;
   }
 
+  // ---- Weight-lattice learner: detect each machine's REAL increments from the weights the user enters ----
+  // Works in the exercise's DISPLAY unit (the user's own per-machine kg/lb setting) so lb stacks learn lb
+  // pins and kg dumbbells learn kg steps; results are returned in kg (the storage unit).
+
+  // Sessions in the CURRENT training block: the newest run with gaps <= 21 days. Pre-layoff data
+  // (old stack labels, detrained re-entry loads) can never contaminate the learner.
+  function blockOf(history) {
+    if (!history || !history.length) return [];
+    const block = [history[0]];
+    for (let i = 1; i < history.length; i++) {
+      const gap = Math.round((new Date(block[block.length - 1].date + 'T00:00:00') - new Date(history[i].date + 'T00:00:00')) / 86400000);
+      if (isNaN(gap) || gap > 21) break;
+      block.push(history[i]);
+    }
+    return block;
+  }
+
+  // Learn the lift's weight step: the LARGEST clean increment c such that every distinct weight in
+  // the newest CONSISTENT run of sessions sits on (current weight + k*c). Sessions are accumulated
+  // newest→oldest; a session that can't be reconciled (an older scale era, typed-unit strays, or a
+  // light re-entry sampler) ends the scan, so the freshest data always wins. One bad weight inside a
+  // session may be dropped. Returns the step in kg, or null when it can't be learned confidently.
+  function learnStep(history, u) {
+    const blk = blockOf(history);
+    if (!blk.length) return null;
+    const toDisp = (kg) => (u === 'lb' ? kg / KG_PER_LB : kg);
+    const anchorKg = topWeight(blk[0].sets);
+    if (isNaN(anchorKg) || anchorKg <= 0) return null;
+    const anchor = toDisp(anchorKg);
+    const cands = u === 'lb' ? [20, 10, 5, 2.5] : [10, 5, 2.5, 2, 1, 0.5];
+    const tol = (c) => Math.min(0.2, 0.12 * c) + 1e-9;             // absolute cap + relative floor (no mod-wrap trap)
+    const fitsAll = (arr, c) => arr.every(w => { const m = Math.abs(w - anchor) % c; return Math.min(m, c - m) <= tol(c); });
+    const firstFit = (arr) => { for (const c of cands) if (fitsAll(arr, c)) return c; return null; };
+    const dedupe = (arr) => { const d = []; arr.slice().sort((a, b) => a - b).forEach(w => { if (!d.length || w - d[d.length - 1] > 0.25) d.push(w); }); return d; };
+    let acc = [], best = null;
+    for (const s of blk) {
+      let ws = []; s.sets.forEach(x => { const w = parseFloat(x.w); if (!isNaN(w) && w > 0) ws.push(toDisp(w)); });
+      if (!ws.length) continue;
+      let cand = firstFit(dedupe(acc.concat(ws)));
+      if (!cand && ws.length > 1) {
+        // retry after dropping this session's single worst weight (a lone typo shouldn't end the scan)
+        let bestDrop = null;
+        for (let i = 0; i < ws.length; i++) {
+          const cc = firstFit(dedupe(acc.concat(ws.filter((_, j) => j !== i))));
+          if (cc && (bestDrop === null || cc > bestDrop.c)) bestDrop = { c: cc, i };
+        }
+        if (bestDrop) { cand = bestDrop.c; ws = ws.filter((_, j) => j !== bestDrop.i); }
+      }
+      if (!cand) break;
+      acc = acc.concat(ws); best = cand;
+    }
+    return (best && dedupe(acc).length >= 2) ? (u === 'lb' ? best * KG_PER_LB : best) : null;
+  }
+
+  // Smallest genuine UPWARD move between consecutive in-block sessions (kg) — secondary step signal.
+  // Positive-only + block-scoped so a layoff drop can never masquerade as a load step.
+  function minPosDelta(history) {
+    const ws = blockOf(history).map(s => topWeight(s.sets)).filter(w => !isNaN(w) && w > 0);
+    let mn = Infinity;
+    for (let i = 0; i < ws.length - 1; i++) { const dd = ws[i] - ws[i + 1]; if (dd >= 0.5 && dd < mn) mn = dd; }
+    return mn === Infinity ? null : mn;
+  }
+
+  // Snap a kg load onto the lift's learned lattice (anchor + k*step).
+  const snapStep = (kg, stepKg, anchorKg) => anchorKg + Math.round((kg - anchorKg) / stepKg) * stepKg;
+  // Fallback grid when no lattice is learnable: lb -> nearest 2.5 lb, kg -> nearest 0.5 kg.
+  const cleanSnap = (kg, u) => (u === 'lb') ? Math.round(kg / KG_PER_LB / 2.5) * 2.5 * KG_PER_LB : Math.round(kg * 2) / 2;
+
   function suggestNext(exDef, history, dispUnit, todayDate) {
     if (!history || history.length === 0) return null;
     const last = history[0];
@@ -1372,15 +1440,15 @@
     const U = dispUnit || unit;
     const today = todayDate || currentDate;
 
-    // REAL load increment: the smallest jump YOU have actually made on this lift (your machine's
-    // true pin / plate step), learned from history. This auto-calibrates per machine — e.g. a lat
-    // pulldown that only goes 150→170 lb yields a 20 lb step, so the Coach recommends 170, not 155.
-    // Anchoring at your last (real) weight + this step lands exactly on the next real pin.
+    // REAL load increment: the machine's weight lattice learned from EVERY weight the user has
+    // entered in the current block (display-unit aware — lb stacks learn lb pins, kg dumbbells learn
+    // kg steps). Secondary: the smallest genuine upward move. Last resort: a category default whose
+    // RESULT gets snapped to a clean display value — the Coach never recommends a weight that can't
+    // exist on the equipment, and layoff drops can never masquerade as a load step.
     const fallbackInc = exDef.inc || (exDef.compound ? 2.5 : (U === 'lb' ? 10 * KG_PER_LB : 1));
-    let inc = fallbackInc;
-    { const ws = history.map(s => topWeight(s.sets)).filter(w => !isNaN(w)); let mn = Infinity;
-      for (let i = 0; i < ws.length - 1; i++) { const dd = Math.abs(ws[i] - ws[i + 1]); if (dd >= 0.5 && dd < mn) mn = dd; }
-      if (mn !== Infinity) inc = mn; }
+    const latticeKg = learnStep(history, U);
+    const minMoveKg = latticeKg ? null : minPosDelta(history);
+    const inc = latticeKg || minMoveKg || fallbackInc;
 
     // Unit-aware phrasing (engine math stays in kg; only the words change)
     const showKg   = (kg) => kgToDisp(kg, U) + ' ' + U;
@@ -1437,10 +1505,15 @@
     // 3) BUMP → top of the range hit on EVERY set → add the smallest load, reset to the bottom.
     //    The +1-increment step is itself the safety cap (one step above a weight just completed).
     if (hitTop) {
-      const next = round2(lastWork + inc);                  // last real pin + your real step = next pin
+      let next = round2(lastWork + inc);                    // last real pin + your real step = next pin
+      if (!latticeKg && !minMoveKg) {                       // generic fallback only → snap to a clean value
+        next = round2(cleanSnap(next, U));
+        if (next <= lastWork) next = round2(lastWork + (U === 'lb' ? 2.5 * KG_PER_LB : 0.5));
+      }
       const gained = round2(next - lastWork);
+      const stepNote = latticeKg ? ` · steps of ${dispBump(latticeKg)} ${U} (learned from your entries)` : '';
       return { w: next.toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
-        note: `+${dispBump(gained)} ${U} earned — you topped the range (${hi}) on all ${last.sets.length} sets. Reset to ${lo} reps and climb back (${rir}). (best e1RM ${showKg(round2(bestE1RM))}, ${agoPhrase}.)` };
+        note: `+${dispBump(gained)} ${U} earned — you topped the range (${hi}) on all ${last.sets.length} sets. Reset to ${lo} reps and climb back (${rir}). (best e1RM ${showKg(round2(bestE1RM))}, ${agoPhrase}.)${stepNote}` };
     }
 
     // 4) DELOAD → a true plateau: 3 sessions at ~the same load with no added reps or load.
@@ -1450,8 +1523,14 @@
       const sameLoad = w3.every(w => !isNaN(w) && Math.abs(w - lastWork) < 0.5);
       const repsProgressing = totalReps(history[0]) > Math.max(totalReps(history[1]), totalReps(history[2]));
       if (sameLoad && !repsProgressing) {
-        return { w: round2(lastWork * 0.9).toString(), reps: lo, repsText: rangeText, rir, kind: 'deload',
-          note: `plateau — 3 sessions stuck at ${showKg(lastWork)} with no added reps or load. Deload ~10%, reset double progression from ${lo} reps, rebuild clean.` };
+        // Deload lands on a REAL weight: snap ~-10% to the learned lattice (at least one step down),
+        // or to a clean display value when no lattice is known.
+        let dw = lastWork * 0.9;
+        dw = latticeKg ? snapStep(dw, latticeKg, lastWork) : cleanSnap(dw, U);
+        if (dw >= lastWork) dw = latticeKg ? lastWork - latticeKg : lastWork * 0.9;
+        if (dw <= 0) dw = lastWork * 0.9;
+        return { w: round2(dw).toString(), reps: lo, repsText: rangeText, rir, kind: 'deload',
+          note: `plateau — 3 sessions stuck at ${showKg(lastWork)} with no added reps or load. Deload ~10% to ${showKg(round2(dw))}, reset double progression from ${lo} reps, rebuild clean.` };
       }
     }
 
@@ -1477,20 +1556,27 @@
     const incEx = Object.assign({}, ex, { inc: effectiveInc(ex, exData) });
     const baseFn = effectiveFn(ex, exData);
     const curFn = mode === 'single' ? SINGLE_ARM_PREFIX + baseFn : baseFn;
+    const otherFn = mode === 'single' ? baseFn : SINGLE_ARM_PREFIX + baseFn;
     let basis = recentSessionsFor(curFn, currentDate);
-    if (!basis.length) {                                            // fall back to the other mode, converted
-      const otherFn = mode === 'single' ? baseFn : SINGLE_ARM_PREFIX + baseFn;
-      const histOther = recentSessionsFor(otherFn, currentDate);
-      if (histOther.length) {
-        const conv = mode === 'single' ? biToUni : uniToBi;
-        basis = histOther.map(s => ({ date: s.date, day: s.day, sets: s.sets.map(x => ({ w: String(conv(x.w)), r: x.r })) }));
-      }
+    const histOther = recentSessionsFor(otherFn, currentDate);
+    if (!basis.length && histOther.length) {                        // fall back to the other mode, converted
+      const conv = mode === 'single' ? biToUni : uniToBi;
+      basis = histOther.map(s => ({ date: s.date, day: s.day, sets: s.sets.map(x => ({ w: String(conv(x.w)), r: x.r })) }));
     }
     const s = suggestNext(incEx, basis, dispUnit, todayDate);
     if (!s) return null;
     const curKg = parseFloat(s.w) || 0;
-    const singleKg = mode === 'single' ? curKg : biToUni(curKg);
-    const bothKg   = mode === 'both'   ? curKg : uniToBi(curKg);
+    // The DERIVED partner-mode load snaps to the partner mode's OWN learned weight lattice (its real
+    // pins), else to a clean display value — both lines always show weights that exist on the machine.
+    const partnerRaw = mode === 'single' ? uniToBi(curKg) : biToUni(curKg);
+    let partnerKg;
+    const pLat = learnStep(histOther, dispUnit);
+    const pAnchor = histOther.length ? topWeight(histOther[0].sets) : NaN;
+    if (pLat && !isNaN(pAnchor) && pAnchor > 0) partnerKg = snapStep(partnerRaw, pLat, pAnchor);
+    else partnerKg = cleanSnap(partnerRaw, dispUnit);
+    if (partnerKg <= 0) partnerKg = partnerRaw;
+    const singleKg = mode === 'single' ? curKg : partnerKg;
+    const bothKg   = mode === 'both'   ? curKg : partnerKg;
     return {
       single: { wKg: singleKg, repsText: s.repsText, rir: s.rir },
       both:   { wKg: bothKg,   repsText: s.repsText, rir: s.rir },
@@ -1544,12 +1630,6 @@
   const BI_PER_UNI = 1.8;                                   // = 2 × (1 − 0.10); single tunable constant
   const uniToBi = (kg) => (parseFloat(kg) || 0) * BI_PER_UNI;   // single-arm load → both-hands load
   const biToUni = (kg) => (parseFloat(kg) || 0) / BI_PER_UNI;   // both-hands load → single-arm load
-  // Round a kg load to a clean number in the DISPLAY unit (lb → nearest 1 lb pin/plate; kg → 0.5 kg),
-  // returned in kg, so derived hand-mode loads never show e.g. 13.6077 lb.
-  function roundDisp(kg, u){
-    u = u || unit;
-    return (u === 'lb') ? Math.round((kg / KG_PER_LB)) * KG_PER_LB : Math.round(kg * 2) / 2;
-  }
   function setUnit(u){
     if (u === unit) return;
     unit = u; localStorage.setItem(UNIT_KEY, u);
@@ -1754,7 +1834,7 @@
         if (dual) {
           const cls = dual.kind === 'deload' ? 'target deload' : 'target';
           const rirTxt = dual.rir ? ` @ ${dual.rir}` : '';
-          const fmtW = (wKg) => `${kgToDisp(roundDisp(wKg, u), u)} ${u}`;
+          const fmtW = (wKg) => `${kgToDisp(wKg, u)} ${u}`;   // values arrive lattice-snapped from tricepsDualSuggest
           const head = last
             ? `<b>Last ${last.day} (${last.date}):</b> ${last.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ')}`
             : `<b>${armsMode(ex, exData) === 'single' ? '🖐️ Single-arm' : '🙌 Both-arm'} — first time:</b>`;
