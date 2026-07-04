@@ -1462,8 +1462,14 @@
     const epley   = (w, r, cap) => { const W = parseFloat(w), R = parseInt(r); return (isNaN(W) || isNaN(R) || W <= 0) ? 0 : W * (1 + Math.min(R, cap ? 12 : 99) / 30); };
     const sessBest = (s, cap) => s.sets.reduce((m, x) => Math.max(m, epley(x.w, x.r, cap)), 0);
     const totalReps = (s) => s.sets.reduce((a, x) => a + (parseInt(x.r) || 0), 0);
-    const eCap  = history.map(s => sessBest(s, true));     // newest-first — for strength display
-    const ePerf = history.map(s => sessBest(s, false));    // newest-first — for trend/progress
+    // BLOCK-SCOPED progress math: bests, trend and the plateau check only look at the CURRENT
+    // training block (gaps <= 21d). Pre-layoff peaks from a different training age can't make
+    // real post-return PRs read as "below best", and a layoff-straddling same-load coincidence
+    // can never trigger a deload. Pre-break bests are shown separately as context.
+    const blk = blockOf(history);
+    const eCap  = blk.map(s => sessBest(s, true));         // newest-first — for strength display
+    const ePerf = blk.map(s => sessBest(s, false));        // newest-first — for trend/progress
+    const preBest = history.slice(blk.length).reduce((m, s) => Math.max(m, sessBest(s, true)), 0);
     let bestE1RM = 0, bestIdx = 0;
     eCap.forEach((v, i) => { if (v > bestE1RM) { bestE1RM = v; bestIdx = i; } });
     const meanPerf = ePerf.reduce((a, b) => a + b, 0) / (ePerf.length || 1);
@@ -1512,16 +1518,17 @@
       }
       const gained = round2(next - lastWork);
       const stepNote = latticeKg ? ` · steps of ${dispBump(latticeKg)} ${U} (learned from your entries)` : '';
+      const preNote = preBest > bestE1RM * 1.02 ? ` Pre-break best: ${showKg(round2(preBest))} — you're re-climbing, not stalling.` : '';
       return { w: next.toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
-        note: `+${dispBump(gained)} ${U} earned — you topped the range (${hi}) on all ${last.sets.length} sets. Reset to ${lo} reps and climb back (${rir}). (best e1RM ${showKg(round2(bestE1RM))}, ${agoPhrase}.)${stepNote}` };
+        note: `+${dispBump(gained)} ${U} earned — you topped the range (${hi}) on all ${last.sets.length} sets. Reset to ${lo} reps and climb back (${rir}). (best e1RM ${showKg(round2(bestE1RM))}, ${agoPhrase}.)${preNote}${stepNote}` };
     }
 
     // 4) DELOAD → a true plateau: 3 sessions at ~the same load with no added reps or load.
     //    (Rising reps at the same load is double progression working — not a stall.)
-    if (history.length >= 3 && lastWork > 0) {
-      const w3 = [topWeight(history[0].sets), topWeight(history[1].sets), topWeight(history[2].sets)];
+    if (blk.length >= 3 && lastWork > 0) {
+      const w3 = [topWeight(blk[0].sets), topWeight(blk[1].sets), topWeight(blk[2].sets)];
       const sameLoad = w3.every(w => !isNaN(w) && Math.abs(w - lastWork) < 0.5);
-      const repsProgressing = totalReps(history[0]) > Math.max(totalReps(history[1]), totalReps(history[2]));
+      const repsProgressing = totalReps(blk[0]) > Math.max(totalReps(blk[1]), totalReps(blk[2]));
       if (sameLoad && !repsProgressing) {
         // Deload lands on a REAL weight: snap ~-10% to the learned lattice (at least one step down),
         // or to a clean display value when no lattice is known.
@@ -2154,15 +2161,24 @@
              perExercise: Object.values(perEx).map(e => ({ name: e.name, avgVol: e.volSum / e.n, topW: e.topW, n: e.n })).sort((a, b) => b.avgVol - a.avgVol) };
   }
 
-  // Hard sets per muscle over the last 7 days (rolling), with fractional synergist counting
-  // (primary 1.0, synergists 0.5). The single biggest hypertrophy driver — aim ~10 (minimum
-  // effective) → 12–20 (optimal) sets per muscle per week; past ~20 returns diminish.
+  // Hard sets per muscle per week, with fractional synergist counting (primary 1.0, synergists
+  // 0.5). ROTATION-ALIGNED: on a ~2-3 sessions/week A/B/C split a fixed 7-day window mis-samples
+  // depending on WHEN you look (a muscle trained 8 days ago reads zero). So the window stretches
+  // to cover the last full rotation (3 training sessions) when that spans more than 7 days, and
+  // the counts are normalized to a per-7-day rate — a stable weekly dose, whenever you open Stats.
   function weeklyVolume(refDate) {
     const end = refDate || todayStr();
     const endMs = new Date(end + 'T00:00:00').getTime();
-    const startMs = endMs - 6 * 86400000;                 // inclusive rolling 7-day window
+    const hasWork = (data) => { for (const id in data.exercises) { const d = data.exercises[id]; for (let n = 1; n <= 8; n++) if (d['c' + n] && d['w' + n] && d['r' + n]) return true; } return false; };
+    const sess = allSessions().filter(s => hasWork(s.data));
+    const dates = sess.map(s => new Date(s.date + 'T00:00:00').getTime()).filter(t => !isNaN(t) && t <= endMs).sort((a, b) => b - a);
+    let startMs = endMs - 6 * 86400000, spanDays = 7;    // default: inclusive rolling 7-day window
+    if (dates.length >= 3 && dates[2] < startMs) {       // last rotation reaches further back → stretch
+      startMs = dates[2];
+      spanDays = Math.round((endMs - startMs) / 86400000) + 1;
+    }
     const vol = {};
-    for (const s of allSessions()) {
+    for (const s of sess) {
       const t = new Date(s.date + 'T00:00:00').getTime();
       if (isNaN(t) || t < startMs || t > endMs) continue;
       for (const id in s.data.exercises) {
@@ -2174,12 +2190,26 @@
         for (const mu in mm) vol[mu] = (vol[mu] || 0) + mm[mu] * done;
       }
     }
+    for (const mu in vol) vol[mu] *= 7 / spanDays;       // normalize to sets per 7 days
     return vol;
   }
-  function volStatus(sets) {
-    if (sets < 10) return { label: 'build up', cls: 'vlow' };
-    if (sets <= 20) return { label: 'optimal', cls: 'vok' };
-    return { label: 'high', cls: 'vhigh' };
+  // Per-muscle weekly landmarks (hard sets/week): MEV = minimum effective volume, MAV = the
+  // adaptive sweet spot, MRV = max recoverable. Muscle-specific — small fast-recovering muscles
+  // tolerate more than large eccentric-heavy ones; a flat 10-20 band can't tell chest from delts.
+  const VOL_LANDMARKS = {
+    Chest:     { mev: 10, mav: 16, mrv: 22 },
+    Back:      { mev: 10, mav: 18, mrv: 25 },
+    Shoulders: { mev: 8,  mav: 16, mrv: 26 },
+    Biceps:    { mev: 8,  mav: 14, mrv: 20 },
+    Triceps:   { mev: 6,  mav: 12, mrv: 18 },
+  };
+  function volStatus(sets, muscle) {
+    const L = VOL_LANDMARKS[muscle] || { mev: 10, mav: 16, mrv: 20 };
+    const band = `${L.mev}–${L.mav}`;
+    if (sets < L.mev)  return { label: 'below MEV — add sets', cls: 'vlow',  band };
+    if (sets <= L.mav) return { label: 'productive', cls: 'vok',  band };
+    if (sets <= L.mrv) return { label: 'high — fine short-term', cls: 'vok', band };
+    return { label: 'over MRV — pull back', cls: 'vhigh', band };
   }
 
   // Live workout duration in the stats bar. Prefers the explicit Start→End buttons; while a
@@ -2245,17 +2275,17 @@
   function openStats() {
     const h = historyStats();
     const ex = h.perExercise.map(p => `<tr><td>${p.name}</td><td>${Math.round(p.avgVol).toLocaleString()}</td><td>${trimNum(Math.round(p.topW * 10) / 10)}</td><td>${p.n}</td></tr>`).join('');
-    // This week's hard sets per muscle vs the 10–20 science landmark
+    // This week's hard sets per muscle vs its OWN MEV/MAV landmarks (rotation-aligned weekly rate)
     const wv = weeklyVolume();
     const order = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'];
     const muscles = order.filter(mu => wv[mu] != null).concat(Object.keys(wv).filter(mu => order.indexOf(mu) < 0));
-    const volRows = muscles.map(mu => { const st = volStatus(wv[mu]); return `<tr><td>${mu}</td><td>${trimNum(Math.round(wv[mu] * 10) / 10)}</td><td><span class="vtag ${st.cls}">${st.label}</span></td></tr>`; }).join('');
+    const volRows = muscles.map(mu => { const st = volStatus(wv[mu], mu); return `<tr><td>${mu}</td><td>${trimNum(Math.round(wv[mu] * 10) / 10)} <span class="stats-sub">/ ${st.band}</span></td><td><span class="vtag ${st.cls}">${st.label}</span></td></tr>`; }).join('');
     const m = document.createElement('div');
     m.className = 'modal';
     m.innerHTML = `<div class="modal-card">
         <h3>📊 Your stats</h3>
-        <h4 class="stats-h">This week · hard sets per muscle <span class="stats-sub">target 10–20</span></h4>
-        <table class="sum-tbl"><thead><tr><th>Muscle</th><th>sets (7d)</th><th>vs target</th></tr></thead><tbody>${volRows || '<tr><td colspan="3">No sets logged in the last 7 days.</td></tr>'}</tbody></table>
+        <h4 class="stats-h">This week · hard sets per muscle <span class="stats-sub">vs your MEV–MAV landmarks</span></h4>
+        <table class="sum-tbl"><thead><tr><th>Muscle</th><th>sets / wk</th><th>status</th></tr></thead><tbody>${volRows || '<tr><td colspan="3">No sets logged in the last week.</td></tr>'}</tbody></table>
         <h4 class="stats-h">All workouts</h4>
         <div class="sum-grid">
           <div><b>${h.workouts}</b><span>workouts</span></div>
