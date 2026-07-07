@@ -196,6 +196,10 @@
   .last-session .target{color:var(--text);font-weight:800}
   .last-session.none{color:var(--muted2);font-style:italic}
   .coach-tag{display:inline-block;font-size:.58rem;font-weight:800;letter-spacing:.1em;color:var(--on-accent);background:var(--text);border-radius:5px;padding:2px 6px;vertical-align:middle;margin-right:2px}
+  .vol-nudge{background:rgba(var(--tint),.03);border:1px solid var(--hairline);border-left:2px solid var(--text);border-radius:var(--r-sm);padding:8px 12px;margin-top:8px;font-size:.75rem;color:var(--text);font-weight:600;line-height:1.45}
+  .lift-grp{font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
+  .lift-grp.muted-grp{font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted2)}
+  .lift-row{display:flex;justify-content:space-between;gap:10px;font-size:.8rem;color:var(--text);padding:5px 0;border-bottom:1px solid var(--hairline)}
   .coach-hands{margin:5px 0 2px;display:flex;flex-direction:column;gap:3px}
   .coach-hands > div{color:var(--muted);font-weight:600}
   .coach-hands > div.coach-live{color:var(--text);font-weight:800}
@@ -1422,6 +1426,23 @@
     return mn === Infinity ? null : mn;
   }
 
+  // Effort inference — no input needed. With steady rest, straight sets taken near failure DECAY
+  // set-to-set (15/13/9), while sets left far from failure stay flat (12/12/12). The Coach reads
+  // that shape and reflects back the effort the lifter can't reliably feel. 'flat' only fires once
+  // a load has been HELD for 2+ sessions — the first exposure to a new weight is exploratory by
+  // design (post-bump resets deliberately start flat at the bottom of the range).
+  function effortRead(last, prev, lastWork) {
+    const ws = last.sets.filter(s => Math.abs((parseFloat(s.w) || 0) - lastWork) < 0.5).map(s => parseInt(s.r) || 0);
+    if (ws.length < 2) return null;
+    // Fatigue = how far the FINAL set fell from the session's best (direction-aware: ascending
+    // reps like 12/15/15 are building, not grinding, and must never read as near-failure).
+    const dropOff = Math.max.apply(null, ws) - ws[ws.length - 1];
+    if (dropOff >= 3) return 'hard';
+    const held = prev && Math.abs(topWeight(prev.sets) - lastWork) < 0.5;
+    if (held && Math.max.apply(null, ws) === Math.min.apply(null, ws)) return 'flat';
+    return null;
+  }
+
   // Snap a kg load onto the lift's learned lattice (anchor + k*step).
   const snapStep = (kg, stepKg, anchorKg) => anchorKg + Math.round((kg - anchorKg) / stepKg) * stepKg;
   // Fallback grid when no lattice is learnable: lb -> nearest 2.5 lb, kg -> nearest 0.5 kg.
@@ -1549,6 +1570,13 @@
       note = `progressing — hold ${showKg(lastWork)} and push every set toward ${hi} reps (${rir}); e1RM trending up.`;
     } else {
       note = `hold ${showKg(lastWork)} — add a rep on each set toward ${hi} (${rir}). Top them all out and the load goes up.`;
+    }
+    // Effort read from the set shape (see effortRead): reflect back what the rep pattern says
+    // about proximity to failure — the signal the lifter can't reliably feel himself.
+    if (last.sets.length >= exDef.sets) {
+      const effort = effortRead(last, blk[1], lastWork);
+      if (effort === 'hard') note += ` Your set-to-set drop-off says you're training close to failure — honest effort, the reps will come.`;
+      else if (effort === 'flat' && minReps < hi) note += ` Reps held perfectly flat across all sets — you likely have more in the tank; take the last set closer to failure.`;
     }
     return { w: lastWork.toString(), reps: Math.min(hi, minReps + 1), repsText: rangeText, rir, kind: 'hold', note };
   }
@@ -1813,6 +1841,22 @@
     container.innerHTML = '';
     const dayDef = PROGRAM[currentDay];
 
+    // Prescriptive volume (today only): for each muscle sitting below its weekly MEV, nudge ONE
+    // exercise on today's day — the compound if there is one — to add a set. Turns the Stats
+    // landmark into an in-session action; disappears once a set has been added or the dose is met.
+    const volNudge = {};
+    if (currentDate === todayStr()) {
+      const wv = weeklyVolume();
+      Object.keys(VOL_LANDMARKS).forEach(mu => {
+        if ((wv[mu] || 0) >= VOL_LANDMARKS[mu].mev) return;
+        const cands = dayDef.exercises.filter(e => e.cat === mu);
+        if (!cands.length) return;
+        const pick = cands.find(e => e.compound) || cands[0];
+        if (setCount(pick, session.exercises[pick.id] || {}) > pick.sets) return;   // already added one
+        volNudge[pick.id] = `<div class="vol-nudge">📈 ${mu} is under its weekly minimum (${trimNum(Math.round((wv[mu] || 0) * 10) / 10)}/${VOL_LANDMARKS[mu].mev} sets) — worth adding a set here today.</div>`;
+      });
+    }
+
     dayDef.exercises.forEach((ex, idx) => {
       const exData = session.exercises[ex.id] || {};
       const nSets = setCount(ex, exData);   // dynamic — user can add/remove sets this session
@@ -1938,6 +1982,7 @@
         <div class="card-body">
           <div class="card-body-inner">
             ${lastHtml}
+            ${volNudge[ex.id] || ''}
             ${setsHtml}
             ${btnsHtml}
             ${implHtml}
@@ -2161,6 +2206,50 @@
              perExercise: Object.values(perEx).map(e => ({ name: e.name, avgVol: e.volSum / e.n, topW: e.topW, n: e.n })).sort((a, b) => b.avgVol - a.avgVol) };
   }
 
+  // "Where to push" readout: classify each lift the user actually trains by its CURRENT-BLOCK
+  // trend. Velocity = least-squares slope of the uncapped session e1RM over the last <=5 in-block
+  // sessions, as % of the block mean per session. Stalled = a real 3-session same-load rep-freeze
+  // OR a clearly declining trend; Fast = >=2%/session; the rest are On-track. Lifts with fewer
+  // than 3 in-block sessions are "too new to judge".
+  function liftStatuses() {
+    const epleyU = (w, r) => { const W = parseFloat(w), R = parseInt(r); return (isNaN(W) || isNaN(R) || W <= 0) ? 0 : W * (1 + Math.min(R, 99) / 30); };
+    const sessBest = (s) => s.sets.reduce((m, x) => Math.max(m, epleyU(x.w, x.r)), 0);
+    const totReps = (s) => s.sets.reduce((a, x) => a + (parseInt(x.r) || 0), 0);
+    const seen = new Set(), out = { fast: [], ontrack: [], stalled: [], fresh: 0 };
+    const all = allSessions();
+    for (const day of Object.keys(PROGRAM)) {
+      for (const ex of PROGRAM[day].exercises) {
+        // resolve the variant/hand-mode the lifter most recently used for this slot
+        let latest = null;
+        for (const s of all) { if (s.data && s.data.exercises && s.data.exercises[ex.id] && (!latest || s.date > latest.date)) latest = s; }
+        if (!latest) continue;
+        const fn = armsFn(ex, latest.data.exercises[ex.id]);
+        if (seen.has(fn)) continue; seen.add(fn);
+        // Exclude today's in-progress session — a half-logged workout must never read as a stall,
+        // and Stats must agree with the Coach (which also scopes strictly before the current date).
+        const blk = blockOf(recentSessionsFor(fn, todayStr()));
+        if (blk.length < 3) { out.fresh++; continue; }
+        const perf = blk.map(sessBest);
+        const win = perf.slice(0, Math.min(5, perf.length)).reverse();
+        const m = win.length, xm = (m - 1) / 2, ym = win.reduce((a, b) => a + b, 0) / m;
+        let num = 0, den = 0;
+        win.forEach((y, x) => { num += (x - xm) * (y - ym); den += (x - xm) * (x - xm); });
+        const slope = den ? num / den : 0;
+        const pct = ym > 0 ? (slope / ym) * 100 : 0;
+        const tops = blk.slice(0, 3).map(s => topWeight(s.sets));
+        const frozen = tops.every(w => !isNaN(w) && Math.abs(w - tops[0]) < 0.5) &&
+                       totReps(blk[0]) <= Math.max(totReps(blk[1]), totReps(blk[2]));
+        const u = unitFor(ex.id);
+        const item = { name: fn, pct: Math.round(pct * 10) / 10, at: kgToDisp(tops[0], u) + ' ' + u };
+        if (frozen || pct <= -1) out.stalled.push(item);
+        else if (pct >= 2) out.fast.push(item);
+        else out.ontrack.push(item);
+      }
+    }
+    ['fast', 'ontrack', 'stalled'].forEach(k => out[k].sort((a, b) => b.pct - a.pct));
+    return out;
+  }
+
   // Hard sets per muscle per week, with fractional synergist counting (primary 1.0, synergists
   // 0.5). ROTATION-ALIGNED: on a ~2-3 sessions/week A/B/C split a fixed 7-day window mis-samples
   // depending on WHEN you look (a muscle trained 8 days ago reads zero). So the window stretches
@@ -2280,12 +2369,23 @@
     const order = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'];
     const muscles = order.filter(mu => wv[mu] != null).concat(Object.keys(wv).filter(mu => order.indexOf(mu) < 0));
     const volRows = muscles.map(mu => { const st = volStatus(wv[mu], mu); return `<tr><td>${mu}</td><td>${trimNum(Math.round(wv[mu] * 10) / 10)} <span class="stats-sub">/ ${st.band}</span></td><td><span class="vtag ${st.cls}">${st.label}</span></td></tr>`; }).join('');
+    // Where to push: block-scoped per-lift trend, grouped Fast / On-track / Stalled
+    const ls = liftStatuses();
+    const liftRow = (i, tag) => `<div class="lift-row"><span>${i.name}</span><span class="stats-sub">${tag}</span></div>`;
+    let liftHtml = '';
+    if (ls.fast.length)    liftHtml += `<div class="lift-grp">⚡ Fast responders</div>` + ls.fast.map(i => liftRow(i, `+${i.pct}%/session — feed it`)).join('');
+    if (ls.ontrack.length) liftHtml += `<div class="lift-grp">→ On track</div>` + ls.ontrack.map(i => liftRow(i, `${i.pct >= 0 ? '+' : ''}${i.pct}%/session`)).join('');
+    if (ls.stalled.length) liftHtml += `<div class="lift-grp">⏸ Stalled — change something</div>` + ls.stalled.map(i => liftRow(i, `stuck at ${i.at}`)).join('');
+    if (ls.fresh)          liftHtml += `<div class="lift-grp muted-grp">${ls.fresh} lift${ls.fresh > 1 ? 's' : ''} too new to judge (fewer than 3 recent sessions)</div>`;
+    if (!liftHtml)         liftHtml = `<div class="lift-grp muted-grp">No lifts with enough recent data yet.</div>`;
     const m = document.createElement('div');
     m.className = 'modal';
     m.innerHTML = `<div class="modal-card">
         <h3>📊 Your stats</h3>
         <h4 class="stats-h">This week · hard sets per muscle <span class="stats-sub">vs your MEV–MAV landmarks</span></h4>
         <table class="sum-tbl"><thead><tr><th>Muscle</th><th>sets / wk</th><th>status</th></tr></thead><tbody>${volRows || '<tr><td colspan="3">No sets logged in the last week.</td></tr>'}</tbody></table>
+        <h4 class="stats-h">Lifts · this block <span class="stats-sub">where to push vs rethink</span></h4>
+        ${liftHtml}
         <h4 class="stats-h">All workouts</h4>
         <div class="sum-grid">
           <div><b>${h.workouts}</b><span>workouts</span></div>
