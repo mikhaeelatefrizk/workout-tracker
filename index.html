@@ -350,6 +350,19 @@
 
   /* VIDEO substitution note */
   .video-note{background:rgba(var(--tint),.03);border:1px solid var(--hairline);border-left:3px solid var(--muted2);border-radius:var(--r-sm);padding:10px 12px;margin-top:9px;font-size:.74rem;color:var(--muted);line-height:1.5}
+  /* Muscle panel — working muscles highlighted; pulses while the form video plays */
+  .muscle-panel{display:flex;gap:14px;align-items:center;justify-content:center;padding:10px 10px;border:1px solid var(--hairline);border-radius:var(--r-md);margin-top:9px;background:rgba(var(--tint),.02)}
+  .mp-fig{width:58px;height:auto;display:block}
+  .mp-fig .sil{fill:rgba(var(--tint),.06)}
+  .mp-fig .mm{fill:rgba(var(--tint),.10)}
+  .mp-fig .mm.pri{fill:rgba(var(--tint),.85)}
+  .mp-fig .mm.syn{fill:rgba(var(--tint),.34)}
+  .muscle-panel.mp-live .mm.pri{animation:mpulse 1.1s var(--ease) infinite}
+  .muscle-panel.mp-live .mm.syn{animation:mpulse 1.1s var(--ease) infinite;animation-delay:.18s}
+  @keyframes mpulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .mp-cap{font-size:.58rem;color:var(--muted2);text-align:center;margin-top:2px;letter-spacing:.04em}
+  .mp-leg{font-size:.7rem;color:var(--muted);line-height:1.7;max-width:40%}
+  .mp-leg b{color:var(--text);font-weight:700}
 
   /* ===================== v3 ENHANCEMENTS ===================== */
   /* (Monochrome: ambient glow removed entirely for a calm, flat backdrop) */
@@ -474,6 +487,7 @@
       <li><b>Volume drives growth:</b> aim <b>10–20 hard sets per muscle per week</b> (see 📊 Stats). More isn't always better past ~20.</li>
       <li><b>Rest</b> ~2–3 min on compounds, 60–120 s on isolation — longer rest = more quality reps = more growth.</li>
       <li><b>Load is forgiving</b> (~6–20 reps all build muscle near failure). <b>Form &gt; weight</b>; emphasise the full/stretched range. Log every set — the Coach reads your whole history.</li>
+      <li class="attrib" style="font-size:.72rem;color:var(--muted2)">Demo clips: <b>wger.de</b> exercise database (CC-BY-SA 4.0, by Goulart) + short demonstration excerpts.</li>
     </ul>
   </div></div>
 </div>
@@ -551,13 +565,15 @@
 <script>
   // ============================================================
   // VIDEOS — offline cache.
-  // On first open WITH internet, the 23 AthleanX clips are downloaded
-  // once from VIDEO_BASE and stored permanently in IndexedDB on the
-  // phone. Every open after that (even with zero signal) serves them
-  // straight from local storage. The HTML file itself stays tiny.
+  // On first open WITH internet, the short exact-movement demo clips
+  // (wger.de exercise database, CC-BY-SA 4.0 by Goulart, plus trimmed
+  // demonstration excerpts) are downloaded once from VIDEO_BASE and
+  // stored permanently in IndexedDB on the phone. Every open after
+  // that (even with zero signal) serves them straight from local
+  // storage. The HTML file itself stays tiny.
   // ============================================================
   const VIDEO_BASE = 'videos/';   // same-origin (served from this PWA's GitHub Pages site)
-  const VIDEO_VERSION = '1';  // bump to force re-download
+  const VIDEO_VERSION = '2';  // bump to force re-download (v2: short demo clips replaced the long tutorials)
   const IDB_NAME = 'athleanVideos';
   const IDB_STORE = 'clips';
   const _objUrls = {};   // slug -> object URL (in-memory cache)
@@ -644,6 +660,16 @@
     const have = new Set(await idbKeys(db));
     const missing = slugs.filter(s => !have.has(vkey(s)));
 
+    // purge stale versions (old long tutorials) so they don't waste phone storage
+    const want = new Set(slugs.map(vkey));
+    const stale = [...have].filter(k => !want.has(k));
+    if (stale.length) {
+      try {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        stale.forEach(k => tx.objectStore(IDB_STORE).delete(k));
+      } catch (e) {}
+    }
+
     if (missing.length === 0) { wireOpenCards(); return; }
 
     if (!navigator.onLine) {
@@ -656,7 +682,7 @@
     bar.className = 'dlbar show';
     let done = slugs.length - missing.length;
     for (const slug of missing) {
-      msg.textContent = `Downloading AthleanX videos for offline use… ${done}/${slugs.length}`;
+      msg.textContent = `Downloading form videos for offline use… ${done}/${slugs.length}`;
       fill.style.width = Math.round(done / slugs.length * 100) + '%';
       try {
         const resp = await fetch(VIDEO_BASE + slug + '.mp4', { cache: 'no-store' });
@@ -803,7 +829,7 @@
           sets:2, reps:12, compound:false, video:'09-bicep-curl',
           variants:[{label:'Dumbbell',fn:'Hammer Curl',inc:2},{label:'Barbell',fn:'Barbell Hammer Curl',inc:2.5}],
           isFinisher:true,
-          note:'Neutral-grip (thumbs-up) curl — targets the brachialis & brachioradialis to add arm thickness/width. AthleanX curl cues (elbows pinned, no swing, slow lowering) apply.',
+          note:'Neutral-grip (thumbs-up) curl — targets the brachialis & brachioradialis to add arm thickness/width. The clip shows the exact hammer curl; cues (elbows pinned, no swing, slow lowering) below.',
           cues:[
             'Hold dumbbells NEUTRAL — palms facing each other (thumbs up), like holding hammers.',
             'Elbows pinned to your ribs — they don\'t drift forward.',
@@ -920,7 +946,7 @@
         { id:'B5', name:'Cable Lateral Raise', fn:'Cable Lateral Raise', cat:'Shoulders',
           sets:3, reps:15, compound:false, inc:2, video:'07-lateral-raise',
           variants:[{label:'Cable',fn:'Cable Lateral Raise',inc:2.3},{label:'Dumbbell',fn:'Dumbbell Lateral Raise',inc:2},{label:'Machine',fn:'Machine Lateral Raise',inc:5}],
-          note:'AthleanX side-delt raise video — identical movement; just run the cable across your body as written in the cues below.',
+          note:'The clip shows the exact dumbbell lateral raise. Running it on the cable instead? Identical movement — just across your body, as in the cues below.',
           cues:[
             'Pulley at lowest setting. Stand side-on, cable from the OPPOSITE side (across body).',
             'Slight elbow bend — lock that angle for the whole rep.',
@@ -1142,7 +1168,7 @@
           sets:2, reps:12, compound:false, video:'22-preacher-curl',
           variants:[{label:'Bar',fn:'Preacher Curl',inc:2.5},{label:'Dumbbell',fn:'Dumbbell Preacher Curl',inc:2}],
           isFinisher:true,
-          note:'AthleanX curl-mechanics video — covers the preacher/peak-contraction position. Apply the no-full-lockout-at-bottom and hard-squeeze cues on the preacher bench.',
+          note:'The clip shows the exact single-arm dumbbell preacher curl. No full lockout at the bottom of the pad; squeeze hard at the top.',
           cues:[
             'Sit at preacher bench. Armpit firmly into the top of the pad — elbows DEEP into the pad.',
             'Grip EZ bar or DBs.',
@@ -1318,6 +1344,70 @@
       else if (p === 'Shoulders'){ m.Triceps = (m.Triceps||0) + 0.5; }
     }
     return m;
+  }
+
+  // ============================================================
+  // MUSCLE PANEL — small front/back anatomy maps rendered inside each
+  // card's video area. Primary movers bright, synergists dim; the
+  // shapes pulse while the form video plays ("see the muscle work").
+  // Keyed by the card's video slug (one demo clip = one movement).
+  // ============================================================
+  const MUSCLE_NAMES = { chest:'Chest', delt_front:'Front delts', delt_side:'Side delts',
+    delt_rear:'Rear delts', biceps:'Biceps', forearm:'Forearms', triceps:'Triceps',
+    lats:'Lats', traps:'Traps' };
+  const MUSCLE_MAP = {
+    '03-db-bench':           { pri:['chest'],                 syn:['triceps','delt_front'] },
+    '13-incline-db-bench':   { pri:['chest'],                 syn:['delt_front','triceps'] },
+    '19-cable-crossover':    { pri:['chest'],                 syn:['delt_front'] },
+    '05-shoulder-press':     { pri:['delt_front','delt_side'],syn:['triceps'] },
+    '07-lateral-raise':      { pri:['delt_side'],             syn:[] },
+    '14-rear-delt-fly':      { pri:['delt_rear'],             syn:['traps'] },
+    '21-face-pull':          { pri:['delt_rear'],             syn:['traps'] },
+    '06-lat-pulldown':       { pri:['lats'],                  syn:['biceps'] },
+    '04-cable-row':          { pri:['lats','traps'],          syn:['biceps','delt_rear'] },
+    '20-chest-supported-row':{ pri:['lats','traps'],          syn:['biceps','delt_rear'] },
+    '09-bicep-curl':         { pri:['biceps'],                syn:['forearm'] },
+    '16-incline-db-curl':    { pri:['biceps'],                syn:['forearm'] },
+    '22-preacher-curl':      { pri:['biceps'],                syn:[] },
+    '10-tricep-pushdown':    { pri:['triceps'],               syn:[] },
+    '17-overhead-cable-tri': { pri:['triceps'],               syn:[] }
+  };
+  function musclePanelHtml(ex){
+    const mp = MUSCLE_MAP[ex.video]; if (!mp) return '';
+    const rank = k => mp.pri.indexOf(k) >= 0 ? 2 : (mp.syn.indexOf(k) >= 0 ? 1 : 0);
+    const cls = (...ks) => { const r = Math.max.apply(null, ks.map(rank)); return r === 2 ? 'mm pri' : (r === 1 ? 'mm syn' : 'mm'); };
+    const silhouette = `<circle class="sil" cx="55" cy="11" r="8"/>
+      <path class="sil" d="M34,25 Q55,20 76,25 L72,88 Q55,95 38,88 Z"/>
+      <ellipse class="sil" cx="24" cy="47" rx="6" ry="15" transform="rotate(14 24 47)"/>
+      <ellipse class="sil" cx="86" cy="47" rx="6" ry="15" transform="rotate(-14 86 47)"/>
+      <rect class="sil" x="44" y="96" width="9" height="46" rx="4"/>
+      <rect class="sil" x="57" y="96" width="9" height="46" rx="4"/>`;
+    const front = silhouette +
+      `<ellipse class="${cls('forearm')}" cx="18" cy="76" rx="5" ry="13" transform="rotate(10 18 76)"/>
+      <ellipse class="${cls('forearm')}" cx="92" cy="76" rx="5" ry="13" transform="rotate(-10 92 76)"/>
+      <circle class="${cls('delt_front','delt_side')}" cx="31" cy="32" r="6.5"/>
+      <circle class="${cls('delt_front','delt_side')}" cx="79" cy="32" r="6.5"/>
+      <path class="${cls('chest')}" d="M38,31 Q54,29 54,38 Q54,49 41,47 Q33,43 38,31 Z"/>
+      <path class="${cls('chest')}" d="M72,31 Q56,29 56,38 Q56,49 69,47 Q77,43 72,31 Z"/>
+      <ellipse class="${cls('biceps')}" cx="26" cy="50" rx="4.5" ry="9" transform="rotate(12 26 50)"/>
+      <ellipse class="${cls('biceps')}" cx="84" cy="50" rx="4.5" ry="9" transform="rotate(-12 84 50)"/>
+      <rect class="sil" x="47" y="53" width="16" height="30" rx="5"/>`;
+    const back = silhouette +
+      `<ellipse class="sil" cx="18" cy="76" rx="5" ry="13" transform="rotate(10 18 76)"/>
+      <ellipse class="sil" cx="92" cy="76" rx="5" ry="13" transform="rotate(-10 92 76)"/>
+      <path class="${cls('traps')}" d="M55,19 L37,30 L51,50 L55,56 L59,50 L73,30 Z"/>
+      <circle class="${cls('delt_rear','delt_side')}" cx="31" cy="32" r="6.5"/>
+      <circle class="${cls('delt_rear','delt_side')}" cx="79" cy="32" r="6.5"/>
+      <path class="${cls('lats')}" d="M39,35 Q34,54 45,76 Q52,80 53,62 L52,44 Q46,38 39,35 Z"/>
+      <path class="${cls('lats')}" d="M71,35 Q76,54 65,76 Q58,80 57,62 L58,44 Q64,38 71,35 Z"/>
+      <ellipse class="${cls('triceps')}" cx="26" cy="50" rx="4.5" ry="9" transform="rotate(12 26 50)"/>
+      <ellipse class="${cls('triceps')}" cx="84" cy="50" rx="4.5" ry="9" transform="rotate(-12 84 50)"/>`;
+    const legend = mp.pri.map(k => `<b>${MUSCLE_NAMES[k]}</b>`)
+      .concat(mp.syn.map(k => MUSCLE_NAMES[k])).join(' · ');
+    return `<div class="muscle-panel">
+      <div><svg class="mp-fig" viewBox="0 0 110 150" aria-hidden="true">${front}</svg><div class="mp-cap">front</div></div>
+      <div><svg class="mp-fig" viewBox="0 0 110 150" aria-hidden="true">${back}</svg><div class="mp-cap">back</div></div>
+      <div class="mp-leg">🎯 ${legend}</div></div>`;
   }
 
   // Find prior sessions for a given FITNOTES NAME, matching by the implement actually used in
@@ -1507,8 +1597,12 @@
     const agoPhrase = bestIdx === 0 ? 'your best yet' : `best was ${bestIdx} session${bestIdx > 1 ? 's' : ''} ago`;
 
     // Double progression: you EARN the load increase only when EVERY set reaches the TOP of the range.
-    const minReps = Math.min.apply(null, last.sets.map(s => parseInt(s.r) || 0));
-    const hitTop = last.sets.length >= exDef.sets && last.sets.every(s => (parseInt(s.r) || 0) >= hi);
+    // Progression is judged on WORKING sets only (sets at the working weight) — a logged warm-up
+    // or ramp set must never block an earned bump or drag the rep prescription down.
+    const workSets = last.sets.filter(s => Math.abs((parseFloat(s.w) || 0) - lastWork) < 0.5);
+    const judged = workSets.length ? workSets : last.sets;
+    const minReps = Math.min.apply(null, judged.map(s => parseInt(s.r) || 0));
+    const hitTop = judged.length >= exDef.sets && judged.every(s => (parseInt(s.r) || 0) >= hi);
     const daysSince = (() => {
       const d = Math.round((new Date(today + 'T00:00:00') - new Date(last.date + 'T00:00:00')) / 86400000);
       return isNaN(d) ? 0 : d;
@@ -1523,15 +1617,34 @@
             note: `build toward ${hi} reps on every set at bodyweight (${rir}) before adding load.` };
     }
 
-    // 2) STALE → re-baseline instead of progressing off old data
+    // 2) STALE → re-baseline instead of progressing off old data. The restart load scales with
+    //    layoff length (detraining evidence): ≤4wk keep the load, 4–8wk ~90%, 8wk+ ~80% — snapped
+    //    to the lift's real weight lattice so the restart lands on a pin that exists.
     if (daysSince > 21) {
-      return { w: lastWork.toString(), reps: lo, repsText: rangeText, rir, kind: 'hold',
-        note: `last logged ${daysSince} days ago — repeat ${showKg(lastWork)} (${rangeText} reps) to re-baseline, then push up.` };
+      const factor = daysSince > 56 ? 0.8 : (daysSince > 28 ? 0.9 : 1);
+      let rw = lastWork * factor;
+      if (factor < 1) {
+        rw = latticeKg ? snapStep(rw, latticeKg, lastWork) : cleanSnap(rw, U);
+        if (rw >= lastWork) rw = latticeKg ? lastWork - latticeKg : cleanSnap(lastWork * 0.9, U);
+        if (rw <= 0) rw = lastWork * factor;
+      }
+      return { w: round2(rw).toString(), reps: lo, repsText: rangeText, rir, kind: 'hold',
+        note: factor < 1
+          ? `last logged ${daysSince} days ago — restart at ${showKg(round2(rw))} (~${Math.round(factor * 100)}% of your last ${showKg(lastWork)}), ${rangeText} reps; you'll re-climb fast.`
+          : `last logged ${daysSince} days ago — repeat ${showKg(lastWork)} (${rangeText} reps) to re-baseline, then push up.` };
     }
 
     // 3) BUMP → top of the range hit on EVERY set → add the smallest load, reset to the bottom.
     //    The +1-increment step is itself the safety cap (one step above a weight just completed).
     if (hitTop) {
+      // Coarse-step machines: when the smallest REAL step exceeds ~10% of the working load (light
+      // dumbbells/stacks), extend reps two past the range top before taking the jump — hypertrophy
+      // is load-range-forgiving, and a 25-40% single jump breaks progressive overload.
+      const bigStep = lastWork > 0 && inc / lastWork > 0.10;
+      if (bigStep && !judged.every(s => (parseInt(s.r) || 0) >= hi + 2)) {
+        return { w: lastWork.toString(), reps: hi + 2, repsText: `${hi}–${hi + 2}`, rir, kind: 'hold',
+          note: `topped ${hi} on every set — but this lift's smallest step (+${dispBump(inc)} ${U}) is a ${Math.round(inc / lastWork * 100)}% jump. Bank ${hi + 2} reps/set first, then it's earned.` };
+      }
       let next = round2(lastWork + inc);                    // last real pin + your real step = next pin
       if (!latticeKg && !minMoveKg) {                       // generic fallback only → snap to a clean value
         next = round2(cleanSnap(next, U));
@@ -1549,13 +1662,17 @@
     if (blk.length >= 3 && lastWork > 0) {
       const w3 = [topWeight(blk[0].sets), topWeight(blk[1].sets), topWeight(blk[2].sets)];
       const sameLoad = w3.every(w => !isNaN(w) && Math.abs(w - lastWork) < 0.5);
-      const repsProgressing = totalReps(blk[0]) > Math.max(totalReps(blk[1]), totalReps(blk[2]));
-      if (sameLoad && !repsProgressing) {
+      // A TRUE plateau requires failure to progress across BOTH transitions of the 3-session
+      // window (total reps never improving). One noisy sub-PR session after a rep PR (rest
+      // variance shifts totals 1-3 reps) must NOT give away ~10% of the load.
+      const t0 = totalReps(blk[0]), t1 = totalReps(blk[1]), t2 = totalReps(blk[2]);
+      const stalledBothSteps = t0 <= t1 && t1 <= t2;
+      if (sameLoad && stalledBothSteps) {
         // Deload lands on a REAL weight: snap ~-10% to the learned lattice (at least one step down),
         // or to a clean display value when no lattice is known.
         let dw = lastWork * 0.9;
         dw = latticeKg ? snapStep(dw, latticeKg, lastWork) : cleanSnap(dw, U);
-        if (dw >= lastWork) dw = latticeKg ? lastWork - latticeKg : lastWork * 0.9;
+        if (dw > lastWork - 0.25) dw = lastWork - (latticeKg || (U === 'lb' ? 2.5 * KG_PER_LB : 0.5));
         if (dw <= 0) dw = lastWork * 0.9;
         return { w: round2(dw).toString(), reps: lo, repsText: rangeText, rir, kind: 'deload',
           note: `plateau — 3 sessions stuck at ${showKg(lastWork)} with no added reps or load. Deload ~10% to ${showKg(round2(dw))}, reset double progression from ${lo} reps, rebuild clean.` };
@@ -1962,7 +2079,7 @@
 
       // Video — wired lazily from IndexedDB when the card opens (data-slug holds the key)
       const noteHtml = ex.note ? `<div class="video-note">📹 ${ex.note}</div>` : '';
-      const videoHtml = `<div class="video-wrap" data-slug="${ex.video}"><button type="button" class="video-btn">▶&nbsp; AthleanX form video</button><video class="form-video" controls preload="none" playsinline webkit-playsinline hidden></video></div>${noteHtml}`;
+      const videoHtml = `<div class="video-wrap" data-slug="${ex.video}"><button type="button" class="video-btn">▶&nbsp; Form video</button><video class="form-video" controls loop muted preload="none" playsinline webkit-playsinline hidden></video></div>${musclePanelHtml(ex)}${noteHtml}`;
 
       // Buttons
       const btnsHtml = `<div class="btn-row">
@@ -2006,6 +2123,14 @@
         await wireVideo(v);
         if (v.getAttribute('src')) {
           v.hidden = false; vbtn.style.display = 'none';
+          // muscle panel pulses while the demo clip is playing
+          const panel = card.querySelector('.muscle-panel');
+          if (panel && !v.dataset.mp) {
+            v.dataset.mp = '1';
+            v.addEventListener('play', () => panel.classList.add('mp-live'));
+            v.addEventListener('pause', () => panel.classList.remove('mp-live'));
+            v.addEventListener('ended', () => panel.classList.remove('mp-live'));
+          }
           try { v.play(); } catch (_) {}
         } else {
           vbtn.textContent = '▶  Video not saved yet — open once online';
