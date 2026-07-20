@@ -350,18 +350,20 @@
 
   /* VIDEO substitution note */
   .video-note{background:rgba(var(--tint),.03);border:1px solid var(--hairline);border-left:3px solid var(--muted2);border-radius:var(--r-sm);padding:10px 12px;margin-top:9px;font-size:.74rem;color:var(--muted);line-height:1.5}
-  /* Muscle panel — working muscles highlighted; pulses while the form video plays */
-  .muscle-panel{display:flex;gap:14px;align-items:center;justify-content:center;padding:10px 10px;border:1px solid var(--hairline);border-radius:var(--r-md);margin-top:9px;background:rgba(var(--tint),.02)}
-  .mp-fig{width:58px;height:auto;display:block}
-  .mp-fig .sil{fill:rgba(var(--tint),.06)}
-  .mp-fig .mm{fill:rgba(var(--tint),.10)}
-  .mp-fig .mm.pri{fill:rgba(var(--tint),.85)}
+  /* Muscle panel — anatomy-chart figures; working muscles highlighted; pulses while the form video plays */
+  .muscle-panel{display:flex;gap:12px;align-items:center;justify-content:center;padding:12px 10px;border:1px solid var(--hairline);border-radius:var(--r-md);margin-top:9px;background:rgba(var(--tint),.02)}
+  .mp-fig{width:78px;height:auto;display:block}
+  .mp-fig path{stroke:rgba(var(--tint),.16);stroke-width:.75;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+  .mp-fig .sil{fill:rgba(var(--tint),.055)}
+  .mp-fig .mm{fill:rgba(var(--tint),.07)}
+  .mp-fig .mm.pri{fill:rgba(var(--tint),.9)}
   .mp-fig .mm.syn{fill:rgba(var(--tint),.34)}
+  .mp-fig .mdet{fill:none}
   .muscle-panel.mp-live .mm.pri{animation:mpulse 1.1s var(--ease) infinite}
   .muscle-panel.mp-live .mm.syn{animation:mpulse 1.1s var(--ease) infinite;animation-delay:.18s}
   @keyframes mpulse{0%,100%{opacity:1}50%{opacity:.4}}
-  .mp-cap{font-size:.58rem;color:var(--muted2);text-align:center;margin-top:2px;letter-spacing:.04em}
-  .mp-leg{font-size:.7rem;color:var(--muted);line-height:1.7;max-width:40%}
+  .mp-cap{font-size:.58rem;color:var(--muted2);text-align:center;margin-top:3px;letter-spacing:.04em}
+  .mp-leg{font-size:.7rem;color:var(--muted);line-height:1.7;max-width:38%}
   .mp-leg b{color:var(--text);font-weight:700}
 
   /* ===================== v3 ENHANCEMENTS ===================== */
@@ -1347,66 +1349,104 @@
   }
 
   // ============================================================
-  // MUSCLE PANEL — small front/back anatomy maps rendered inside each
-  // card's video area. Primary movers bright, synergists dim; the
-  // shapes pulse while the form video plays ("see the muscle work").
+  // MUSCLE PANEL — anatomy-chart front/back figures rendered inside
+  // each card's video area. Every muscle group is drawn individually
+  // (inactive ones faint for context); primary movers bright,
+  // synergists dim, pulsing while the form video plays.
   // Keyed by the card's video slug (one demo clip = one movement).
+  // Shapes authored on a 220x480 viewBox, right side only; entries
+  // with mirror==1 are drawn twice (plain + mirrored) so both sides
+  // render from a single path. detail==1 = stroke-only hairline.
   // ============================================================
-  const MUSCLE_NAMES = { chest:'Chest', delt_front:'Front delts', delt_side:'Side delts',
-    delt_rear:'Rear delts', biceps:'Biceps', forearm:'Forearms', triceps:'Triceps',
-    lats:'Lats', traps:'Traps' };
-  const MUSCLE_MAP = {
-    '03-db-bench':           { pri:['chest'],                 syn:['triceps','delt_front'] },
-    '13-incline-db-bench':   { pri:['chest'],                 syn:['delt_front','triceps'] },
-    '19-cable-crossover':    { pri:['chest'],                 syn:['delt_front'] },
-    '05-shoulder-press':     { pri:['delt_front','delt_side'],syn:['triceps'] },
-    '07-lateral-raise':      { pri:['delt_side'],             syn:[] },
-    '14-rear-delt-fly':      { pri:['delt_rear'],             syn:['traps'] },
-    '21-face-pull':          { pri:['delt_rear'],             syn:['traps'] },
-    '06-lat-pulldown':       { pri:['lats'],                  syn:['biceps'] },
-    '04-cable-row':          { pri:['lats','traps'],          syn:['biceps','delt_rear'] },
-    '20-chest-supported-row':{ pri:['lats','traps'],          syn:['biceps','delt_rear'] },
-    '09-bicep-curl':         { pri:['biceps'],                syn:['forearm'] },
-    '16-incline-db-curl':    { pri:['biceps'],                syn:['forearm'] },
-    '22-preacher-curl':      { pri:['biceps'],                syn:[] },
-    '10-tricep-pushdown':    { pri:['triceps'],               syn:[] },
-    '17-overhead-cable-tri': { pri:['triceps'],               syn:[] }
+  const MP_SHAPES = {
+    front: [
+      ["sil","M110,91L119,89Q136,91,152,99Q162,103,168,106Q176,110,178,121Q180,133,183,148Q190,176,196,202Q199,212,200,224Q201,246,202,272Q204,282,204,292Q203,304,197,310Q191,307,190,297Q189,286,191,279Q185,252,179,222Q176,212,176,206Q170,178,162,153Q158,143,152,138Q147,149,146,163Q143,191,144,215Q145,233,149,245Q152,252,152,263Q154,294,148,322Q144,342,141,354Q139,366,141,377Q143,385,142,397Q139,424,134,447L134,452Q138,458,142,466Q143,470,138,470L122,470Q117,470,117,464Q118,455,119,451Q114,443,113,420Q112,404,113,391Q112,375,118,359Q121,342,119,324Q116,290,112,264Q111,261,110,259Q109,261,108,264Q104,290,101,324Q99,342,102,359Q108,375,107,391Q108,404,107,420Q106,443,101,451Q102,455,103,464Q103,470,98,470L82,470Q77,470,78,466Q82,458,86,452L86,447Q81,424,78,397Q77,385,79,377Q81,366,79,354Q76,342,72,322Q66,294,68,263Q68,252,71,245Q75,233,76,215Q77,191,74,163Q73,149,68,138Q62,143,58,153Q50,178,44,206Q44,212,41,222Q35,252,29,279Q31,286,30,297Q29,307,23,310Q17,304,16,292Q16,282,18,272Q19,246,20,224Q21,212,24,202Q30,176,37,148Q40,133,42,121Q44,110,52,106Q58,103,68,99Q84,91,101,89L110,91Z",0,0],
+      ["sil","M110,64L121,64Q121,82,129,95L110,95L91,95Q99,82,99,64L110,64Z",0,0],
+      ["sil","M110,10C124,10,133,22,133,38C133,48,124,64,110,72C96,64,87,48,87,38C87,22,96,10,110,10Z",0,0],
+      ["traps_up","M122,84Q140,88,161,101Q165,104,160,105Q140,103,124,97Q121,90,122,84Z",1,0],
+      ["delt_side","M160,104Q172,104,177,116Q180,132,174,148Q168,140,163,124Q160,112,160,104Z",1,0],
+      ["delt_front","M144,110Q150,102,162,105Q165,118,160,136Q156,144,152,143Q145,131,143,119Q142,112,144,110Z",1,0],
+      ["chest_up","M111,112L144,108Q148,115,143,121Q128,127,111,126Z",1,0],
+      ["chest_low","M111,126Q128,127,143,121Q151,127,152,138Q149,150,140,155Q130,159,118,158Q112,156,112,152Q110,138,111,126Z",1,0],
+      ["serratus","M145,146Q150,148,152,153Q147,154,143,151Q143,148,145,146ZM141,155Q147,157,149,162Q144,163,140,160Q139,157,141,155ZM136,163Q142,166,144,172Q139,173,135,169Q134,166,136,163Z",1,0],
+      ["obliques","M126,167Q132,166,136,174Q141,202,146,232Q147,241,141,242Q130,240,127,232Q125,200,126,167Z",1,0],
+      ["abs","M96,160Q110,152,124,160L124,238Q110,248,96,238Z",0,0],
+      ["detail","M110,158L110,244",0,1],
+      ["detail","M97,176Q110,182,123,176",0,1],
+      ["detail","M97,197Q110,203,123,197",0,1],
+      ["detail","M97,218Q110,224,123,218",0,1],
+      ["biceps","M165,148Q171,139,177,146Q184,168,185,196Q184,203,178,203Q173,197,169,178Q166,160,165,148Z",1,0],
+      ["brachialis","M184,166Q189,170,191,184Q192,198,190,204Q186,204,184,198Q182,182,184,166Z",1,0],
+      ["forearm","M183,207Q190,199,195,206Q200,224,200,246Q199,266,197,275Q193,277,191,272Q184,246,181,222Q181,212,183,207Z",1,0],
+      ["adductors","M113,264Q118,261,121,266Q121,290,118,312Q114,318,112,310Q110,284,113,264Z",1,0],
+      ["quads","M121,264Q136,256,149,266Q153,296,148,326Q145,342,140,350Q134,352,131,344Q123,310,121,282Q120,270,121,264ZM123,328Q129,323,131,331Q132,345,127,352Q121,347,121,338Q121,332,123,328Z",1,0],
+      ["detail","M137,272Q139,300,135,332",1,1],
+      ["tibialis","M128,364Q135,362,137,372Q137,400,133,428Q131,444,128,446Q126,436,126,412Q126,384,128,364Z",1,0],
+      ["calves","M117,366Q113,374,112,390Q112,406,116,416Q120,408,120,392Q120,376,117,366Z",1,0]
+    ],
+    back: [
+      ["sil","M110,91L119,89Q136,91,152,99Q162,103,168,106Q176,110,178,121Q180,133,183,148Q190,176,196,202Q199,212,200,224Q201,246,202,272Q204,282,204,292Q203,304,197,310Q191,307,190,297Q189,286,191,279Q185,252,179,222Q176,212,176,206Q170,178,162,153Q158,143,152,138Q147,149,146,163Q143,191,144,215Q145,233,149,245Q152,252,152,263Q154,294,148,322Q144,342,141,354Q139,366,141,377Q143,385,142,397Q139,424,134,447L134,452Q138,458,141,465Q142,470,137,470Q133,473,127,473Q120,472,118,464Q118,455,119,451Q114,443,113,420Q112,404,113,391Q112,375,118,359Q121,342,119,324Q116,290,112,264Q111,261,110,259Q109,261,108,264Q104,290,101,324Q99,342,102,359Q108,375,107,391Q108,404,107,420Q106,443,101,451Q102,455,102,464Q100,472,93,473Q87,473,83,470Q78,470,79,465Q82,458,86,452L86,447Q81,424,78,397Q77,385,79,377Q81,366,79,354Q76,342,72,322Q66,294,68,263Q68,252,71,245Q75,233,76,215Q77,191,74,163Q73,149,68,138Q62,143,58,153Q50,178,44,206Q44,212,41,222Q35,252,29,279Q31,286,30,297Q29,307,23,310Q17,304,16,292Q16,282,18,272Q19,246,20,224Q21,212,24,202Q30,176,37,148Q40,133,42,121Q44,110,52,106Q58,103,68,99Q84,91,101,89L110,91Z",0,0],
+      ["sil","M110,64L121,64Q121,82,129,95L110,95L91,95Q99,82,99,64L110,64Z",0,0],
+      ["sil","M110,10C124,10,133,22,133,38C133,48,124,64,110,72C96,64,87,48,87,38C87,22,96,10,110,10Z",0,0],
+      ["traps_up","M111,76Q116,78,121,85Q141,93,162,101Q167,104,163,108L148,112Q130,104,111,98Z",1,0],
+      ["traps_mid","M110,98Q130,104,148,112Q128,142,114,186Q112,190,110,192Q108,190,106,186Q92,142,72,112Q90,104,110,98Z",0,0],
+      ["delt_side","M164,106Q174,106,177,117Q179,131,173,146Q167,136,164,120Q163,111,164,106Z",1,0],
+      ["delt_rear","M144,112Q149,103,160,104Q166,106,168,112Q167,130,160,142Q152,138,147,126Q144,118,144,112Z",1,0],
+      ["rotator_rear","M145,125Q153,126,155,132Q153,147,144,160Q137,164,133,157Q138,143,145,125Z",1,0],
+      ["lats","M150,138Q156,133,157,141Q152,168,144,196Q132,212,116,219Q112,214,113,206Q114,176,121,155Q132,144,150,138Z",1,0],
+      ["erectors","M112,194Q119,196,120,208Q120,232,117,246Q113,249,112,244Q111,218,112,194Z",1,0],
+      ["triceps_long","M163,150Q170,141,175,148Q174,156,172,164Q170,171,170,178Q174,184,184,186Q187,189,186,193Q180,198,173,197Q169,192,167,183Q163,166,163,150Z",1,0],
+      ["triceps_lat","M176,142Q182,139,184,147Q187,160,188,174Q188,183,184,184Q180,181,178,172Q176,156,176,148Q176,144,176,142Z",1,0],
+      ["detail","M176,150Q172,166,172,178Q176,184,183,185",1,1],
+      ["forearm","M183,207Q190,199,195,206Q200,226,199,248Q198,266,196,274Q192,276,190,270Q183,244,181,220Q181,211,183,207Z",1,0],
+      ["glutes","M112,247Q130,241,146,250Q152,264,149,283Q144,301,128,304Q115,303,112,292Q110,268,112,247Z",1,0],
+      ["hams","M119,307Q131,301,144,309Q143,332,138,352Q134,361,128,357Q121,349,119,332Q118,318,119,307Z",1,0],
+      ["detail","M131,312Q132,332,131,350",1,1],
+      ["calves","M132,367Q140,369,141,386Q140,404,134,414Q131,402,131,386Q131,372,132,367ZM128,367Q119,371,116,388Q115,406,122,417Q127,404,128,388Q129,374,128,367ZM122,418Q127,423,132,416Q131,430,128,438Q124,432,122,418Z",1,0]
+    ]
   };
+  const MUSCLE_NAMES = { chest_up:'Upper chest', chest_low:'Chest', delt_front:'Front delts',
+    delt_side:'Side delts', delt_rear:'Rear delts', biceps:'Biceps', brachialis:'Brachialis',
+    forearm:'Forearms', triceps_long:'Triceps (long head)', triceps_lat:'Triceps (lateral head)',
+    lats:'Lats', traps_up:'Upper traps', traps_mid:'Mid-traps & rhomboids', rotator_rear:'Rotator cuff' };
+  const MUSCLE_MAP = {
+    '03-db-bench':           { pri:['chest_up','chest_low'],      syn:['delt_front','triceps_lat','triceps_long'] },
+    '13-incline-db-bench':   { pri:['chest_up'],                  syn:['chest_low','delt_front','triceps_long'] },
+    '19-cable-crossover':    { pri:['chest_low'],                 syn:['chest_up','delt_front'] },
+    '05-shoulder-press':     { pri:['delt_front','delt_side'],    syn:['triceps_lat','traps_up'] },
+    '07-lateral-raise':      { pri:['delt_side'],                 syn:['traps_up'] },
+    '14-rear-delt-fly':      { pri:['delt_rear'],                 syn:['traps_mid','rotator_rear'] },
+    '21-face-pull':          { pri:['delt_rear'],                 syn:['rotator_rear','traps_mid'] },
+    '06-lat-pulldown':       { pri:['lats'],                      syn:['biceps','traps_mid'] },
+    '04-cable-row':          { pri:['lats','traps_mid'],          syn:['biceps','delt_rear'] },
+    '20-chest-supported-row':{ pri:['lats','traps_mid'],          syn:['biceps','delt_rear'] },
+    '09-bicep-curl':         { pri:['brachialis','forearm'],      syn:['biceps'] },
+    '16-incline-db-curl':    { pri:['biceps'],                    syn:['brachialis','forearm'] },
+    '22-preacher-curl':      { pri:['biceps','brachialis'],       syn:['forearm'] },
+    '10-tricep-pushdown':    { pri:['triceps_lat','triceps_long'],syn:['forearm'] },
+    '17-overhead-cable-tri': { pri:['triceps_long'],              syn:['triceps_lat'] }
+  };
+  // collapse paired heads to one legend word when both sit in the same tier
+  function mpLegendNames(keys){
+    const s = new Set(keys), out = [];
+    if (s.has('triceps_long') && s.has('triceps_lat')) { out.push('Triceps'); s.delete('triceps_long'); s.delete('triceps_lat'); }
+    if (s.has('chest_up') && s.has('chest_low')) { out.push('Chest'); s.delete('chest_up'); s.delete('chest_low'); }
+    keys.forEach(k => { if (s.has(k)) { out.push(MUSCLE_NAMES[k]); s.delete(k); } });
+    return out;
+  }
   function musclePanelHtml(ex){
     const mp = MUSCLE_MAP[ex.video]; if (!mp) return '';
     const rank = k => mp.pri.indexOf(k) >= 0 ? 2 : (mp.syn.indexOf(k) >= 0 ? 1 : 0);
-    const cls = (...ks) => { const r = Math.max.apply(null, ks.map(rank)); return r === 2 ? 'mm pri' : (r === 1 ? 'mm syn' : 'mm'); };
-    const silhouette = `<circle class="sil" cx="55" cy="11" r="8"/>
-      <path class="sil" d="M34,25 Q55,20 76,25 L72,88 Q55,95 38,88 Z"/>
-      <ellipse class="sil" cx="24" cy="47" rx="6" ry="15" transform="rotate(14 24 47)"/>
-      <ellipse class="sil" cx="86" cy="47" rx="6" ry="15" transform="rotate(-14 86 47)"/>
-      <rect class="sil" x="44" y="96" width="9" height="46" rx="4"/>
-      <rect class="sil" x="57" y="96" width="9" height="46" rx="4"/>`;
-    const front = silhouette +
-      `<ellipse class="${cls('forearm')}" cx="18" cy="76" rx="5" ry="13" transform="rotate(10 18 76)"/>
-      <ellipse class="${cls('forearm')}" cx="92" cy="76" rx="5" ry="13" transform="rotate(-10 92 76)"/>
-      <circle class="${cls('delt_front','delt_side')}" cx="31" cy="32" r="6.5"/>
-      <circle class="${cls('delt_front','delt_side')}" cx="79" cy="32" r="6.5"/>
-      <path class="${cls('chest')}" d="M38,31 Q54,29 54,38 Q54,49 41,47 Q33,43 38,31 Z"/>
-      <path class="${cls('chest')}" d="M72,31 Q56,29 56,38 Q56,49 69,47 Q77,43 72,31 Z"/>
-      <ellipse class="${cls('biceps')}" cx="26" cy="50" rx="4.5" ry="9" transform="rotate(12 26 50)"/>
-      <ellipse class="${cls('biceps')}" cx="84" cy="50" rx="4.5" ry="9" transform="rotate(-12 84 50)"/>
-      <rect class="sil" x="47" y="53" width="16" height="30" rx="5"/>`;
-    const back = silhouette +
-      `<ellipse class="sil" cx="18" cy="76" rx="5" ry="13" transform="rotate(10 18 76)"/>
-      <ellipse class="sil" cx="92" cy="76" rx="5" ry="13" transform="rotate(-10 92 76)"/>
-      <path class="${cls('traps')}" d="M55,19 L37,30 L51,50 L55,56 L59,50 L73,30 Z"/>
-      <circle class="${cls('delt_rear','delt_side')}" cx="31" cy="32" r="6.5"/>
-      <circle class="${cls('delt_rear','delt_side')}" cx="79" cy="32" r="6.5"/>
-      <path class="${cls('lats')}" d="M39,35 Q34,54 45,76 Q52,80 53,62 L52,44 Q46,38 39,35 Z"/>
-      <path class="${cls('lats')}" d="M71,35 Q76,54 65,76 Q58,80 57,62 L58,44 Q64,38 71,35 Z"/>
-      <ellipse class="${cls('triceps')}" cx="26" cy="50" rx="4.5" ry="9" transform="rotate(12 26 50)"/>
-      <ellipse class="${cls('triceps')}" cx="84" cy="50" rx="4.5" ry="9" transform="rotate(-12 84 50)"/>`;
-    const legend = mp.pri.map(k => `<b>${MUSCLE_NAMES[k]}</b>`)
-      .concat(mp.syn.map(k => MUSCLE_NAMES[k])).join(' · ');
+    const fig = shapes => shapes.map(([k, d, mir, det]) => {
+      const c = det ? 'mdet' : (k === 'sil' ? 'sil' : (rank(k) === 2 ? 'mm pri' : (rank(k) === 1 ? 'mm syn' : 'mm')));
+      const p = `<path class="${c}" d="${d}"/>`;
+      return mir ? p + `<path class="${c}" transform="translate(220,0) scale(-1,1)" d="${d}"/>` : p;
+    }).join('');
+    const legend = mpLegendNames(mp.pri).map(n => `<b>${n}</b>`)
+      .concat(mpLegendNames(mp.syn)).join(' · ');
     return `<div class="muscle-panel">
-      <div><svg class="mp-fig" viewBox="0 0 110 150" aria-hidden="true">${front}</svg><div class="mp-cap">front</div></div>
-      <div><svg class="mp-fig" viewBox="0 0 110 150" aria-hidden="true">${back}</svg><div class="mp-cap">back</div></div>
+      <div><svg class="mp-fig" viewBox="0 0 220 480" aria-hidden="true">${fig(MP_SHAPES.front)}</svg><div class="mp-cap">front</div></div>
+      <div><svg class="mp-fig" viewBox="0 0 220 480" aria-hidden="true">${fig(MP_SHAPES.back)}</svg><div class="mp-cap">back</div></div>
       <div class="mp-leg">🎯 ${legend}</div></div>`;
   }
 
