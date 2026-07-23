@@ -2568,8 +2568,19 @@
   // ============================================================
   // REST TIMER
   // ============================================================
+  // In the Android app the WebView FREEZES all JS timers the moment the app leaves the screen,
+  // so a JS-only "rest over" alarm can't fire while you're on the home screen or another app.
+  // The native side (AndroidBridge.scheduleRest) arms an OS-level alert that rings/vibrates at
+  // the right time regardless. In a plain browser (PWA) there's no bridge, so we fall back to
+  // the in-page beep alarm below.
   let timerInt = null, timerEnd = 0;
   const display = document.getElementById('timerDisplay');
+  const HAS_NATIVE_REST = !!(window.AndroidBridge && typeof window.AndroidBridge.scheduleRest === 'function');
+  function nativeRest(method, arg) {
+    if (!window.AndroidBridge || typeof window.AndroidBridge[method] !== 'function') return false;
+    try { arg === undefined ? window.AndroidBridge[method]() : window.AndroidBridge[method](arg); return true; }
+    catch (e) { return false; }
+  }
 
   function fmt(s) {
     s = Math.max(0, Math.ceil(s));
@@ -2584,7 +2595,9 @@
       display.classList.add('done', 'alarm');
       clearInterval(timerInt); timerInt = null;
       try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
-      startAlarm();   // keeps ringing loudly until dismissed (tap timer or Stop)
+      // In the app the native alarm (armed in startRest) does the ringing — so it works even when
+      // backgrounded, and we must NOT also beep here or it double-rings. In a browser, beep.
+      if (!HAS_NATIVE_REST) startAlarm();   // web fallback: rings until dismissed (tap timer or Stop)
       return;
     }
     display.textContent = fmt(left);
@@ -2592,6 +2605,7 @@
   function startRest(sec) {
     timerEnd = Date.now() + sec*1000;
     try { localStorage.setItem(TIMER_KEY, String(timerEnd)); } catch (e) {}   // survive lock/reload/background
+    nativeRest('scheduleRest', sec * 1000);   // OS-level alert — fires even if the app is backgrounded
     display.classList.remove('done');
     display.classList.add('run');
     display.textContent = fmt(sec);
@@ -2601,6 +2615,7 @@
   }
   function stopRest() {
     stopAlarm();
+    nativeRest('cancelRest');
     if (timerInt) clearInterval(timerInt);
     timerInt = null;
     try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
@@ -2618,7 +2633,13 @@
       if (timerInt) clearInterval(timerInt);
       timerInt = setInterval(tick, 250);
     } else if (te) {
+      // The rest ended while the app was backgrounded — the native alarm already alerted. Opening
+      // the app counts as acknowledging it, so silence any lingering ring and show the done state.
       try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
+      nativeRest('cancelRest');
+      display.classList.remove('run', 'alarm');
+      display.classList.add('done');
+      display.textContent = '⏰ TAP';
     }
   }
   // Loud, repeating "rest over" alarm — keeps ringing until you dismiss it (tap the timer or Stop).
@@ -2652,8 +2673,15 @@
   }
   function beep() { loudBeep(); }
   function vibrate(ms = 300) { if (navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} }
-  // Tap the timer display to silence the alarm.
-  if (display) display.addEventListener('click', () => { if (alarmInt) stopAlarm(); });
+  // Tap the timer display to silence the alarm (both the web beep and the native app alarm).
+  if (display) display.addEventListener('click', () => {
+    nativeRest('cancelRest');
+    if (alarmInt) stopAlarm();
+    if (display.classList.contains('done') || display.textContent === '⏰ TAP') {
+      display.classList.remove('done', 'alarm', 'run');
+      display.textContent = '--:--';
+    }
+  });
 
   // ============================================================
   // AUTO-REST + TOASTS + CELEBRATION
