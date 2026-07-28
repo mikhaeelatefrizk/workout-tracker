@@ -1303,20 +1303,14 @@
     return armsMode(ex, exData) === 'single' ? SINGLE_ARM_PREFIX + base : base;
   }
 
-  // ---- Global exercise lookups (built once from PROGRAM) ----
+  // ---- Global exercise lookup (built once from PROGRAM) ----
   // EXERCISE_BY_ID lets history readers iterate a session's OWN exercise ids regardless of
   // which day the session is labelled (real/imported dates mix exercises across program days).
-  // EXERCISE_BY_FN maps every fn (including variant fns) to its canonical exDef (first-wins,
-  // so a fn shared by two ids resolves to the lower/default id — matching is by fn anyway).
   const EXERCISE_BY_ID = {};
-  const EXERCISE_BY_FN = {};
   (function buildExerciseMaps(){
     for (const day of Object.keys(PROGRAM)){
       for (const ex of PROGRAM[day].exercises){
         if (!EXERCISE_BY_ID[ex.id]) EXERCISE_BY_ID[ex.id] = ex;
-        const fns = [ex.fn].concat((ex.variants || []).map(v => v.fn));
-        if (ex.cat === 'Triceps') fns.push(SINGLE_ARM_PREFIX + ex.fn);   // single-arm twin fn resolves to this exDef
-        for (const fn of fns){ if (!EXERCISE_BY_FN[fn]) EXERCISE_BY_FN[fn] = ex; }
       }
     }
   })();
@@ -1327,7 +1321,6 @@
   // bottom. Ranges are practical-by-role (compounds ~6-10, isolation ~10-15, delts ~12-20) — load is
   // "forgiving" for growth (~30-85% 1RM) so effort + volume matter more than the exact range.
   function repRange(ex){
-    if (ex.repRange) return ex.repRange;
     if (ex.compound) return [6, 10];
     if (/lateral|rear delt|face pull/i.test(ex.name)) return [12, 20];
     return [10, 15];
@@ -1493,6 +1486,22 @@
     return max;
   }
 
+  // ---- Shared session math (single implementations — used by the Coach AND the Stats readouts,
+  //      so a trend the user sees in Stats is computed by exactly the same code as the Coach's) ----
+  // Estimated 1RM (Epley: w·(1+reps/30)). CAPPED (reps→12) = accurate strength estimate for
+  // display; UNCAPPED = progress signal that keeps rising when high-rep work adds reps past 12.
+  function epleyE1RM(w, r, cap) { const W = parseFloat(w), R = parseInt(r); return (isNaN(W) || isNaN(R) || W <= 0) ? 0 : W * (1 + Math.min(R, cap ? 12 : 99) / 30); }
+  function sessionBestE1RM(s, cap) { return s.sets.reduce((m, x) => Math.max(m, epleyE1RM(x.w, x.r, cap)), 0); }
+  function sessionTotalReps(s) { return s.sets.reduce((a, x) => a + (parseInt(x.r) || 0), 0); }
+  // Least-squares slope of a series (oldest→newest); 0 when fewer than 2 points.
+  function slopeOf(series) {
+    const m = series.length; if (m < 2) return 0;
+    const xm = (m - 1) / 2, ym = series.reduce((a, b) => a + b, 0) / m;
+    let num = 0, den = 0;
+    series.forEach((y, x) => { num += (x - xm) * (y - ym); den += (x - xm) * (x - xm); });
+    return den ? num / den : 0;
+  }
+
   // ---- Weight-lattice learner: detect each machine's REAL increments from the weights the user enters ----
   // Works in the exercise's DISPLAY unit (the user's own per-machine kg/lb setting) so lb stacks learn lb
   // pins and kg dumbbells learn kg steps; results are returned in kg (the storage unit).
@@ -1597,8 +1606,16 @@
     // RESULT gets snapped to a clean display value — the Coach never recommends a weight that can't
     // exist on the equipment, and layoff drops can never masquerade as a load step.
     const fallbackInc = exDef.inc || (exDef.compound ? 2.5 : (U === 'lb' ? 10 * KG_PER_LB : 1));
-    const latticeKg = learnStep(history, U);
-    const minMoveKg = latticeKg ? null : minPosDelta(history);
+    // Step-learner inputs exclude warm-up-only sessions (top weight far below the block's typical
+    // working weight — e.g. the user checked a ramp set and left): one such session must never
+    // anchor the lattice or fabricate a giant "machine step".
+    const medTops = blockOf(history).map(s => topWeight(s.sets)).filter(w => w > 0).sort((a, b) => a - b);
+    const medianTop = medTops.length ? medTops[Math.floor(medTops.length / 2)] : 0;
+    const learnHist = medianTop ? history.filter(s => topWeight(s.sets) >= 0.7 * medianTop) : history;
+    const latticeKg = learnStep(learnHist, U);
+    let minMoveKg = latticeKg ? null : minPosDelta(learnHist);
+    // sanity cap: a "smallest move" several times the category default is pollution, not a pin gap
+    if (minMoveKg && minMoveKg > 4 * fallbackInc) minMoveKg = null;
     const inc = latticeKg || minMoveKg || fallbackInc;
 
     // Unit-aware phrasing (engine math stays in kg; only the words change)
@@ -1606,34 +1623,21 @@
     const dispBump = (kgBump) => (U === 'kg' ? trimNum(kgBump) : trimNum(Math.round(kgBump / KG_PER_LB * 10) / 10));
     const round2 = (w) => Math.round(w * 100) / 100;     // recs anchor at the real last weight + real step
 
-    // Estimated 1RM per session over the FULL history (Epley: w·(1+reps/30)).
-    //  - CAPPED variant (reps→12): an accurate strength estimate, used for the "best e1RM" display.
-    //  - UNCAPPED variant: a progress signal that keeps rising when high-rep work (laterals/calves
-    //    at 15) adds reps past 12 — so trend/stall detection isn't blind to high-rep gains.
-    const epley   = (w, r, cap) => { const W = parseFloat(w), R = parseInt(r); return (isNaN(W) || isNaN(R) || W <= 0) ? 0 : W * (1 + Math.min(R, cap ? 12 : 99) / 30); };
-    const sessBest = (s, cap) => s.sets.reduce((m, x) => Math.max(m, epley(x.w, x.r, cap)), 0);
-    const totalReps = (s) => s.sets.reduce((a, x) => a + (parseInt(x.r) || 0), 0);
+    // Session e1RM + reps via the shared helpers (epleyE1RM / sessionBestE1RM / sessionTotalReps).
     // BLOCK-SCOPED progress math: bests, trend and the plateau check only look at the CURRENT
     // training block (gaps <= 21d). Pre-layoff peaks from a different training age can't make
     // real post-return PRs read as "below best", and a layoff-straddling same-load coincidence
     // can never trigger a deload. Pre-break bests are shown separately as context.
     const blk = blockOf(history);
-    const eCap  = blk.map(s => sessBest(s, true));         // newest-first — for strength display
-    const ePerf = blk.map(s => sessBest(s, false));        // newest-first — for trend/progress
-    const preBest = history.slice(blk.length).reduce((m, s) => Math.max(m, sessBest(s, true)), 0);
+    const eCap  = blk.map(s => sessionBestE1RM(s, true));  // newest-first — for strength display
+    const ePerf = blk.map(s => sessionBestE1RM(s, false)); // newest-first — for trend/progress
+    const preBest = history.slice(blk.length).reduce((m, s) => Math.max(m, sessionBestE1RM(s, true)), 0);
     let bestE1RM = 0, bestIdx = 0;
     eCap.forEach((v, i) => { if (v > bestE1RM) { bestE1RM = v; bestIdx = i; } });
     const meanPerf = ePerf.reduce((a, b) => a + b, 0) / (ePerf.length || 1);
     const eps = Math.max(0.005 * meanPerf, 0.01);          // ignore rounding-level noise
     // performance trend: least-squares slope over the last up-to-5 sessions (oldest→newest)
-    const win = ePerf.slice(0, Math.min(5, ePerf.length)).reverse();
-    let slope = 0;
-    if (win.length >= 2) {
-      const m = win.length, xm = (m - 1) / 2, ym = win.reduce((a, b) => a + b, 0) / m;
-      let num = 0, den = 0;
-      win.forEach((y, x) => { num += (x - xm) * (y - ym); den += (x - xm) * (x - xm); });
-      slope = den ? num / den : 0;
-    }
+    const slope = slopeOf(ePerf.slice(0, Math.min(5, ePerf.length)).reverse());
     const agoPhrase = bestIdx === 0 ? 'your best yet' : `best was ${bestIdx} session${bestIdx > 1 ? 's' : ''} ago`;
 
     // Double progression: you EARN the load increase only when EVERY set reaches the TOP of the range.
@@ -1665,7 +1669,11 @@
       let rw = lastWork * factor;
       if (factor < 1) {
         rw = latticeKg ? snapStep(rw, latticeKg, lastWork) : cleanSnap(rw, U);
-        if (rw >= lastWork) rw = latticeKg ? lastWork - latticeKg : cleanSnap(lastWork * 0.9, U);
+        // If snapping rounded back up to ~the full load (epsilon covers float drift on stored
+        // lb-derived kg values), force ONE real step down — re-snapping the same product would
+        // just reproduce the full load on light lifts and skip the promised reduction.
+        if (rw > lastWork - 0.01) rw = latticeKg ? lastWork - latticeKg
+                                                 : cleanSnap(lastWork, U) - (U === 'lb' ? 2.5 * KG_PER_LB : 0.5);
         if (rw <= 0) rw = lastWork * factor;
       }
       return { w: round2(rw).toString(), reps: lo, repsText: rangeText, rir, kind: 'hold',
@@ -1705,9 +1713,11 @@
       // A TRUE plateau requires failure to progress across BOTH transitions of the 3-session
       // window (total reps never improving). One noisy sub-PR session after a rep PR (rest
       // variance shifts totals 1-3 reps) must NOT give away ~10% of the load.
-      const t0 = totalReps(blk[0]), t1 = totalReps(blk[1]), t2 = totalReps(blk[2]);
+      const t0 = sessionTotalReps(blk[0]), t1 = sessionTotalReps(blk[1]), t2 = sessionTotalReps(blk[2]);
       const stalledBothSteps = t0 <= t1 && t1 <= t2;
-      if (sameLoad && stalledBothSteps) {
+      // Flat reps AT THE RANGE CEILING is success capped by the range (e.g. prescribed sets
+      // trimmed, every performed set at the top) — never a plateau. Deload only below the top.
+      if (sameLoad && stalledBothSteps && minReps < hi) {
         // Deload lands on a REAL weight: snap ~-10% to the learned lattice (at least one step down),
         // or to a clean display value when no lattice is known.
         let dw = lastWork * 0.9;
@@ -1751,13 +1761,20 @@
     const otherFn = mode === 'single' ? baseFn : SINGLE_ARM_PREFIX + baseFn;
     let basis = recentSessionsFor(curFn, currentDate);
     const histOther = recentSessionsFor(otherFn, currentDate);
-    if (!basis.length && histOther.length) {                        // fall back to the other mode, converted
+    const converted = !basis.length && histOther.length > 0;
+    if (converted) {                                                // fall back to the other mode, converted
       const conv = mode === 'single' ? biToUni : uniToBi;
       basis = histOther.map(s => ({ date: s.date, day: s.day, sets: s.sets.map(x => ({ w: String(conv(x.w)), r: x.r })) }));
     }
     const s = suggestNext(incEx, basis, dispUnit, todayDate);
     if (!s) return null;
-    const curKg = parseFloat(s.w) || 0;
+    let curKg = parseFloat(s.w) || 0;
+    // A ×/÷1.8-converted basis produces off-pin floats — snap the PRIMARY line to a real weight
+    // too (no own-mode lattice exists by definition here, so snap to the clean display grid).
+    if (converted && curKg > 0) {
+      const snapped = cleanSnap(curKg, dispUnit);
+      if (snapped > 0) curKg = snapped;
+    }
     // The DERIVED partner-mode load snaps to the partner mode's OWN learned weight lattice (its real
     // pins), else to a clean display value — both lines always show weights that exist on the machine.
     const partnerRaw = mode === 'single' ? uniToBi(curKg) : biToUni(curKg);
@@ -1772,7 +1789,7 @@
     return {
       single: { wKg: singleKg, repsText: s.repsText, rir: s.rir },
       both:   { wKg: bothKg,   repsText: s.repsText, rir: s.rir },
-      kind: s.kind, note: s.note, primary: mode
+      kind: s.kind, note: s.note, primary: mode, reps: s.reps
     };
   }
 
@@ -2034,11 +2051,12 @@
       const history = recentSessionsFor(curFn, currentDate);   // FULL history — the Coach uses all of it
       const last = history[0] || null;
       const suggest = suggestNext(Object.assign({}, ex, { inc: effectiveInc(ex, exData) }), history, u);
+      // Triceps: dual single/both-hand recommendation (computed here so the fill targets below can
+      // use the SAME values the card displays). Renders even if the current hand-mode has no
+      // history yet — tricepsDualSuggest derives it from the other mode via the bilateral deficit.
+      const dual = ex.cat === 'Triceps' ? tricepsDualSuggest(ex, exData, u, currentDate) : null;
       let lastHtml = '';
       if (ex.cat === 'Triceps') {
-        // Triceps: dual single/both-hand recommendation. Renders even if the current hand-mode has
-        // no history yet — tricepsDualSuggest derives it from the other mode via the bilateral deficit.
-        const dual = tricepsDualSuggest(ex, exData, u, currentDate);
         if (dual) {
           const cls = dual.kind === 'deload' ? 'target deload' : 'target';
           const rirTxt = dual.rir ? ` @ ${dual.rir}` : '';
@@ -2071,8 +2089,13 @@
       // Sets table — large clear inputs; weights shown in this exercise's unit, always stored as kg
       let setsHtml = '<div class="sets">';
       setsHtml += `<div class="sets-header"><div></div><div>Weight (${u})</div><div>Reps</div><div>✓</div></div>`;
-      const targetW = (suggest && suggest.w) || '';
-      const targetR = (suggest && suggest.reps) || repRange(ex)[0];
+      // Fill targets: for triceps cards they come from the SAME dual recommendation the card
+      // displays (the current hand-mode's line) — the shown weight and the one-tap-logged weight
+      // can never disagree, including the first session of a newly-toggled hand mode.
+      const dualCur = dual ? (dual.primary === 'single' ? dual.single : dual.both) : null;
+      const targetW = dualCur ? String(Math.round(dualCur.wKg * 100) / 100)
+                              : ((suggest && suggest.w) || '');
+      const targetR = (dual ? dual.reps : (suggest && suggest.reps)) || repRange(ex)[0];
       for (let n = 1; n <= nSets; n++) {
         const w = kgToDisp(exData[`w${n}`] || '', u);
         const r = exData[`r${n}`] || '';
@@ -2193,7 +2216,9 @@
               const wEl = card.querySelector(`input[data-f="w${n}"]`);
               const rEl = card.querySelector(`input[data-f="r${n}"]`);
               if (wEl && !wEl.value && targetW) { wEl.value = kgToDisp(targetW, u); session.exercises[id]['w' + n] = dispToKg(wEl.value, u); }
-              if (rEl && !rEl.value) { rEl.value = String(targetR); session.exercises[id]['r' + n] = String(targetR); }
+              // Reps auto-fill ONLY when the row has (or just got) a weight — a checked row with
+              // reps but no weight is invisible to the engine/volume and silently loses the set.
+              if (rEl && !rEl.value && wEl && wEl.value) { rEl.value = String(targetR); session.exercises[id]['r' + n] = String(targetR); }
               // stamp WHEN this set was completed (keep-first) — powers duration + rest timing
               if (typeof session.exercises[id]['t' + n] !== 'number') session.exercises[id]['t' + n] = Date.now();
             }
@@ -2377,9 +2402,6 @@
   // OR a clearly declining trend; Fast = >=2%/session; the rest are On-track. Lifts with fewer
   // than 3 in-block sessions are "too new to judge".
   function liftStatuses() {
-    const epleyU = (w, r) => { const W = parseFloat(w), R = parseInt(r); return (isNaN(W) || isNaN(R) || W <= 0) ? 0 : W * (1 + Math.min(R, 99) / 30); };
-    const sessBest = (s) => s.sets.reduce((m, x) => Math.max(m, epleyU(x.w, x.r)), 0);
-    const totReps = (s) => s.sets.reduce((a, x) => a + (parseInt(x.r) || 0), 0);
     const seen = new Set(), out = { fast: [], ontrack: [], stalled: [], fresh: 0 };
     const all = allSessions();
     for (const day of Object.keys(PROGRAM)) {
@@ -2394,16 +2416,17 @@
         // and Stats must agree with the Coach (which also scopes strictly before the current date).
         const blk = blockOf(recentSessionsFor(fn, todayStr()));
         if (blk.length < 3) { out.fresh++; continue; }
-        const perf = blk.map(sessBest);
+        const perf = blk.map(s => sessionBestE1RM(s, false));   // uncapped — same signal as the Coach
         const win = perf.slice(0, Math.min(5, perf.length)).reverse();
-        const m = win.length, xm = (m - 1) / 2, ym = win.reduce((a, b) => a + b, 0) / m;
-        let num = 0, den = 0;
-        win.forEach((y, x) => { num += (x - xm) * (y - ym); den += (x - xm) * (x - xm); });
-        const slope = den ? num / den : 0;
+        const ym = win.reduce((a, b) => a + b, 0) / win.length;
+        const slope = slopeOf(win);
         const pct = ym > 0 ? (slope / ym) * 100 : 0;
         const tops = blk.slice(0, 3).map(s => topWeight(s.sets));
+        // Same STRICT plateau predicate as the Coach's deload (non-improving across BOTH
+        // transitions) — a rep PR followed by one noisy sub-PR session is progress, not a stall.
         const frozen = tops.every(w => !isNaN(w) && Math.abs(w - tops[0]) < 0.5) &&
-                       totReps(blk[0]) <= Math.max(totReps(blk[1]), totReps(blk[2]));
+                       sessionTotalReps(blk[0]) <= sessionTotalReps(blk[1]) &&
+                       sessionTotalReps(blk[1]) <= sessionTotalReps(blk[2]);
         const u = unitFor(ex.id);
         const item = { name: fn, pct: Math.round(pct * 10) / 10, at: kgToDisp(tops[0], u) + ' ' + u };
         if (frozen || pct <= -1) out.stalled.push(item);
