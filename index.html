@@ -2794,6 +2794,9 @@
   // checked, never touches a past date, never overrides a manual +/− choice.
   function applyVolPlan(dayDef) {
     if (currentDate !== todayStr()) return { sets: {}, notes: {} };
+    // Never touch a workout that's already finished — adding sets to a session he has ended
+    // would reopen a completed workout and make it read as incomplete.
+    if (session && session.endTs) return { sets: {}, notes: {} };
     const plan = volPlan();
     const pres = volPrescribe(dayDef, session.exercises || {}, plan, currentDate);
     let dirty = false;
