@@ -2528,7 +2528,9 @@
   }
   function saveVolPlan(p) { try { localStorage.setItem(VOLPLAN_KEY, JSON.stringify(p)); } catch (e) {} }
 
-  // Baseline targets: what the program itself prescribes per week, floored at MEV and capped at MRV.
+  // What the program ACTUALLY delivers per week at its default set counts (fractional synergist
+  // credit included). This is the true baseline the prescription measures shortfalls against —
+  // it must NOT be clamped, or the coach adds sets on top of a baseline that was never real.
   function programWeeklySets() {
     const t = {};
     for (const day of Object.keys(PROGRAM))
@@ -2536,12 +2538,30 @@
         const mm = musclesFor(ex);
         for (const mu in mm) t[mu] = (t[mu] || 0) + mm[mu] * ex.sets;
       }
-    const out = {};
+    return t;
+  }
+  // The most this program can actually DELIVER per muscle per week, given the safety caps
+  // (+1 set per exercise, +2 per muscle per day). Targets are clamped to this so the plan never
+  // promises a dose the prescription cannot produce — the card note and the plan stay truthful.
+  function deliverableCeiling() {
+    const t = programWeeklySets(), out = {};
+    Object.keys(VOL_LANDMARKS).forEach(mu => {
+      let headroom = 0;
+      Object.keys(PROGRAM).forEach(day => {
+        const primary = PROGRAM[day].exercises.filter(ex => musclesFor(ex)[mu] >= 1).length;
+        headroom += Math.min(VP_MAX_ADD_PER_MUSCLE, primary * VP_MAX_ADD_PER_EX);
+      });
+      out[mu] = Math.round((t[mu] || 0) + headroom);
+    });
+    return out;
+  }
+  // Where a fresh block STARTS: the program's own dose, pulled into the productive zone
+  // (MEV..MAV) — a block never begins above the adaptive sweet spot.
+  function initialTargets() {
+    const t = programWeeklySets(), cap = deliverableCeiling(), out = {};
     Object.keys(VOL_LANDMARKS).forEach(mu => {
       const L = VOL_LANDMARKS[mu];
-      // Blocks START in the productive zone (MEV..MAV) and climb toward MRV week by week —
-      // never begin above the adaptive sweet spot.
-      out[mu] = Math.max(L.mev, Math.min(L.mav, Math.round(t[mu] || L.mev)));
+      out[mu] = Math.max(L.mev, Math.min(L.mav, cap[mu], Math.round(t[mu] || L.mev)));
     });
     return out;
   }
@@ -2599,7 +2619,7 @@
     let p = loadVolPlan();
     if (!p) {
       p = { v: 1, weekStart: today, week: 1, phase: 'accumulate',
-            targets: programWeeklySets(), base: programWeeklySets(), history: [] };
+            targets: initialTargets(), base: initialTargets(), history: [] };
       saveVolPlan(p);
       return p;
     }
@@ -2608,6 +2628,7 @@
 
     const achieved = weeklyVolume(today);
     const resp = muscleResponse();
+    const cap = deliverableCeiling();     // never plan a dose the prescription can't deliver
     const nextTargets = {}, reasons = {};
     let nextPhase = 'accumulate';
 
@@ -2619,22 +2640,24 @@
       const responding = resp[mu] == null ? true : resp[mu] >= 0.5;
 
       if (p.phase === 'deload') {
-        // Light week done → start the NEXT block in the productive zone, one set above where the
-        // last block started (blocks creep up over time) — never back at the ceiling that caused
-        // the deload, which would just oscillate MRV→deload→MRV forever.
-        nextTargets[mu] = Math.max(L.mev, Math.min(L.mav, base + 1));
+        // Light week done → start the NEXT block one set above where the last block started, but
+        // STRICTLY BELOW the stall-deload threshold, so a fresh block can never begin already
+        // eligible for another deload (that would oscillate light/heavy forever).
+        nextTargets[mu] = Math.max(L.mev, Math.min(L.mav - 1, base + 1));
         reasons[mu] = 'fresh block';
-      } else if (cur >= L.mrv || (!responding && cur >= L.mav)) {
+      } else if (cur >= L.mrv || (!responding && cur > L.mav && p.week >= 3)) {
+        // Deload at the recoverable ceiling, or when a muscle stalls ABOVE its sweet spot —
+        // and only after a real block (>=3 accumulate weeks), never a one-week block.
         nextTargets[mu] = Math.max(Math.round(L.mev / 2), Math.round(cur / 2));   // deload week
         reasons[mu] = cur >= L.mrv ? 'at your ceiling' : 'lifts stalled at high volume';
         nextPhase = 'deload';
       } else if (cur < L.mev) {
         // Under the minimum effective dose: too little volume is the likeliest reason a muscle
         // isn't growing, so climb to MEV regardless of the trend signal.
-        nextTargets[mu] = Math.min(L.mrv, cur + 1);
+        nextTargets[mu] = Math.min(L.mrv, cap[mu], cur + 1);
         reasons[mu] = 'below your minimum effective volume';
       } else if (responding && got >= 0.9 * cur) {
-        nextTargets[mu] = Math.min(L.mrv, cur + 1);        // earn one more set
+        nextTargets[mu] = Math.min(L.mrv, cap[mu], cur + 1);   // earn one more set
         reasons[mu] = 'progressing';
       } else {
         nextTargets[mu] = cur;                             // dose not met → repeat it
@@ -2700,13 +2723,20 @@
       for (const mu in mm) planned[mu] = (planned[mu] || 0) + mm[mu] * ex.sets;
     });
     // A weekly target is spread ACROSS the rotation days that actually train that muscle — never
-    // demanded from one workout, and never divided by sessions that don't touch it.
-    const weeklyProgram = programWeeklySets();             // what the default program delivers/week
-    const daysTraining = {};                               // rotation days that hit each muscle
-    Object.keys(PROGRAM).forEach(day => {
-      const seen = {};
-      PROGRAM[day].exercises.forEach(ex => { const mm = musclesFor(ex); for (const mu in mm) if (mm[mu] >= 1) seen[mu] = 1; });
-      Object.keys(seen).forEach(mu => { daysTraining[mu] = (daysTraining[mu] || 0) + 1; });
+    // demanded from one workout, and never divided by sessions that don't touch it. The split is
+    // an exact integer partition (floor everywhere + the remainder on the first days), so the
+    // sets delivered over the week equal the weekly shortfall — not that many times over.
+    const weeklyProgram = programWeeklySets();             // TRUE weekly delivery (unclamped)
+    const dayKeys = Object.keys(PROGRAM);
+    const todayKey = dayKeys.find(d => PROGRAM[d] === dayDef) || dayKeys[0];
+    const trainingDays = {};                               // muscle -> rotation day keys that hit it
+    dayKeys.forEach(day => {
+      PROGRAM[day].exercises.forEach(ex => {
+        const mm = musclesFor(ex);
+        for (const mu in mm) if (mm[mu] >= 1) {
+          (trainingDays[mu] || (trainingDays[mu] = [])).indexOf(day) < 0 && trainingDays[mu].push(day);
+        }
+      });
     });
 
     Object.keys(VOL_LANDMARKS).forEach(mu => {
@@ -2733,12 +2763,16 @@
         return;
       }
 
-      // Weekly shortfall of the DEFAULT program vs this week's target, spread over the rotation
-      // days that train this muscle — so a muscle trained once a week still gets its full dose.
-      const weekShort = target - (weeklyProgram[mu] || 0);
+      // Weekly shortfall of the DEFAULT program vs this week's target, partitioned exactly across
+      // the rotation days that train this muscle — the week delivers the shortfall, no more.
+      const weekShort = Math.round(target - (weeklyProgram[mu] || 0));
       if (weekShort <= 0) return;
-      const days = Math.max(1, daysTraining[mu] || 1);
-      const deficit = Math.min(VP_MAX_ADD_PER_MUSCLE, Math.ceil(weekShort / days));
+      const tdays = trainingDays[mu] || [];
+      const nDays = Math.max(1, tdays.length);
+      const pos = tdays.indexOf(todayKey);
+      if (pos < 0) return;                                 // today doesn't train this muscle
+      const share = Math.floor(weekShort / nDays) + (pos < (weekShort % nDays) ? 1 : 0);
+      const deficit = Math.min(VP_MAX_ADD_PER_MUSCLE, share);
       if (deficit <= 0) return;
       let add = deficit;
       const ordered = cands.slice().sort((a, b) => (a.compound === b.compound) ? 0 : (a.compound ? -1 : 1));
