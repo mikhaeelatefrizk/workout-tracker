@@ -1646,7 +1646,11 @@
     const workSets = last.sets.filter(s => Math.abs((parseFloat(s.w) || 0) - lastWork) < 0.5);
     const judged = workSets.length ? workSets : last.sets;
     const minReps = Math.min.apply(null, judged.map(s => parseInt(s.r) || 0));
-    const hitTop = judged.length >= exDef.sets && judged.every(s => (parseInt(s.r) || 0) >= hi);
+    // Judge on the sets he ACTUALLY performed, not the program's fixed count: training fewer sets
+    // than prescribed (or the volume coach trimming a deload week) must never make a load increase
+    // unreachable. Floor of 2 working sets so one stray set can't earn a jump.
+    const needSets = Math.max(exDef.sets === 1 ? 1 : 2, Math.min(exDef.sets, last.sets.length));
+    const hitTop = judged.length >= needSets && judged.every(s => (parseInt(s.r) || 0) >= hi);
     const daysSince = (() => {
       const d = Math.round((new Date(today + 'T00:00:00') - new Date(last.date + 'T00:00:00')) / 86400000);
       return isNaN(d) ? 0 : d;
@@ -2006,6 +2010,13 @@
     const n = exData && exData._sets ? parseInt(exData._sets, 10) : ex.sets;
     return Math.max(1, Math.min(8, n || ex.sets));
   }
+  // Does this exercise entry hold any REAL logged work (a completed set with weight and reps)?
+  // Distinguishes a genuine performance from a placeholder that only carries _sets/impl flags.
+  function exDataHasWork(d) {
+    if (!d) return false;
+    for (let n = 1; n <= 8; n++) if (d['c' + n] && d['w' + n] && d['r' + n]) return true;
+    return false;
+  }
 
   function renderExercises() {
     const container = document.getElementById('exerciseContainer');
@@ -2015,19 +2026,14 @@
     container.innerHTML = '';
     const dayDef = PROGRAM[currentDay];
 
-    // Prescriptive volume (today only): for each muscle sitting below its weekly MEV, nudge ONE
-    // exercise on today's day — the compound if there is one — to add a set. Turns the Stats
-    // landmark into an in-session action; disappears once a set has been added or the dose is met.
+    // VOLUME COACH (today only): actually PRESCRIBES today's set counts from the weekly plan —
+    // accumulating toward the target while his lifts progress, pulling back on a deload week —
+    // and explains each change on the card. Writes exData._sets, the same field the ± buttons use.
     const volNudge = {};
     if (currentDate === todayStr()) {
-      const wv = weeklyVolume();
-      Object.keys(VOL_LANDMARKS).forEach(mu => {
-        if ((wv[mu] || 0) >= VOL_LANDMARKS[mu].mev) return;
-        const cands = dayDef.exercises.filter(e => e.cat === mu);
-        if (!cands.length) return;
-        const pick = cands.find(e => e.compound) || cands[0];
-        if (setCount(pick, session.exercises[pick.id] || {}) > pick.sets) return;   // already added one
-        volNudge[pick.id] = `<div class="vol-nudge">📈 ${mu} is under its weekly minimum (${trimNum(Math.round((wv[mu] || 0) * 10) / 10)}/${VOL_LANDMARKS[mu].mev} sets) — worth adding a set here today.</div>`;
+      const applied = applyVolPlan(dayDef);
+      Object.keys(applied.notes || {}).forEach(id => {
+        volNudge[id] = `<div class="vol-nudge">${applied.notes[id]}</div>`;
       });
     }
 
@@ -2248,6 +2254,7 @@
             ['w', 'r', 'c', 't'].forEach(p => delete session.exercises[id][p + cur]); // clear the removed row
             session.exercises[id]._sets = cur - 1;
           }
+          session.exercises[id]._setsUser = true;   // your choice wins — the volume coach won't override it today
           persist();
           render();
           vibrate(8);
@@ -2408,7 +2415,10 @@
       for (const ex of PROGRAM[day].exercises) {
         // resolve the variant/hand-mode the lifter most recently used for this slot
         let latest = null;
-        for (const s of all) { if (s.data && s.data.exercises && s.data.exercises[ex.id] && (!latest || s.date > latest.date)) latest = s; }
+        // Only sessions with REAL logged work resolve the variant — a bare placeholder entry
+        // (e.g. today's set count written by the Volume Coach before anything is logged) carries
+        // no impl/arms context and must never hijack which lift's history we read.
+        for (const s of all) { if (s.data && s.data.exercises && exDataHasWork(s.data.exercises[ex.id]) && (!latest || s.date > latest.date)) latest = s; }
         if (!latest) continue;
         const fn = armsFn(ex, latest.data.exercises[ex.id]);
         if (seen.has(fn)) continue; seen.add(fn);
@@ -2489,6 +2499,283 @@
     return { label: 'over MRV — pull back', cls: 'vhigh', band };
   }
 
+  // ============================================================
+  // VOLUME COACH — the second axis of progressive overload.
+  // Load/reps progression (suggestNext) makes each set harder; this makes the WEEK harder.
+  // Sets per muscle per week is the primary dose driver of hypertrophy: growth rises with
+  // weekly sets up to a recoverable ceiling (MRV), so the productive pattern is to accumulate
+  // volume week over week from MEV toward MRV *while performance still improves*, then take a
+  // light week so fatigue dissipates and the next block starts fresher.
+  //
+  // Everything here is deterministic and driven by HIS OWN logged data — the same inputs always
+  // produce the same plan, so it can be audited exactly like the load engine:
+  //   • achieved  = weeklyVolume()      — the sets he really did per muscle
+  //   • responding = liftStatuses()     — whether that muscle's lifts are actually progressing
+  // Rules (one lever per week, never a jump):
+  //   deload week            → next week accumulate again from the base it climbed from
+  //   at MRV, or stalling at/above MAV → DELOAD week (half the sets, same load)
+  //   responding AND he hit ≥90% of last week's dose → +1 set (capped at MRV)
+  //   otherwise              → repeat the same target (dose not met ⇒ don't pile more on)
+  // ============================================================
+  const VOLPLAN_KEY = 'wo:_volplan';
+  const VP_MAX_ADD_PER_EX = 1;      // never more than +1 set on a single exercise in a day
+  const VP_MAX_ADD_PER_MUSCLE = 2;  // never more than +2 sets for one muscle in a day
+
+  function loadVolPlan() {
+    try { const p = JSON.parse(localStorage.getItem(VOLPLAN_KEY) || 'null'); if (p && p.v === 1) return p; }
+    catch (e) {}
+    return null;
+  }
+  function saveVolPlan(p) { try { localStorage.setItem(VOLPLAN_KEY, JSON.stringify(p)); } catch (e) {} }
+
+  // Baseline targets: what the program itself prescribes per week, floored at MEV and capped at MRV.
+  function programWeeklySets() {
+    const t = {};
+    for (const day of Object.keys(PROGRAM))
+      for (const ex of PROGRAM[day].exercises) {
+        const mm = musclesFor(ex);
+        for (const mu in mm) t[mu] = (t[mu] || 0) + mm[mu] * ex.sets;
+      }
+    const out = {};
+    Object.keys(VOL_LANDMARKS).forEach(mu => {
+      const L = VOL_LANDMARKS[mu];
+      // Blocks START in the productive zone (MEV..MAV) and climb toward MRV week by week —
+      // never begin above the adaptive sweet spot.
+      out[mu] = Math.max(L.mev, Math.min(L.mav, Math.round(t[mu] || L.mev)));
+    });
+    return out;
+  }
+
+  // How many training sessions he actually runs per week (from his own logged dates, last ~4
+  // weeks). Used to spread a WEEKLY set target across the week's sessions instead of demanding
+  // the whole week's dose from a single workout.
+  function sessionsPerWeek(today) {
+    const endMs = new Date((today || todayStr()) + 'T00:00:00').getTime();
+    const startMs = endMs - 27 * 86400000;
+    const dates = new Set();
+    for (const s of allSessions()) {
+      const t = new Date(s.date + 'T00:00:00').getTime();
+      if (isNaN(t) || t < startMs || t > endMs) continue;
+      let work = false;
+      for (const id in s.data.exercises) { const d = s.data.exercises[id];
+        for (let n = 1; n <= 8; n++) if (d['c' + n] && d['w' + n] && d['r' + n]) { work = true; break; }
+        if (work) break; }
+      if (work) dates.add(s.date);
+    }
+    const perWeek = dates.size / 4;
+    return Math.max(2, Math.min(6, Math.round(perWeek) || 3));
+  }
+
+  // Which muscles are still responding to their current dose. Signal = share of that muscle's
+  // PRIMARY lifts whose block trend is not clearly declining (pct > -2%/session). A merely noisy
+  // slope must not read as "stalled" — the 5-session window can sit below an older peak while the
+  // last sessions climb — so only a real downtrend counts against the muscle.
+  // null = not enough data to judge (treated as responding).
+  function muscleResponse() {
+    let st; try { st = liftStatuses(); } catch (e) { return {}; }
+    const byMuscle = {};
+    const add = (fn, good) => {
+      for (const day of Object.keys(PROGRAM)) for (const ex of PROGRAM[day].exercises) {
+        const names = [ex.fn].concat((ex.variants || []).map(v => v.fn));
+        if (ex.cat === 'Triceps') names.push(SINGLE_ARM_PREFIX + ex.fn);
+        if (names.indexOf(fn) < 0) continue;
+        const mm = musclesFor(ex);
+        for (const mu in mm) {
+          if (mm[mu] < 1) continue;                       // primary movers only decide the verdict
+          const b = byMuscle[mu] || (byMuscle[mu] = { good: 0, n: 0 });
+          b.good += good ? 1 : 0; b.n++;
+        }
+      }
+    };
+    [].concat(st.fast, st.ontrack, st.stalled).forEach(i => add(i.name, i.pct > -2));
+    const out = {};
+    for (const mu in byMuscle) out[mu] = byMuscle[mu].n ? byMuscle[mu].good / byMuscle[mu].n : 1;
+    return out;
+  }
+
+  // Roll the plan forward when a new 7-day training week has started. Returns the live plan.
+  function volPlan(todayDate) {
+    const today = todayDate || todayStr();
+    let p = loadVolPlan();
+    if (!p) {
+      p = { v: 1, weekStart: today, week: 1, phase: 'accumulate',
+            targets: programWeeklySets(), base: programWeeklySets(), history: [] };
+      saveVolPlan(p);
+      return p;
+    }
+    const days = Math.round((new Date(today + 'T00:00:00') - new Date(p.weekStart + 'T00:00:00')) / 86400000);
+    if (isNaN(days) || days < 7) return p;                 // still inside the current week
+
+    const achieved = weeklyVolume(today);
+    const resp = muscleResponse();
+    const nextTargets = {}, reasons = {};
+    let nextPhase = 'accumulate';
+
+    Object.keys(VOL_LANDMARKS).forEach(mu => {
+      const L = VOL_LANDMARKS[mu];
+      const cur = p.targets[mu] != null ? p.targets[mu] : L.mev;
+      const base = (p.base && p.base[mu] != null) ? p.base[mu] : L.mev;
+      const got = achieved[mu] || 0;
+      const responding = resp[mu] == null ? true : resp[mu] >= 0.5;
+
+      if (p.phase === 'deload') {
+        // Light week done → start the NEXT block in the productive zone, one set above where the
+        // last block started (blocks creep up over time) — never back at the ceiling that caused
+        // the deload, which would just oscillate MRV→deload→MRV forever.
+        nextTargets[mu] = Math.max(L.mev, Math.min(L.mav, base + 1));
+        reasons[mu] = 'fresh block';
+      } else if (cur >= L.mrv || (!responding && cur >= L.mav)) {
+        nextTargets[mu] = Math.max(Math.round(L.mev / 2), Math.round(cur / 2));   // deload week
+        reasons[mu] = cur >= L.mrv ? 'at your ceiling' : 'lifts stalled at high volume';
+        nextPhase = 'deload';
+      } else if (cur < L.mev) {
+        // Under the minimum effective dose: too little volume is the likeliest reason a muscle
+        // isn't growing, so climb to MEV regardless of the trend signal.
+        nextTargets[mu] = Math.min(L.mrv, cur + 1);
+        reasons[mu] = 'below your minimum effective volume';
+      } else if (responding && got >= 0.9 * cur) {
+        nextTargets[mu] = Math.min(L.mrv, cur + 1);        // earn one more set
+        reasons[mu] = 'progressing';
+      } else {
+        nextTargets[mu] = cur;                             // dose not met → repeat it
+        reasons[mu] = got < 0.9 * cur ? 'last week under target' : 'holding';
+      }
+    });
+
+    // A deload is a WEEK, not a per-muscle event: if any muscle triggered it, the whole week is light.
+    if (nextPhase === 'deload') {
+      Object.keys(VOL_LANDMARKS).forEach(mu => {
+        const L = VOL_LANDMARKS[mu];
+        const cur = p.targets[mu] != null ? p.targets[mu] : L.mev;
+        nextTargets[mu] = Math.max(Math.round(L.mev / 2), Math.round(cur / 2));
+      });
+    }
+
+    const hist = (p.history || []).concat([{ weekStart: p.weekStart, phase: p.phase, targets: p.targets, achieved }]);
+    const next = {
+      v: 1,
+      weekStart: today,
+      week: nextPhase === 'deload' ? p.week + 1 : (p.phase === 'deload' ? 1 : p.week + 1),
+      phase: nextPhase,
+      targets: nextTargets,
+      // `base` = where the CURRENT block started (never the ceiling). Entering a deload keeps it;
+      // starting a new block records the new, slightly higher starting volume.
+      base: (p.phase === 'deload') ? Object.assign({}, nextTargets) : Object.assign({}, p.base || nextTargets),
+      reasons,
+      history: hist.slice(-12),
+    };
+    saveVolPlan(next);
+    return next;
+  }
+
+  // Sets already banked toward this week's dose, EXCLUDING today (today is what we're prescribing).
+  function weekSoFar(plan, today) {
+    const startMs = new Date(plan.weekStart + 'T00:00:00').getTime();
+    const todayMs = new Date(today + 'T00:00:00').getTime();
+    const vol = {};
+    for (const s of allSessions()) {
+      const t = new Date(s.date + 'T00:00:00').getTime();
+      if (isNaN(t) || t < startMs || t >= todayMs) continue;
+      for (const id in s.data.exercises) {
+        const ex = EXERCISE_BY_ID[id]; if (!ex) continue;
+        const d = s.data.exercises[id];
+        let done = 0; for (let n = 1; n <= 8; n++) { if (d['c' + n] && d['w' + n] && d['r' + n]) done++; }
+        if (!done) continue;
+        const mm = musclesFor(ex);
+        for (const mu in mm) vol[mu] = (vol[mu] || 0) + mm[mu] * done;
+      }
+    }
+    return vol;
+  }
+
+  // Today's prescription: how many sets each of today's exercises should run, plus the reason text.
+  // Pure function of (plan, history, today's session) — no writes, so it is trivially testable.
+  function volPrescribe(dayDef, sessionExercises, plan, today) {
+    const out = { sets: {}, notes: {} };
+    const done = weekSoFar(plan, today);
+    // what today would contribute at the program's default sets
+    const planned = {};
+    dayDef.exercises.forEach(ex => {
+      const mm = musclesFor(ex);
+      for (const mu in mm) planned[mu] = (planned[mu] || 0) + mm[mu] * ex.sets;
+    });
+    // A weekly target is spread ACROSS the rotation days that actually train that muscle — never
+    // demanded from one workout, and never divided by sessions that don't touch it.
+    const weeklyProgram = programWeeklySets();             // what the default program delivers/week
+    const daysTraining = {};                               // rotation days that hit each muscle
+    Object.keys(PROGRAM).forEach(day => {
+      const seen = {};
+      PROGRAM[day].exercises.forEach(ex => { const mm = musclesFor(ex); for (const mu in mm) if (mm[mu] >= 1) seen[mu] = 1; });
+      Object.keys(seen).forEach(mu => { daysTraining[mu] = (daysTraining[mu] || 0) + 1; });
+    });
+
+    Object.keys(VOL_LANDMARKS).forEach(mu => {
+      const target = plan.targets[mu];
+      if (target == null) return;
+      const projected = (done[mu] || 0) + (planned[mu] || 0);
+      const cands = dayDef.exercises.filter(e => { const mm = musclesFor(e); return mm[mu] >= 1; });
+      if (!cands.length) return;
+
+      if (plan.phase === 'deload') {
+        // Light week: pull sets back toward the reduced target, but never below 1 per exercise.
+        if (projected <= target) return;
+        let over = Math.round(projected - target);
+        const ordered = cands.slice().sort((a, b) => (a.compound === b.compound) ? 0 : (a.compound ? 1 : -1));
+        for (const ex of ordered) {
+          if (over <= 0) break;
+          const cur = out.sets[ex.id] != null ? out.sets[ex.id] : ex.sets;
+          const cut = Math.min(over, Math.max(0, cur - 1));
+          if (cut > 0) {
+            out.sets[ex.id] = cur - cut; over -= cut;
+            out.notes[ex.id] = `🌙 Deload week — ${cur - cut} sets instead of ${cur}, same weight. Fatigue clears, growth catches up.`;
+          }
+        }
+        return;
+      }
+
+      // Weekly shortfall of the DEFAULT program vs this week's target, spread over the rotation
+      // days that train this muscle — so a muscle trained once a week still gets its full dose.
+      const weekShort = target - (weeklyProgram[mu] || 0);
+      if (weekShort <= 0) return;
+      const days = Math.max(1, daysTraining[mu] || 1);
+      const deficit = Math.min(VP_MAX_ADD_PER_MUSCLE, Math.ceil(weekShort / days));
+      if (deficit <= 0) return;
+      let add = deficit;
+      const ordered = cands.slice().sort((a, b) => (a.compound === b.compound) ? 0 : (a.compound ? -1 : 1));
+      for (const ex of ordered) {
+        if (add <= 0) break;
+        const exData = sessionExercises[ex.id] || {};
+        if (exData._setsUser) continue;                    // his own +/− choice always wins
+        const cur = out.sets[ex.id] != null ? out.sets[ex.id] : ex.sets;
+        const inc = Math.min(add, VP_MAX_ADD_PER_EX);
+        if (cur + inc > 8) continue;
+        out.sets[ex.id] = cur + inc; add -= inc;
+        out.notes[ex.id] = `📈 +${inc} set — building ${mu.toLowerCase()} toward ${target} sets this week (you're at ${Math.round((done[mu] || 0) + planned[mu])})${plan.reasons && plan.reasons[mu] === 'progressing' ? '; these lifts are progressing, so the dose goes up' : ''}.`;
+      }
+    });
+    return out;
+  }
+
+  // Apply the prescription to TODAY's session only. Never lowers a count below sets already
+  // checked, never touches a past date, never overrides a manual +/− choice.
+  function applyVolPlan(dayDef) {
+    if (currentDate !== todayStr()) return { sets: {}, notes: {} };
+    const plan = volPlan();
+    const pres = volPrescribe(dayDef, session.exercises || {}, plan, currentDate);
+    let dirty = false;
+    Object.keys(pres.sets).forEach(id => {
+      const d = session.exercises[id] || (session.exercises[id] = {});
+      if (d._setsUser) return;
+      let n = pres.sets[id];
+      let checked = 0; for (let i = 1; i <= 8; i++) if (d['c' + i]) checked = i;
+      if (n < checked) n = checked;                        // never hide a set he already logged
+      n = Math.max(1, Math.min(8, n));
+      if (d._sets !== n) { d._sets = n; dirty = true; }
+    });
+    if (dirty) persist();
+    return { sets: pres.sets, notes: pres.notes, plan };
+  }
+
   // Live workout duration in the stats bar. Prefers the explicit Start→End buttons; while a
   // workout is running it ticks to now; falls back to checked-set timestamps for legacy sessions.
   function updateDuration() {
@@ -2556,7 +2843,17 @@
     const wv = weeklyVolume();
     const order = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'];
     const muscles = order.filter(mu => wv[mu] != null).concat(Object.keys(wv).filter(mu => order.indexOf(mu) < 0));
-    const volRows = muscles.map(mu => { const st = volStatus(wv[mu], mu); return `<tr><td>${mu}</td><td>${trimNum(Math.round(wv[mu] * 10) / 10)} <span class="stats-sub">/ ${st.band}</span></td><td><span class="vtag ${st.cls}">${st.label}</span></td></tr>`; }).join('');
+    // Volume Coach status: this week's plan (target sets/muscle) next to what he's actually done.
+    const _vp = volPlan();
+    const volRows = muscles.map(mu => {
+      const st = volStatus(wv[mu], mu);
+      const tgt = _vp.targets && _vp.targets[mu] != null ? _vp.targets[mu] : null;
+      const tgtTxt = tgt != null ? ` <span class="stats-sub">→ plan ${tgt}</span>` : '';
+      return `<tr><td>${mu}</td><td>${trimNum(Math.round(wv[mu] * 10) / 10)} <span class="stats-sub">/ ${st.band}</span>${tgtTxt}</td><td><span class="vtag ${st.cls}">${st.label}</span></td></tr>`;
+    }).join('');
+    const phaseTxt = _vp.phase === 'deload'
+      ? `🌙 <b>Deload week</b> — sets pulled back, loads unchanged. Fatigue clears so the next block starts stronger.`
+      : `📈 <b>Building week ${_vp.week}</b> — sets climb toward your targets while your lifts keep progressing.`;
     // Where to push: block-scoped per-lift trend, grouped Fast / On-track / Stalled
     const ls = liftStatuses();
     const liftRow = (i, tag) => `<div class="lift-row"><span>${i.name}</span><span class="stats-sub">${tag}</span></div>`;
@@ -2571,6 +2868,7 @@
     m.innerHTML = `<div class="modal-card">
         <h3>📊 Your stats</h3>
         <h4 class="stats-h">This week · hard sets per muscle <span class="stats-sub">vs your MEV–MAV landmarks</span></h4>
+        <div class="vol-nudge" style="margin:0 0 8px">${phaseTxt}</div>
         <table class="sum-tbl"><thead><tr><th>Muscle</th><th>sets / wk</th><th>status</th></tr></thead><tbody>${volRows || '<tr><td colspan="3">No sets logged in the last week.</td></tr>'}</tbody></table>
         <h4 class="stats-h">Lifts · this block <span class="stats-sub">where to push vs rethink</span></h4>
         ${liftHtml}
