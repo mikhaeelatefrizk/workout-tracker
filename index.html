@@ -1763,8 +1763,11 @@
     const baseFn = effectiveFn(ex, exData);
     const curFn = mode === 'single' ? SINGLE_ARM_PREFIX + baseFn : baseFn;
     const otherFn = mode === 'single' ? baseFn : SINGLE_ARM_PREFIX + baseFn;
-    let basis = recentSessionsFor(curFn, currentDate);
-    const histOther = recentSessionsFor(otherFn, currentDate);
+    // History is scoped to the date being computed FOR (not the app's currently open date), so the
+    // dual lines are reproducible and a later workout can never leak into an earlier date's answer.
+    const asOf = todayDate || currentDate;
+    let basis = recentSessionsFor(curFn, asOf);
+    const histOther = recentSessionsFor(otherFn, asOf);
     const converted = !basis.length && histOther.length > 0;
     if (converted) {                                                // fall back to the other mode, converted
       const conv = mode === 'single' ? biToUni : uniToBi;
@@ -2010,6 +2013,17 @@
     const n = exData && exData._sets ? parseInt(exData._sets, 10) : ex.sets;
     return Math.max(1, Math.min(8, n || ex.sets));
   }
+  // The card must be titled with the lift you are ACTUALLY logging: switching implement (or hands
+  // for triceps) switches which history the Coach reads, so the heading follows the active variant
+  // instead of the slot's default name — no more "Cable Lateral Raise" on a card tracking dumbbells.
+  function cardTitle(ex, exData) {
+    const fn = armsFn(ex, exData);
+    if (fn === ex.fn) return ex.name;                       // default variant → the program's name
+    const v = variantFor(ex, exData);
+    const single = armsMode(ex, exData) === 'single';
+    if (v && v.fn !== ex.fn) return single ? SINGLE_ARM_PREFIX + v.fn : v.fn;
+    return single ? SINGLE_ARM_PREFIX + ex.name : ex.name;
+  }
   // Does this exercise entry hold any REAL logged work (a completed set with weight and reps)?
   // Distinguishes a genuine performance from a placeholder that only carries _sets/impl flags.
   function exDataHasWork(d) {
@@ -2160,7 +2174,7 @@
         <div class="card-head">
           <div class="num">${idx+1}</div>
           <div class="card-title">
-            <div class="name">${ex.name}${finisherPill}</div>
+            <div class="name">${cardTitle(ex, exData)}${finisherPill}</div>
             <div class="meta">${setsLabel} · ${ex.compound ? '2–3 min rest' : '60–120s rest'}${ex.isFinisher ? ' · ok to failure' : ''}</div>
           </div>
           <div class="chev">›</div>
@@ -2378,6 +2392,7 @@
     if (typeof sd.startTs === 'number' && typeof sd.endTs === 'number' && sd.endTs > sd.startTs) {
       durationSec = Math.round((sd.endTs - sd.startTs) / 1000);
     } else if (times.length >= 2) {
+      // Start and/or End weren't pressed: first completed set → last completed set (no trailing rest).
       durationSec = Math.round((times[times.length - 1] - times[0]) / 1000);
     }
     let avgRestSec = null;
@@ -2794,9 +2809,10 @@
   // checked, never touches a past date, never overrides a manual +/− choice.
   function applyVolPlan(dayDef) {
     if (currentDate !== todayStr()) return { sets: {}, notes: {} };
-    // Never touch a workout that's already finished — adding sets to a session he has ended
-    // would reopen a completed workout and make it read as incomplete.
-    if (session && session.endTs) return { sets: {}, notes: {} };
+    // Never touch a workout that's already finished — adding sets to a completed session would
+    // reopen it and make it read as incomplete. Counts as finished whether End was pressed or the
+    // clock was inferred from the last completed set.
+    if (sessionEndTs(session, currentDate, currentDay) !== null) return { sets: {}, notes: {} };
     const plan = volPlan();
     const pres = volPrescribe(dayDef, session.exercises || {}, plan, currentDate);
     let dirty = false;
@@ -2813,20 +2829,50 @@
     return { sets: pres.sets, notes: pres.notes, plan };
   }
 
+  // ---- Inferred workout clock -------------------------------------------------------------
+  // Pressing Start/End is optional. If Start was never pressed, the workout clearly began at the
+  // first set you completed. If End was never pressed but the workout is over, it ended at the LAST
+  // set you completed — there is no rest after the final set, so nothing is added on the end.
+  // A workout counts as over when every planned set is checked, or when its date is already past
+  // (you can't still be mid-workout on an earlier day). Nothing is written to storage: these are
+  // derived on read, so a real button press always wins and history is never rewritten.
+  function setTimes(sd) {
+    const out = [];
+    for (const id in (sd && sd.exercises || {})) {
+      const d = sd.exercises[id];
+      for (let n = 1; n <= 8; n++) { const t = d['t' + n]; if (d['c' + n] && typeof t === 'number') out.push(t); }
+    }
+    return out.sort((a, b) => a - b);
+  }
+  function allPlannedSetsDone(sd, day) {
+    const def = PROGRAM[day || (sd && sd.day) || currentDay]; if (!def) return false;
+    for (const ex of def.exercises) {
+      const d = (sd.exercises || {})[ex.id] || {};
+      const n = setCount(ex, d);
+      for (let i = 1; i <= n; i++) if (!(d['c' + i] && d['w' + i] && d['r' + i])) return false;
+    }
+    return true;
+  }
+  function sessionStartTs(sd) {
+    if (sd && typeof sd.startTs === 'number') return sd.startTs;
+    const t = setTimes(sd); return t.length ? t[0] : null;
+  }
+  function sessionEndTs(sd, date, day) {
+    if (sd && typeof sd.endTs === 'number') return sd.endTs;
+    const t = setTimes(sd); if (!t.length) return null;
+    const isPastDay = date && date < todayStr();
+    if (isPastDay || allPlannedSetsDone(sd, day)) return t[t.length - 1];
+    return null;                                   // still in progress today
+  }
+
   // Live workout duration in the stats bar. Prefers the explicit Start→End buttons; while a
   // workout is running it ticks to now; falls back to checked-set timestamps for legacy sessions.
   function updateDuration() {
     const el = document.getElementById('statDur'); if (!el || !session) { updateWorkoutBtns(); return; }
-    const start = (typeof session.startTs === 'number') ? session.startTs : sessionStats(session).firstTs;
+    const start = sessionStartTs(session);
     if (!start) { el.textContent = '—'; updateWorkoutBtns(); return; }
-    let end;
-    if (typeof session.endTs === 'number') end = session.endTs;                 // ended → frozen
-    else if (typeof session.startTs === 'number') end = Date.now();             // running → live
-    else {                                                                       // legacy set-based
-      let last = start;
-      for (const id in session.exercises) { const d = session.exercises[id]; for (let n = 1; n <= 8; n++) { const t = d['t' + n]; if (typeof t === 'number' && t > last) last = t; } }
-      end = _wasComplete ? last : Date.now();
-    }
+    // Ended (pressed or inferred) → frozen at the last set. Otherwise it's live.
+    const end = sessionEndTs(session, currentDate, currentDay) || Date.now();
     el.textContent = fmtDur((end - start) / 1000);
     updateWorkoutBtns();
   }
@@ -2845,10 +2891,12 @@
   function updateWorkoutBtns() {
     const sb = document.getElementById('startWorkoutBtn'), eb = document.getElementById('endWorkoutBtn');
     if (!sb || !eb || !session) return;
-    const started = typeof session.startTs === 'number', ended = typeof session.endTs === 'number';
+    // Start/End are inferred from your set timestamps when you didn't press them.
+    const startTs = sessionStartTs(session), endTs = sessionEndTs(session, currentDate, currentDay);
+    const started = startTs !== null, ended = endTs !== null;
     if (ended) {
       sb.style.display = 'none'; eb.style.display = '';
-      eb.classList.add('done'); eb.textContent = `✓ Ended · ${fmtDur((session.endTs - session.startTs) / 1000)}`;
+      eb.classList.add('done'); eb.textContent = `✓ Ended · ${fmtDur((endTs - startTs) / 1000)}`;
     } else if (started) {
       sb.style.display = 'none'; eb.style.display = ''; eb.classList.remove('done'); eb.textContent = '■ End workout';
     } else {
