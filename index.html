@@ -131,6 +131,12 @@
   .impl-opt{min-height:40px;padding:8px 15px;border:none;background:transparent;color:var(--muted);font-weight:700;font-size:.8rem;border-radius:7px;cursor:pointer;font-family:inherit;transition:background var(--dur),color var(--dur),transform .12s var(--ease)}
   .impl-opt:active{transform:scale(.92)}
   .impl-opt.active{background:var(--text);color:var(--on-accent)}
+  .impl-notch{display:inline-flex;align-items:center;gap:7px;background:rgba(var(--tint),.04);border:1px solid var(--border);border-radius:10px;padding:3px 10px 3px 3px}
+  .impl-notch .notch-in{width:84px;min-height:40px;padding:8px 10px;border:none;background:transparent;color:var(--text);font-weight:800;font-size:.9rem;font-family:inherit;text-align:center;border-radius:7px;-moz-appearance:textfield}
+  .impl-notch .notch-in::-webkit-outer-spin-button,.impl-notch .notch-in::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .impl-notch .notch-in:focus{outline:none;background:rgba(var(--tint),.09)}
+  .impl-notch .notch-u{font-size:.72rem;color:var(--muted2);font-weight:800}
+  .impl-notch .notch-ok{color:var(--good);font-weight:900;font-size:.82rem}
 
   .progress-bar{height:7px;background:rgba(var(--tint),.05);border-radius:99px;margin-top:13px;overflow:hidden;position:relative;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
   .progress-fill{height:100%;width:0%;border-radius:99px;background:var(--text);transition:width .45s var(--ease-out)}
@@ -1565,6 +1571,108 @@
     return mn === Infinity ? null : mn;
   }
 
+  // ---- WEIGHT LADDER: the REAL weights each machine actually offers ----
+  // Gyms are not arithmetic. Dumbbells jump 22 → 24, cable stacks have uneven pin gaps, and some
+  // machines skip plates entirely. Any engine that computes "last + step" will eventually prescribe
+  // a weight that does not physically exist. The ladder removes the guesswork: it holds the ACTUAL
+  // rungs of each lift's stack, drawn from two sources of observed truth only —
+  //   1. every distinct weight already logged on that lift (it was lifted, so it exists);
+  //   2. the "next notch" typed on the card each session — the number visible on the machine.
+  // Never inference. Keyed by effectiveFn: per lift AND implement (dumbbell / barbell / machine are
+  // different stacks), but NOT per arms mode — one arm or two, a cable stack has the same pins.
+  // Rungs are stored in kg (the storage unit) and rendered in the exercise's display unit.
+  const LADDER_KEY = 'wo:_exladder';
+  function readLadder(){ try { return JSON.parse(localStorage.getItem(LADDER_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  let exLadder = readLadder();
+  const RUNG_EPS = 0.25;                       // kg — two weights closer than this are the same rung
+  function mergeRung(list, kg){
+    const n = parseFloat(kg);
+    if (isNaN(n) || n <= 0) return list;
+    if (!list.some(x => Math.abs(x - n) < RUNG_EPS)) list.push(Math.round(n * 100) / 100);
+    return list;
+  }
+  // Rungs the user has explicitly confirmed (typed into "next notch"), ascending.
+  function declaredRungs(fn){
+    const e = exLadder[fn];
+    return (e && Array.isArray(e.r)) ? e.r.slice().sort((a, b) => a - b) : [];
+  }
+  // Record a weight the user has confirmed exists on this machine.
+  function addRung(fn, kg){
+    const n = parseFloat(kg);
+    if (!fn || isNaN(n) || n <= 0) return false;
+    const e = exLadder[fn] || (exLadder[fn] = { r: [] });
+    if (!Array.isArray(e.r)) e.r = [];
+    const before = e.r.length;
+    mergeRung(e.r, n);
+    if (e.r.length === before) return false;
+    e.r.sort((a, b) => a - b);
+    try { localStorage.setItem(LADDER_KEY, JSON.stringify(exLadder)); } catch (err) {}
+    return true;
+  }
+  // The ladder used for decisions: declared rungs + every weight actually logged on this lift.
+  // History rungs are scoped to a sane neighbourhood of the working load (`near`) so a mistyped
+  // 1000 can never become "the next notch"; declared rungs are always honoured in full.
+  function ladderFor(fn, history, near){
+    const rungs = declaredRungs(fn);
+    if (history && history.length) {
+      const lo = near > 0 ? near * 0.3 : 0;
+      const hi = near > 0 ? near * 3 : Infinity;
+      for (const s of history) for (const st of (s.sets || [])) {
+        const w = parseFloat(st.w);
+        if (!isNaN(w) && w > 0 && w >= lo && w <= hi) mergeRung(rungs, w);
+      }
+    }
+    return rungs.sort((a, b) => a - b);
+  }
+  // The ladder is SPARSE — it only knows weights he happened to use. A rung far above the working
+  // load is a real weight, but it is not necessarily the NEXT one: the pins in between simply
+  // haven't been logged yet. So a neighbouring rung is only trusted within these bounds; beyond
+  // them the engine says "unknown" and falls back to the learned lattice, which is exactly when the
+  // "next notch" field earns its keep. Declared rungs bypass this — he read those off the machine.
+  const RUNG_UP_MAX   = 1.5;    // a jump over +50% is a gap in the data, not the next pin
+  const RUNG_DOWN_MIN = 0.6;    // likewise a drop past -40%
+  function rungAbove(fn, history, kg){
+    for (const r of ladderFor(fn, history, kg)) if (r > kg + 0.01) return r <= kg * RUNG_UP_MAX ? r : null;
+    return null;
+  }
+  function rungBelow(fn, history, kg){
+    const L = ladderFor(fn, history, kg);
+    for (let i = L.length - 1; i >= 0; i--) if (L[i] < kg - 0.01) return L[i] >= kg * RUNG_DOWN_MIN ? L[i] : null;
+    return null;
+  }
+  // A rung the USER declared above this load. Declared rungs are authoritative: he read the number
+  // off the machine, so nothing the engine infers may override or undercut it.
+  function declaredAbove(fn, kg){
+    for (const r of declaredRungs(fn)) if (r > kg + 0.01) return r;
+    return null;
+  }
+  // Nearest real rung to a target, but ONLY within `tol` (a fraction of the target). Used where the
+  // target comes from a different scale than the ladder's rungs — e.g. a single-arm load derived
+  // from both-arm history: the pins are shared, but the loads differ by the bilateral factor, so an
+  // unbounded nearest-rung search would snap a per-arm weight onto a both-arm pin and silently undo
+  // the conversion. Returns null when no rung is genuinely close, leaving the caller its fallback.
+  function snapNear(fn, history, kg, tol){
+    let best = null, bd = Infinity;
+    for (const r of ladderFor(fn, history, kg)) {
+      const d = Math.abs(r - kg);
+      if (d < bd && d <= kg * tol) { bd = d; best = r; }
+    }
+    return best;
+  }
+  // Nearest real rung to a target, constrained to ONE SIDE of the current load. Deloads and layoff
+  // restarts are deliberate reductions: snapping them to the nearest rung overall would let a ladder
+  // that only knows the current weight quietly cancel the reduction entirely. `dir` is -1 (must land
+  // strictly below `anchor`) or +1 (strictly above). Returns null when that side is unknown, so the
+  // caller can fall back to the lattice or the clean grid instead of silently doing nothing.
+  function snapToLadder(fn, history, kg, anchor, dir){
+    let L = ladderFor(fn, history, anchor != null ? anchor : kg);
+    if (anchor != null && dir < 0) L = L.filter(r => r < anchor - 0.01);
+    else if (anchor != null && dir > 0) L = L.filter(r => r > anchor + 0.01);
+    let best = null, bd = Infinity;
+    for (const r of L) { const d = Math.abs(r - kg); if (d < bd) { bd = d; best = r; } }
+    return best;
+  }
+
   // Effort inference — no input needed. With steady rest, straight sets taken near failure DECAY
   // set-to-set (15/13/9), while sets left far from failure stay flat (12/12/12). The Coach reads
   // that shape and reflects back the effort the lifter can't reliably feel. 'flat' only fires once
@@ -1618,6 +1726,35 @@
     if (minMoveKg && minMoveKg > 4 * fallbackInc) minMoveKg = null;
     const inc = latticeKg || minMoveKg || fallbackInc;
 
+    // THE LADDER comes first, everywhere. `inc` above is an *estimate* of this machine's step;
+    // a rung is a weight known to exist. Whenever the ladder can answer, it wins — that is what
+    // makes it impossible for the Coach to name a weight the equipment doesn't have.
+    const fnKey   = exDef._fn || exDef.fn;
+    const rungUp  = (kg) => rungAbove(fnKey, history, kg);
+    const rungDn  = (kg) => rungBelow(fnKey, history, kg);
+    // Land a REDUCED load (deload / layoff restart) on a weight that exists AND actually reduces.
+    // Two independent kinds of evidence say what is real — a rung he has lifted, and the learned
+    // lattice step — so both are offered as candidates and the one CLOSEST to the ideal target
+    // wins; the generic clean grid is used only when neither is available. Every candidate must
+    // deliver at least HALF the intended cut, otherwise a ladder that happens to know a weight
+    // just below the current one would turn a deload into a 1% rounding.
+    // `real` reports whether the answer came from observed equipment (a rung or the learned
+    // lattice) or from the generic grid, so the note can say which without overclaiming.
+    const reduceTo = (targetKg, anchorKg, ceilFrac) => {
+      const ceilKg = anchorKg * ceilFrac;
+      // A ceiling alone is not enough: without a FLOOR one stray light rung (an old rehab set, a
+      // different machine era) turns a 10% deload into a 60% cut. RUNG_DOWN_MIN bounds how far a
+      // neighbouring weight may be trusted, exactly as it does in rungBelow.
+      const ok = (v) => v != null && v > 0 && v <= ceilKg + 1e-9 && v >= anchorKg * RUNG_DOWN_MIN;
+      const cands = [];
+      const rung = snapToLadder(fnKey, history, targetKg, anchorKg, -1);
+      if (ok(rung)) cands.push({ v: rung, real: true });
+      if (latticeKg) { const lat = snapStep(targetKg, latticeKg, anchorKg); if (ok(lat)) cands.push({ v: lat, real: true }); }
+      if (!cands.length) { const cs = cleanSnap(targetKg, U); if (ok(cs)) cands.push({ v: cs, real: false }); }
+      if (!cands.length) return null;
+      return cands.reduce((a, b) => Math.abs(b.v - targetKg) < Math.abs(a.v - targetKg) ? b : a);
+    };
+
     // Unit-aware phrasing (engine math stays in kg; only the words change)
     const showKg   = (kg) => kgToDisp(kg, U) + ' ' + U;
     const dispBump = (kgBump) => (U === 'kg' ? trimNum(kgBump) : trimNum(Math.round(kgBump / KG_PER_LB * 10) / 10));
@@ -1646,10 +1783,12 @@
     const workSets = last.sets.filter(s => Math.abs((parseFloat(s.w) || 0) - lastWork) < 0.5);
     const judged = workSets.length ? workSets : last.sets;
     const minReps = Math.min.apply(null, judged.map(s => parseInt(s.r) || 0));
-    // Judge on the sets he ACTUALLY performed, not the program's fixed count: training fewer sets
-    // than prescribed (or the volume coach trimming a deload week) must never make a load increase
-    // unreachable. Floor of 2 working sets so one stray set can't earn a jump.
-    const needSets = Math.max(exDef.sets === 1 ? 1 : 2, Math.min(exDef.sets, last.sets.length));
+    // Judge on the WORKING sets he actually performed, not the program's fixed count: training
+    // fewer sets than prescribed (or the volume coach trimming a deload week) must never make a
+    // load increase unreachable. Counting total rows instead would let a logged warm-up raise the
+    // bar it is not allowed to count toward, blocking a bump that was genuinely earned.
+    // Floor of 2 working sets so one stray set can't earn a jump.
+    const needSets = Math.max(exDef.sets === 1 ? 1 : 2, Math.min(exDef.sets, judged.length));
     const hitTop = judged.length >= needSets && judged.every(s => (parseInt(s.r) || 0) >= hi);
     const daysSince = (() => {
       const d = Math.round((new Date(today + 'T00:00:00') - new Date(last.date + 'T00:00:00')) / 86400000);
@@ -1658,9 +1797,11 @@
 
     // 1) BODYWEIGHT
     if (lastWork === 0) {
+      // First added load must be a real weight too — any rung above bare bodyweight qualifies.
+      const addKg = round2(snapToLadder(fnKey, history, inc, 0, 1) || cleanSnap(inc, U) || inc);
       return hitTop
-        ? { w: round2(inc).toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
-            note: `bodyweight: ${hi}+ on every set — add about ${dispBump(inc)} ${U} and rebuild from ${lo}.` }
+        ? { w: addKg.toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
+            note: `bodyweight: ${hi}+ on every set — add about ${dispBump(addKg)} ${U} and rebuild from ${lo}.` }
         : { w: '0', reps: hi, repsText: rangeText, rir, kind: 'hold',
             note: `build toward ${hi} reps on every set at bodyweight (${rir}) before adding load.` };
     }
@@ -1671,42 +1812,101 @@
     if (daysSince > 21) {
       const factor = daysSince > 56 ? 0.8 : (daysSince > 28 ? 0.9 : 1);
       let rw = lastWork * factor;
+      let rwReal = false;
       if (factor < 1) {
-        rw = latticeKg ? snapStep(rw, latticeKg, lastWork) : cleanSnap(rw, U);
-        // If snapping rounded back up to ~the full load (epsilon covers float drift on stored
-        // lb-derived kg values), force ONE real step down — re-snapping the same product would
-        // just reproduce the full load on light lifts and skip the promised reduction.
-        if (rw > lastWork - 0.01) rw = latticeKg ? lastWork - latticeKg
-                                                 : cleanSnap(lastWork, U) - (U === 'lb' ? 2.5 * KG_PER_LB : 0.5);
-        if (rw <= 0) rw = lastWork * factor;
+        // must give up at least half the intended reduction, on a weight that exists
+        const picked = reduceTo(rw, lastWork, 1 - (1 - factor) / 2);
+        // Nothing qualified — still land on a value the display can show, never a raw product.
+        rw = picked != null ? picked.v : cleanSnap(rw, U);
+        rwReal = !!(picked && picked.real);
+        // Snapping came back at (or above) the full load — force ONE genuine step down.
+        if (rw > lastWork - 0.01) {
+          const down = rungDn(lastWork);
+          rw = down != null ? down
+             : latticeKg   ? lastWork - latticeKg
+                           : cleanSnap(lastWork, U) - (U === 'lb' ? 2.5 * KG_PER_LB : 0.5);
+          rwReal = down != null || !!latticeKg;
+        }
+        if (rw <= 0) { rw = lastWork * factor; rwReal = false; }
       }
+      // Quote the percentage actually DELIVERED, not the one aimed for — landing on a real rung
+      // often means a slightly deeper or shallower cut, and the words must match the number. Only
+      // claim it is a known real weight when it actually came from a rung or the learned lattice.
+      const gotPct = Math.round(round2(rw) / lastWork * 100);
+      const rwWhere = rwReal ? ', the nearest real weight below it' : '';
       return { w: round2(rw).toString(), reps: lo, repsText: rangeText, rir, kind: 'hold',
         note: factor < 1
-          ? `last logged ${daysSince} days ago — restart at ${showKg(round2(rw))} (~${Math.round(factor * 100)}% of your last ${showKg(lastWork)}), ${rangeText} reps; you'll re-climb fast.`
+          ? `last logged ${daysSince} days ago — restart at ${showKg(round2(rw))} (${gotPct}% of your last ${showKg(lastWork)}${rwWhere}), ${rangeText} reps; you'll re-climb fast.`
           : `last logged ${daysSince} days ago — repeat ${showKg(lastWork)} (${rangeText} reps) to re-baseline, then push up.` };
     }
 
     // 3) BUMP → top of the range hit on EVERY set → add the smallest load, reset to the bottom.
     //    The +1-increment step is itself the safety cap (one step above a weight just completed).
     if (hitTop) {
-      // Coarse-step machines: when the smallest REAL step exceeds ~10% of the working load (light
-      // dumbbells/stacks), extend reps two past the range top before taking the jump — hypertrophy
-      // is load-range-forgiving, and a 25-40% single jump breaks progressive overload.
-      const bigStep = lastWork > 0 && inc / lastWork > 0.10;
-      if (bigStep && !judged.every(s => (parseInt(s.r) || 0) >= hi + 2)) {
-        return { w: lastWork.toString(), reps: hi + 2, repsText: `${hi}–${hi + 2}`, rir, kind: 'hold',
-          note: `topped ${hi} on every set — but this lift's smallest step (+${dispBump(inc)} ${U}) is a ${Math.round(inc / lastWork * 100)}% jump. Bank ${hi + 2} reps/set first, then it's earned.` };
-      }
-      let next = round2(lastWork + inc);                    // last real pin + your real step = next pin
-      if (!latticeKg && !minMoveKg) {                       // generic fallback only → snap to a clean value
+      // WHICH WEIGHT IS NEXT — resolved from strongest evidence to weakest:
+      //  1. a rung the user DECLARED above this load: he read it off the machine, so it is the answer;
+      //  2. otherwise the smallest of (a) the lightest weight above this one he has actually lifted
+      //     and (b) this load + the learned lattice step. Taking the MINIMUM matters both ways: the
+      //     ladder stops the lattice inventing a pin on an irregular stack, and the lattice stops the
+      //     ladder skipping a real intermediate weight simply because he hasn't used it yet
+      //     (30 kg dumbbells → 32, not straight to the 34 he happens to have logged);
+      //  3. and with neither, a category estimate snapped to a clean display value.
+      // Take the SMALLEST credible candidate. A declared notch is authoritative about a weight
+      // EXISTING, but not about which pin comes next: if he has actually lifted something closer,
+      // that is the next one, and an old notch typed at a heavier working load must never lock out
+      // an earned increase. The lattice likewise fills gaps the ladder hasn't seen yet.
+      const declNext = declaredAbove(fnKey, lastWork);
+      const histNext = rungUp(lastWork);
+      const estNext  = round2(lastWork + inc);
+      const cands = [];
+      if (declNext != null) cands.push({ v: declNext, src: 'declared' });
+      if (histNext != null) cands.push({ v: histNext, src: 'logged' });
+      if (latticeKg || minMoveKg) cands.push({ v: estNext, src: latticeKg ? 'lattice' : 'estimate' });
+      const pick = cands.length
+        ? cands.reduce((a, b) => (b.v < a.v - 0.01 ? b : a))
+        : { v: estNext, src: 'estimate' };
+      let next = round2(pick.v), nextSrc = pick.src;
+      // Anything NOT taken from the ladder and NOT on a learned lattice is an estimate — a raw
+      // historical difference or a category default — and must still land on a value the equipment
+      // can show. (learnStep works in the display unit, so a real lattice is already on-grid.)
+      if (nextSrc === 'estimate') {
         next = round2(cleanSnap(next, U));
         if (next <= lastWork) next = round2(lastWork + (U === 'lb' ? 2.5 * KG_PER_LB : 0.5));
       }
       const gained = round2(next - lastWork);
-      const stepNote = latticeKg ? ` · steps of ${dispBump(latticeKg)} ${U} (learned from your entries)` : '';
+
+      // EARNING THE JUMP. Adding load is only progress if you can still work INSIDE the rep range
+      // afterwards — a jump that drops you under the bottom of the range trades stimulus for a
+      // bigger number. So the requirement is derived from the jump itself, not a fixed rule of
+      // thumb: using an Epley-equivalent estimate, landing at the BOTTOM of the range at W2 needs
+      //    r* = 30 × [ (W2/W1)(1 + lo/30) − 1 ]
+      // reps at W1 first. Fine steps clear this immediately (r* ≤ the range top, so topping out is
+      // already enough); coarse stacks ask you to bank reps until the jump is genuinely earned.
+      // Capped at hi+6 so a prescription never leaves the productive range — beyond that the load
+      // lever is simply not the right one, and the Volume Coach's added sets carry progression.
+      let needReps = hi, needRaw = hi;
+      if (lastWork > 0 && next > lastWork) {
+        needRaw = Math.ceil(30 * ((next / lastWork) * (1 + lo / 30) - 1));
+        needReps = Math.max(hi, Math.min(hi + 6, needRaw));
+      }
+      if (needReps > hi && !judged.every(s => (parseInt(s.r) || 0) >= needReps)) {
+        const pct = Math.round(gained / lastWork * 100);
+        // Past the cap, reps alone cannot bridge the gap — say so rather than promise a soft landing.
+        const tail = needRaw > needReps
+          ? `Bank ${needReps} reps/set at ${showKg(lastWork)} first — that's the most a rep buffer can buy you here, so expect the first sessions at ${showKg(next)} to start below ${lo} and climb. Extra sets keep volume rising meanwhile.`
+          : `Bank ${needReps} reps/set at ${showKg(lastWork)} first so you land back inside ${rangeText} after the jump; extra sets keep the volume climbing meanwhile.`;
+        return { w: lastWork.toString(), reps: needReps, repsText: `${hi}–${needReps}`, rir, kind: 'hold',
+          note: `topped ${hi} on every set — but the next real weight on this machine is ${showKg(next)}, a ${pct}% jump. ${tail}` };
+      }
+
+      const srcNote =
+          nextSrc === 'declared' ? ` · ${showKg(next)} is the next notch you logged for this machine`
+        : nextSrc === 'logged'   ? ` · ${showKg(next)} is the lightest weight above this one you've actually used`
+        : nextSrc === 'lattice'  ? ` · steps of ${dispBump(latticeKg || minMoveKg)} ${U} (learned from your entries)`
+        :                          ` · estimated step — type this machine's next notch on the card and the Coach will use the exact weight`;
       const preNote = preBest > bestE1RM * 1.02 ? ` Pre-break best: ${showKg(round2(preBest))} — you're re-climbing, not stalling.` : '';
       return { w: next.toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
-        note: `+${dispBump(gained)} ${U} earned — you topped the range (${hi}) on all ${last.sets.length} sets. Reset to ${lo} reps and climb back (${rir}). (best e1RM ${showKg(round2(bestE1RM))}, ${agoPhrase}.)${preNote}${stepNote}` };
+        note: `+${dispBump(gained)} ${U} earned — you topped the range (${hi}) on all ${last.sets.length} sets. Reset to ${lo} reps and climb back (${rir}). (best e1RM ${showKg(round2(bestE1RM))}, ${agoPhrase}.)${preNote}${srcNote}` };
     }
 
     // 4) DELOAD → a true plateau: 3 sessions at ~the same load with no added reps or load.
@@ -1717,19 +1917,32 @@
       // A TRUE plateau requires failure to progress across BOTH transitions of the 3-session
       // window (total reps never improving). One noisy sub-PR session after a rep PR (rest
       // variance shifts totals 1-3 reps) must NOT give away ~10% of the load.
-      const t0 = sessionTotalReps(blk[0]), t1 = sessionTotalReps(blk[1]), t2 = sessionTotalReps(blk[2]);
+      // Count WORKING reps only. sessionTotalReps sums every logged row, so a warm-up whose reps
+      // vary session to session can mask real progress (or invent a stall) and hand away ~10% of
+      // the load on a lift that was actually improving.
+      const workingReps = (s) => {
+        const t = topWeight(s.sets);
+        return s.sets.reduce((a, x) => a + (Math.abs((parseFloat(x.w) || 0) - t) < 0.5 ? (parseInt(x.r) || 0) : 0), 0);
+      };
+      const t0 = workingReps(blk[0]), t1 = workingReps(blk[1]), t2 = workingReps(blk[2]);
       const stalledBothSteps = t0 <= t1 && t1 <= t2;
       // Flat reps AT THE RANGE CEILING is success capped by the range (e.g. prescribed sets
       // trimmed, every performed set at the top) — never a plateau. Deload only below the top.
       if (sameLoad && stalledBothSteps && minReps < hi) {
         // Deload lands on a REAL weight: snap ~-10% to the learned lattice (at least one step down),
         // or to a clean display value when no lattice is known.
-        let dw = lastWork * 0.9;
-        dw = latticeKg ? snapStep(dw, latticeKg, lastWork) : cleanSnap(dw, U);
-        if (dw > lastWork - 0.25) dw = lastWork - (latticeKg || (U === 'lb' ? 2.5 * KG_PER_LB : 0.5));
-        if (dw <= 0) dw = lastWork * 0.9;
+        const picked = reduceTo(lastWork * 0.9, lastWork, 0.95);
+        let dw = picked != null ? picked.v : null, dwReal = !!(picked && picked.real);
+        if (dw == null || dw > lastWork - 0.25) {
+          const down = rungDn(lastWork);
+          dw = down != null ? down : lastWork - (latticeKg || (U === 'lb' ? 2.5 * KG_PER_LB : 0.5));
+          dwReal = down != null || !!latticeKg;
+        }
+        if (dw <= 0) { dw = cleanSnap(lastWork * 0.9, U); dwReal = false; }
+        const cutPct = Math.round((1 - round2(dw) / lastWork) * 100);
+        const dwWhere = dwReal ? ', the nearest real weight to a 10% cut' : '';
         return { w: round2(dw).toString(), reps: lo, repsText: rangeText, rir, kind: 'deload',
-          note: `plateau — 3 sessions stuck at ${showKg(lastWork)} with no added reps or load. Deload ~10% to ${showKg(round2(dw))}, reset double progression from ${lo} reps, rebuild clean.` };
+          note: `plateau — 3 sessions stuck at ${showKg(lastWork)} with no added reps or load. Drop to ${showKg(round2(dw))} (−${cutPct}%${dwWhere}), reset double progression from ${lo} reps, rebuild clean.` };
       }
     }
 
@@ -1773,22 +1986,26 @@
       const conv = mode === 'single' ? biToUni : uniToBi;
       basis = histOther.map(s => ({ date: s.date, day: s.day, sets: s.sets.map(x => ({ w: String(conv(x.w)), r: x.r })) }));
     }
-    const s = suggestNext(incEx, basis, dispUnit, todayDate);
+    const s = suggestNext(Object.assign({}, incEx, { _fn: baseFn }), basis, dispUnit, todayDate);
     if (!s) return null;
     let curKg = parseFloat(s.w) || 0;
-    // A ×/÷1.8-converted basis produces off-pin floats — snap the PRIMARY line to a real weight
-    // too (no own-mode lattice exists by definition here, so snap to the clean display grid).
+    // A ×/÷1.8-converted basis produces off-pin floats — snap the PRIMARY line to a real weight too.
+    // Both hand modes share one physical stack, so the ladder for the base lift is the right grid;
+    // it falls back to the clean display grid only when no rung is known.
     if (converted && curKg > 0) {
-      const snapped = cleanSnap(curKg, dispUnit);
+      const rung = snapNear(baseFn, histOther, curKg, 0.15);
+      const snapped = rung != null ? rung : cleanSnap(curKg, dispUnit);
       if (snapped > 0) curKg = snapped;
     }
-    // The DERIVED partner-mode load snaps to the partner mode's OWN learned weight lattice (its real
-    // pins), else to a clean display value — both lines always show weights that exist on the machine.
+    // The DERIVED partner-mode load lands on a real weight as well: the shared stack's ladder first,
+    // then the partner mode's own learned lattice, then a clean display value.
     const partnerRaw = mode === 'single' ? uniToBi(curKg) : biToUni(curKg);
     let partnerKg;
+    const pRung = snapNear(baseFn, histOther, partnerRaw, 0.15);
     const pLat = learnStep(histOther, dispUnit);
     const pAnchor = histOther.length ? topWeight(histOther[0].sets) : NaN;
-    if (pLat && !isNaN(pAnchor) && pAnchor > 0) partnerKg = snapStep(partnerRaw, pLat, pAnchor);
+    if (pRung != null) partnerKg = pRung;
+    else if (pLat && !isNaN(pAnchor) && pAnchor > 0) partnerKg = snapStep(partnerRaw, pLat, pAnchor);
     else partnerKg = cleanSnap(partnerRaw, dispUnit);
     if (partnerKg <= 0) partnerKg = partnerRaw;
     const singleKg = mode === 'single' ? curKg : partnerKg;
@@ -2031,6 +2248,14 @@
     for (let n = 1; n <= 8; n++) if (d['c' + n] && d['w' + n] && d['r' + n]) return true;
     return false;
   }
+  // Does this SESSION contain any real logged work? A session row can exist with none — opening
+  // the app writes the volume plan's set counts, and a "next notch" entry creates an exercise
+  // record too. Nothing that counts a workout may treat those as one.
+  function sessionHasWork(data) {
+    if (!data || !data.exercises) return false;
+    for (const id in data.exercises) if (exDataHasWork(data.exercises[id])) return true;
+    return false;
+  }
 
   function renderExercises() {
     const container = document.getElementById('exerciseContainer');
@@ -2070,7 +2295,9 @@
       const curFn = armsFn(ex, exData);                        // arms-aware for triceps; = effectiveFn otherwise
       const history = recentSessionsFor(curFn, currentDate);   // FULL history — the Coach uses all of it
       const last = history[0] || null;
-      const suggest = suggestNext(Object.assign({}, ex, { inc: effectiveInc(ex, exData) }), history, u);
+      // _fn keys the weight ladder: per lift AND implement, shared across both arms modes.
+      const ladderFn = effectiveFn(ex, exData);
+      const suggest = suggestNext(Object.assign({}, ex, { inc: effectiveInc(ex, exData), _fn: ladderFn }), history, u);
       // Triceps: dual single/both-hand recommendation (computed here so the fill targets below can
       // use the SAME values the card displays). Renders even if the current hand-mode has no
       // history yet — tricepsDualSuggest derives it from the other mode via the bilateral deficit.
@@ -2153,6 +2380,19 @@
       implHtml += `<div class="impl-row"><span class="impl-cap">📏 Unit</span><div class="impl-seg">` +
         ['kg','lb'].map(uu => `<button type="button" class="impl-opt${uu === u ? ' active' : ''}" data-ex="${ex.id}" data-u="${uu}">${uu}</button>`).join('') +
         `</div></div>`;
+      // ⬆ Next notch — the real weight ONE step up on this machine, as seen on the stack. This is
+      // what stops the Coach from ever naming a weight that doesn't exist: stacks are irregular, so
+      // the only trustworthy source for the next rung is the number in front of you. Pre-filled with
+      // the ladder's best guess, so it is normally a confirmation rather than typing.
+      const curW = last ? topWeight(last.sets) : NaN;
+      const knownUp = (!isNaN(curW) && curW > 0) ? rungAbove(ladderFn, history, curW) : null;
+      const notchKg = (exData.nx != null) ? exData.nx : knownUp;
+      const notchVal = (notchKg != null) ? kgToDisp(notchKg, u) : '';
+      const notchMark = (notchKg != null && declaredRungs(ladderFn).some(r => Math.abs(r - notchKg) < RUNG_EPS))
+        ? '<span class="notch-ok" title="confirmed on this machine">✓</span>' : '';
+      implHtml += `<div class="impl-row"><span class="impl-cap">⬆ Next notch</span><div class="impl-notch">` +
+        `<input type="number" inputmode="decimal" step="any" min="0" class="notch-in" data-ex="${ex.id}" value="${notchVal}" placeholder="${!isNaN(curW) && curW > 0 ? kgToDisp(curW, u) : '—'}">` +
+        `<span class="notch-u">${u}</span>${notchMark}</div></div>`;
 
       // Build cues / mistakes / feel — tucked into a collapsed disclosure (glance-once reference)
       const cuesHtml = `<div class="block cue"><h4>◆ Form cues</h4><ul>${ex.cues.map(c => `<li>${c}</li>`).join('')}</ul></div>`;
@@ -2241,6 +2481,10 @@
               if (rEl && !rEl.value && wEl && wEl.value) { rEl.value = String(targetR); session.exercises[id]['r' + n] = String(targetR); }
               // stamp WHEN this set was completed (keep-first) — powers duration + rest timing
               if (typeof session.exercises[id]['t' + n] !== 'number') session.exercises[id]['t' + n] = Date.now();
+            } else {
+              // Unchecked: drop the stamp. Keeping it would leave a stray tap from hours earlier
+              // as the session's inferred start, stretching the duration and the average rest gap.
+              delete session.exercises[id]['t' + n];
             }
             updateCardDone(card);
             if (inp.checked && autoRest.on) startRest(ex.compound ? 150 : 90);   // 2.5 min compounds, 90s isolation
@@ -2296,6 +2540,36 @@
           persist();
           render();
           vibrate(8);
+        });
+      });
+      // ⬆ Next notch — records a weight the user can SEE on the machine as a real ladder rung.
+      // Commits on change/blur only: committing on every keystroke would re-render and steal focus.
+      card.querySelectorAll('input.notch-in').forEach(inp => {
+        inp.addEventListener('click', (e) => e.stopPropagation());
+        inp.addEventListener('change', (e) => {
+          e.stopPropagation();
+          const id = inp.dataset.ex;
+          const exDefN = EXERCISE_BY_ID[id];
+          if (!exDefN) return;
+          if (!session.exercises[id]) session.exercises[id] = {};
+          const exd = session.exercises[id];
+          const kg = parseFloat(dispToKg(inp.value, unitFor(id)));
+          if (!isNaN(kg) && kg > 0) {
+            exd.nx = kg;                                   // audit trail: what he saw, on this date
+            addRung(effectiveFn(exDefN, exd), kg);         // and a permanent rung of that stack
+            vibrate(8);
+          } else {
+            delete exd.nx;
+          }
+          persist();
+          // Re-render to refresh the Coach line — but NEVER while he is still typing somewhere.
+          // `change` fires on blur, and blurring into the next field would otherwise rebuild the
+          // card and destroy the input he just tapped into.
+          setTimeout(() => {
+            const a = document.activeElement;
+            if (a && a.tagName === 'INPUT' && a.closest('.card')) return;
+            render();
+          }, 0);
         });
       });
       // Per-exercise unit toggle — converts the displayed numbers (data stays in kg)
@@ -2368,7 +2642,7 @@
 
   // Aggregate ONE session's logged (checked) sets → volume / counts / timing. Day-agnostic:
   // iterates the session's own ids via EXERCISE_BY_ID, skipping removed/unknown ids (e.g. old legs).
-  function sessionStats(sd) {
+  function sessionStats(sd, sDate, sDay) {
     let volume = 0, sets = 0, reps = 0, wSum = 0;
     const times = [], perEx = {};
     for (const id in sd.exercises) {
@@ -2388,11 +2662,15 @@
     times.sort((a, b) => a - b);
     // Duration prefers the explicit Start/End workout buttons (most accurate); falls back to the
     // first→last checked-set timestamps for sessions logged before those buttons were used.
+    // Use the SAME inference the workout header shows, so the two never disagree on screen:
+    // a pressed Start with no End still counts (end falls back to the last completed set), and a
+    // session with neither uses first→last completed set (no trailing rest).
     let durationSec = null;
-    if (typeof sd.startTs === 'number' && typeof sd.endTs === 'number' && sd.endTs > sd.startTs) {
-      durationSec = Math.round((sd.endTs - sd.startTs) / 1000);
+    const stTs = sessionStartTs(sd);
+    const enTs = sessionEndTs(sd, sDate, sDay);        // sDay is a PROGRAM key ('A'/'B'/'C')
+    if (typeof stTs === 'number' && typeof enTs === 'number' && enTs > stTs) {
+      durationSec = Math.round((enTs - stTs) / 1000);
     } else if (times.length >= 2) {
-      // Start and/or End weren't pressed: first completed set → last completed set (no trailing rest).
       durationSec = Math.round((times[times.length - 1] - times[0]) / 1000);
     }
     let avgRestSec = null;
@@ -2404,9 +2682,13 @@
 
   // Aggregate across ALL logged sessions for the historical Stats view.
   function historyStats() {
-    const all = allSessions(); let totalVol = 0, durSum = 0, withDur = 0; const perEx = {};
+    // Only sessions with real logged work are WORKOUTS. Session rows also get created by simply
+    // opening the app (the volume plan writes set counts) — counting those would divide the totals
+    // by a workout count that includes days he never trained.
+    const all = allSessions().filter(s => sessionHasWork(s.data));
+    let totalVol = 0, durSum = 0, withDur = 0; const perEx = {};
     for (const s of all) {
-      const st = sessionStats(s.data); totalVol += st.volume;
+      const st = sessionStats(s.data, s.date, s.day); totalVol += st.volume;
       if (st.durationSec != null) { withDur++; durSum += st.durationSec; }
       for (const pe of st.perExercise) {
         const e = perEx[pe.name] || (perEx[pe.name] = { name: pe.name, volSum: 0, n: 0, topW: 0 });
@@ -2471,8 +2753,7 @@
   function weeklyVolume(refDate) {
     const end = refDate || todayStr();
     const endMs = new Date(end + 'T00:00:00').getTime();
-    const hasWork = (data) => { for (const id in data.exercises) { const d = data.exercises[id]; for (let n = 1; n <= 8; n++) if (d['c' + n] && d['w' + n] && d['r' + n]) return true; } return false; };
-    const sess = allSessions().filter(s => hasWork(s.data));
+    const sess = allSessions().filter(s => sessionHasWork(s.data));
     const dates = sess.map(s => new Date(s.date + 'T00:00:00').getTime()).filter(t => !isNaN(t) && t <= endMs).sort((a, b) => b - a);
     let startMs = endMs - 6 * 86400000, spanDays = 7;    // default: inclusive rolling 7-day window
     if (dates.length >= 3 && dates[2] < startMs) {       // last rotation reaches further back → stretch
@@ -2641,7 +2922,13 @@
     const days = Math.round((new Date(today + 'T00:00:00') - new Date(p.weekStart + 'T00:00:00')) / 86400000);
     if (isNaN(days) || days < 7) return p;                 // still inside the current week
 
-    const achieved = weeklyVolume(today);
+    // Measure the week that just ended over its OWN window, un-normalized. weeklyVolume returns a
+    // sets-per-7-days RATE and stretches its window back to the last rotation, so a week in which
+    // every prescribed set was logged divides by 8 days and reads as ~87% of target — under the 0.9
+    // completion gate below. That silently pinned the largest muscles at their starting dose
+    // forever. weekSoFar counts raw sets inside [weekStart, today), which is exactly the week being
+    // judged (this branch only runs once >= 7 days have passed).
+    const achieved = weekSoFar(p, today);
     const resp = muscleResponse();
     const cap = deliverableCeiling();     // never plan a dose the prescription can't deliver
     const nextTargets = {}, reasons = {};
@@ -2658,7 +2945,10 @@
         // Light week done → start the NEXT block one set above where the last block started, but
         // STRICTLY BELOW the stall-deload threshold, so a fresh block can never begin already
         // eligible for another deload (that would oscillate light/heavy forever).
-        nextTargets[mu] = Math.max(L.mev, Math.min(L.mav - 1, base + 1));
+        // Clamped by the deliverable ceiling like every other branch — otherwise a fresh block can
+        // advertise a dose the prescription physically cannot schedule, and the target then falls
+        // back the following week while the reason still reads "progressing".
+        nextTargets[mu] = Math.max(L.mev, Math.min(L.mav - 1, base + 1, cap[mu]));
         reasons[mu] = 'fresh block';
       } else if (cur >= L.mrv || (!responding && cur > L.mav && p.week >= 3)) {
         // Deload at the recoverable ceiling, or when a muscle stalls ABOVE its sweet spot —
@@ -2754,6 +3044,39 @@
       });
     });
 
+    // Project what the WEEK will actually deliver once this pass's additions are applied. Muscles
+    // are processed in a fixed order and each one's planned adds are folded into the projection —
+    // including their synergist contribution — before the next muscle measures its own shortfall.
+    // Deterministic and identical on every rotation day, so the three sessions agree on the plan.
+    const projWeekly = Object.assign({}, weeklyProgram);
+    const weekShortOf = {};                            // muscle -> its shortfall, spillover-aware
+    Object.keys(VOL_LANDMARKS).forEach(mu => {
+      const target = plan.targets[mu];
+      if (target == null) return;
+      // Measured BEFORE this muscle's own adds are folded in — the projection carries only what
+      // earlier muscles' additions already contribute here.
+      const short = Math.round(target - (projWeekly[mu] || 0));
+      weekShortOf[mu] = short;
+      if (short <= 0) return;
+      const tdays = trainingDays[mu] || [];
+      const nD = Math.max(1, tdays.length);
+      tdays.forEach((day, i) => {
+        const shareD = Math.floor(short / nD) + (i < (short % nD) ? 1 : 0);
+        let addD = Math.min(VP_MAX_ADD_PER_MUSCLE, shareD);
+        if (addD <= 0) return;
+        const cd = PROGRAM[day].exercises.filter(e => musclesFor(e)[mu] >= 1)
+          .sort((a, b) => (a.compound === b.compound) ? 0 : (a.compound ? -1 : 1));
+        for (const ex of cd) {
+          if (addD <= 0) break;
+          const inc = Math.min(addD, VP_MAX_ADD_PER_EX);
+          if (ex.sets + inc > 8) continue;
+          addD -= inc;
+          const mm = musclesFor(ex);
+          for (const mu2 in mm) projWeekly[mu2] = (projWeekly[mu2] || 0) + mm[mu2] * inc;
+        }
+      });
+    });
+
     Object.keys(VOL_LANDMARKS).forEach(mu => {
       const target = plan.targets[mu];
       if (target == null) return;
@@ -2762,9 +3085,19 @@
       if (!cands.length) return;
 
       if (plan.phase === 'deload') {
-        // Light week: pull sets back toward the reduced target, but never below 1 per exercise.
-        if (projected <= target) return;
-        let over = Math.round(projected - target);
+        // Light week: the REDUCTION is a weekly quantity and must be partitioned across the
+        // rotation days that train this muscle — the same exact floor+remainder split the
+        // accumulate branch uses. Comparing the running week total against the weekly target
+        // instead would leave the first session untouched (nothing banked yet) and dump the entire
+        // cut on the last day, so two of three sessions ran full volume and fatigue never cleared.
+        const weekOver = Math.round((weeklyProgram[mu] || 0) - target);
+        if (weekOver <= 0) return;
+        const dtd = trainingDays[mu] || [];
+        const dn = Math.max(1, dtd.length);
+        const dpos = dtd.indexOf(todayKey);
+        if (dpos < 0) return;                              // today doesn't train this muscle
+        let over = Math.floor(weekOver / dn) + (dpos < (weekOver % dn) ? 1 : 0);
+        if (over <= 0) return;
         const ordered = cands.slice().sort((a, b) => (a.compound === b.compound) ? 0 : (a.compound ? 1 : -1));
         for (const ex of ordered) {
           if (over <= 0) break;
@@ -2778,9 +3111,12 @@
         return;
       }
 
-      // Weekly shortfall of the DEFAULT program vs this week's target, partitioned exactly across
-      // the rotation days that train this muscle — the week delivers the shortfall, no more.
-      const weekShort = Math.round(target - (weeklyProgram[mu] || 0));
+      // Weekly shortfall vs this week's target, measured against what the week will ACTUALLY
+      // deliver — including the synergist volume this pass's own additions create. Measuring
+      // against the untouched program instead double-counts: adding chest and shoulder sets also
+      // adds triceps work, so triceps would be prescribed its full shortfall on top of spillover
+      // it had already received and overshoot its target (and eat its MRV headroom) silently.
+      const weekShort = weekShortOf[mu] != null ? weekShortOf[mu] : Math.round(target - (weeklyProgram[mu] || 0));
       if (weekShort <= 0) return;
       const tdays = trainingDays[mu] || [];
       const nDays = Math.max(1, tdays.length);
@@ -2907,7 +3243,7 @@
   // Per-workout summary panel (collapsible section under the exercises).
   function renderSummary() {
     const el = document.getElementById('summaryBody'); if (!el || !session) return;
-    const st = sessionStats(session);
+    const st = sessionStats(session, currentDate, currentDay);
     const rows = st.perExercise.map(p => `<tr><td>${p.name}</td><td>${Math.round(p.volume).toLocaleString()} kg</td><td>${p.sets}</td></tr>`).join('');
     el.innerHTML = `<div class="sum-grid">
         <div><b>${fmtDur(st.durationSec)}</b><span>duration</span></div>
@@ -3319,6 +3655,16 @@
           localStorage.setItem(k, (typeof v === 'string') ? v : JSON.stringify(v));
           n++;
         }
+        // Re-read every in-memory cache from the restored storage. Without this the old units and
+        // ladder stay live and the next write silently overwrites what was just restored.
+        unit = (localStorage.getItem(UNIT_KEY) === 'lb') ? 'lb' : 'kg';
+        try { exUnits = JSON.parse(localStorage.getItem(EXUNIT_KEY) || '{}') || {}; } catch (e2) { exUnits = {}; }
+        exLadder = readLadder();
+        // Preferences live in storage too — reload them, or the restored values sit unused in
+        // localStorage while the old in-memory ones stay live and get written back on next change.
+        autoRest.on = localStorage.getItem(AUTOREST_KEY) !== 'off';
+        theme = (localStorage.getItem(THEME_KEY) === 'light') ? 'light' : 'dark';
+        applyTheme();
         loadCurrentSession(); render(); initCollapsibles(); updateAutoToggleUI(); updateUnitUI();
         toast(`<span class="ti">📂</span> Restored ${n} entries from backup`, 'good');
       } catch (e) { toast('✗ That file isn\'t a valid workout backup'); }
@@ -3464,7 +3810,12 @@
               if (last && last.date === today && todays.some(s => s.day === last.day)) pick = last.day; } catch (e) {}
         currentDay = pick;
       } else {
-        currentDay = nextDay(sessions[0].day);
+        // Advance from the last session that contains REAL WORK. A session row can exist with no
+        // logged sets (opening the app writes the volume plan's set counts), and rotating off one
+        // of those would silently skip a training day in the A→B→C cycle every time the app was
+        // opened on a rest day.
+        const worked = sessions.filter(s => sessionHasWork(s.data));
+        if (worked.length) currentDay = nextDay(worked[0].day);
       }
     }
 
