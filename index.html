@@ -137,6 +137,7 @@
   .impl-notch .notch-in:focus{outline:none;background:rgba(var(--tint),.09)}
   .impl-notch .notch-u{font-size:.72rem;color:var(--muted2);font-weight:800}
   .impl-notch .notch-ok{color:var(--good);font-weight:900;font-size:.82rem}
+  .impl-hint{flex-basis:100%;font-size:.68rem;color:var(--muted2);line-height:1.45;margin-top:-2px}
 
   .progress-bar{height:7px;background:rgba(var(--tint),.05);border-radius:99px;margin-top:13px;overflow:hidden;position:relative;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
   .progress-fill{height:100%;width:0%;border-radius:99px;background:var(--text);transition:width .45s var(--ease-out)}
@@ -1251,6 +1252,7 @@
   let _saveWarned = false;
   function saveSession(day, date, data) {
     data.ts = Date.now();
+    clearDeclCache();          // a session write can add or remove a dated "next notch"
     try {
       localStorage.setItem(sessionKey(day, date), JSON.stringify(data));
       localStorage.setItem(LAST_KEY, JSON.stringify({ day, date }));
@@ -1596,6 +1598,35 @@
     const e = exLadder[fn];
     return (e && Array.isArray(e.r)) ? e.r.slice().sort((a, b) => a - b) : [];
   }
+  // The same rungs, but only those he had actually declared ON OR BEFORE `asOf`. Each notch is
+  // stored on the session it was typed in (`exData.nx`), so the record is dated; the flat
+  // `wo:_exladder` map is only an accumulator. Without this scoping a notch typed today would leak
+  // backwards and silently rewrite what the Coach "would have said" on every past date, making the
+  // engine irreproducible — the same defect class as the triceps date-leak. Cached per date and
+  // cleared whenever a session or the ladder is written.
+  let _declCache = {};
+  function clearDeclCache(){ _declCache = {}; }
+  function declaredRungsAsOf(fn, asOf){
+    if (!asOf) return declaredRungs(fn);
+    const key = asOf;
+    let byFn = _declCache[key];
+    if (!byFn) {
+      byFn = _declCache[key] = {};
+      for (const s of allSessions()) {
+        if (s.date > asOf) continue;
+        for (const id in s.data.exercises) {
+          const ex = EXERCISE_BY_ID[id]; if (!ex) continue;
+          const d = s.data.exercises[id];
+          const v = parseFloat(d && d.nx);
+          if (isNaN(v) || v <= 0) continue;
+          const f = effectiveFn(ex, d);
+          mergeRung(byFn[f] || (byFn[f] = []), v);
+        }
+      }
+      for (const f in byFn) byFn[f].sort((a, b) => a - b);
+    }
+    return byFn[fn] || [];
+  }
   // Record a weight the user has confirmed exists on this machine.
   function addRung(fn, kg){
     const n = parseFloat(kg);
@@ -1604,6 +1635,7 @@
     if (!Array.isArray(e.r)) e.r = [];
     const before = e.r.length;
     mergeRung(e.r, n);
+    clearDeclCache();
     if (e.r.length === before) return false;
     e.r.sort((a, b) => a - b);
     try { localStorage.setItem(LADDER_KEY, JSON.stringify(exLadder)); } catch (err) {}
@@ -1612,8 +1644,11 @@
   // The ladder used for decisions: declared rungs + every weight actually logged on this lift.
   // History rungs are scoped to a sane neighbourhood of the working load (`near`) so a mistyped
   // 1000 can never become "the next notch"; declared rungs are always honoured in full.
-  function ladderFor(fn, history, near){
-    const rungs = declaredRungs(fn);
+  // Weights he has ACTUALLY LIFTED on this lift, scoped to a sane neighbourhood of the working load
+  // (`near`) so a mistyped 1000 can never become "the next notch". Kept SEPARATE from declared
+  // rungs: the two are different kinds of evidence and the engine must be able to tell them apart.
+  function loggedRungs(fn, history, near){
+    const rungs = [];
     if (history && history.length) {
       const lo = near > 0 ? near * 0.3 : 0;
       const hi = near > 0 ? near * 3 : Infinity;
@@ -1623,6 +1658,19 @@
       }
     }
     return rungs.sort((a, b) => a - b);
+  }
+  // The full ladder used for SNAPPING: declared rungs plus everything logged. Declared rungs are
+  // always honoured in full — he read them off the machine.
+  function ladderFor(fn, history, near){
+    const rungs = declaredRungs(fn);
+    for (const w of loggedRungs(fn, history, near)) mergeRung(rungs, w);
+    return rungs.sort((a, b) => a - b);
+  }
+  // The lightest weight ABOVE `kg` that he has actually lifted — logged evidence only, no declared
+  // values folded in. Used where a declared notch must not be allowed to masquerade as "logged".
+  function loggedRungAbove(fn, history, kg){
+    for (const r of loggedRungs(fn, history, kg)) if (r > kg + 0.01) return r <= kg * RUNG_UP_MAX ? r : null;
+    return null;
   }
   // The ladder is SPARSE — it only knows weights he happened to use. A rung far above the working
   // load is a real weight, but it is not necessarily the NEXT one: the pins in between simply
@@ -1642,8 +1690,8 @@
   }
   // A rung the USER declared above this load. Declared rungs are authoritative: he read the number
   // off the machine, so nothing the engine infers may override or undercut it.
-  function declaredAbove(fn, kg){
-    for (const r of declaredRungs(fn)) if (r > kg + 0.01) return r;
+  function declaredAbove(fn, kg, asOf){
+    for (const r of declaredRungsAsOf(fn, asOf)) if (r > kg + 0.01) return r;
     return null;
   }
   // Nearest real rung to a target, but ONLY within `tol` (a fraction of the target). Used where the
@@ -1851,21 +1899,30 @@
       //     ladder skipping a real intermediate weight simply because he hasn't used it yet
       //     (30 kg dumbbells → 32, not straight to the 34 he happens to have logged);
       //  3. and with neither, a category estimate snapped to a clean display value.
-      // Take the SMALLEST credible candidate. A declared notch is authoritative about a weight
-      // EXISTING, but not about which pin comes next: if he has actually lifted something closer,
-      // that is the next one, and an old notch typed at a heavier working load must never lock out
-      // an earned increase. The lattice likewise fills gaps the ladder hasn't seen yet.
-      const declNext = declaredAbove(fnKey, lastWork);
-      const histNext = rungUp(lastWork);
+      // WHICH WEIGHT IS NEXT — OBSERVATIONS BEAT INFERENCES.
+      // The "next notch" he types is an observation about the equipment: he read that number off
+      // the machine. The lattice is only an inference about spacing. So a declared notch settles the
+      // question, and the lattice may NOT slip a weight in underneath it — doing so reintroduces
+      // exactly the invented weight the field exists to prevent. The single thing that may override
+      // a declared notch is a weight he has ACTUALLY LIFTED in between, because that certainly
+      // exists too and is nearer. With no declared notch, the lattice still fills gaps the ladder
+      // hasn't seen yet (30 kg dumbbells → 32, not straight to the 34 he happens to have logged).
+      const declNext = declaredAbove(fnKey, lastWork, today);
+      const histNext = loggedRungAbove(fnKey, history, lastWork);
       const estNext  = round2(lastWork + inc);
-      const cands = [];
-      if (declNext != null) cands.push({ v: declNext, src: 'declared' });
-      if (histNext != null) cands.push({ v: histNext, src: 'logged' });
-      if (latticeKg || minMoveKg) cands.push({ v: estNext, src: latticeKg ? 'lattice' : 'estimate' });
-      const pick = cands.length
-        ? cands.reduce((a, b) => (b.v < a.v - 0.01 ? b : a))
-        : { v: estNext, src: 'estimate' };
-      let next = round2(pick.v), nextSrc = pick.src;
+      let next, nextSrc;
+      if (declNext != null) {
+        if (histNext != null && histNext < declNext - 0.01) { next = round2(histNext); nextSrc = 'logged'; }
+        else { next = round2(declNext); nextSrc = 'declared'; }
+      } else {
+        const cands = [];
+        if (histNext != null) cands.push({ v: histNext, src: 'logged' });
+        if (latticeKg || minMoveKg) cands.push({ v: estNext, src: latticeKg ? 'lattice' : 'estimate' });
+        const pick = cands.length
+          ? cands.reduce((a, b) => (b.v < a.v - 0.01 ? b : a))
+          : { v: estNext, src: 'estimate' };
+        next = round2(pick.v); nextSrc = pick.src;
+      }
       // Anything NOT taken from the ladder and NOT on a learned lattice is an estimate — a raw
       // historical difference or a category default — and must still land on a value the equipment
       // can show. (learnStep works in the display unit, so a real lattice is already on-grid.)
@@ -1946,6 +2003,34 @@
       }
     }
 
+    // 4b) LOAD ABOVE THE ZONE — the mirror of hitTop, and the one direction the engine was blind in.
+    // hitTop catches "too light" (every set at the range ceiling → add load). Nothing caught "too
+    // heavy": if he picks a weight that keeps him UNDER the bottom of the range, the engine just
+    // says "add a rep toward the top" forever while he grinds low-rep sets in a zone the
+    // prescription never intended. Two consecutive sessions at the same load, every working set
+    // below `lo`, is unambiguous — one session could be a bad day. The correction lands on a real
+    // rung, and an increase he just earned is never reversed.
+    if (lastWork > 0 && judged.length >= needSets && blk.length >= 2) {
+      const maxReps = Math.max.apply(null, judged.map(s => parseInt(s.r) || 0));
+      const prevS = blk[1];
+      const prevTop = topWeight(prevS.sets);
+      const prevWork = prevS.sets.filter(s => Math.abs((parseFloat(s.w) || 0) - prevTop) < 0.5);
+      const prevMax = prevWork.length ? Math.max.apply(null, prevWork.map(s => parseInt(s.r) || 0)) : Infinity;
+      const sameLoad = !isNaN(prevTop) && Math.abs(prevTop - lastWork) < 0.5;
+      const justEarned = !isNaN(prevTop) && prevTop < lastWork - 0.5;   // this load was a real bump
+      if (sameLoad && !justEarned && maxReps < lo && prevMax < lo) {
+        // Aim at the middle of the range using the same rep-exchange model the jump gate uses.
+        const midR = Math.round((lo + hi) / 2);
+        const target = lastWork * (1 + maxReps / 30) / (1 + midR / 30);
+        const picked = reduceTo(target, lastWork, 0.98);
+        const dw = picked != null ? picked.v : cleanSnap(target, U);
+        if (dw > 0 && dw < lastWork - 0.01) {
+          return { w: round2(dw).toString(), reps: lo, repsText: rangeText, rir, kind: 'deload',
+            note: `two sessions at ${showKg(lastWork)} with every set under ${lo} reps — this load sits above the ${rangeText} zone this lift is meant to train. Drop to ${showKg(round2(dw))} and work the range properly; the reps you build there are what earn the weight back.` };
+        }
+      }
+    }
+
     // 5) HOLD → keep the load, add reps toward the TOP of the range (double progression in action).
     let note;
     if (last.sets.length < exDef.sets) {
@@ -1962,7 +2047,20 @@
       if (effort === 'hard') note += ` Your set-to-set drop-off says you're training close to failure — honest effort, the reps will come.`;
       else if (effort === 'flat' && minReps < hi) note += ` Reps held perfectly flat across all sets — you likely have more in the tank; take the last set closer to failure.`;
     }
-    return { w: lastWork.toString(), reps: Math.min(hi, minReps + 1), repsText: rangeText, rir, kind: 'hold', note };
+    // THE REP TARGET IS ANCHORED ON THE TYPICAL SET, NOT THE WORST ONE.
+    // `minReps + 1` asks him to beat his most collapsed set — a number he has usually already beaten
+    // on the other sets, so the "target" is no target at all and the load increase gets deferred a
+    // session at a time. One set that fell apart is an acute-fatigue artifact of that day's rest and
+    // arousal, not a new estimate of capacity; letting it set the goal turns a single bad set into a
+    // permanent downgrade of the stimulus. Anchor on the MEDIAN working set instead — but never ask
+    // for more than +2 over the worst set in one jump, because a target he cannot reach is as
+    // useless as one he has already passed.
+    const sortedReps = judged.map(s => parseInt(s.r) || 0).sort((a, b) => a - b);
+    const nR = sortedReps.length;
+    const medReps = nR % 2 ? sortedReps[(nR - 1) / 2]
+                           : Math.floor((sortedReps[nR / 2 - 1] + sortedReps[nR / 2]) / 2);
+    const repTarget = Math.min(hi, Math.max(minReps + 1, Math.min(medReps, minReps + 2)));
+    return { w: lastWork.toString(), reps: repTarget, repsText: rangeText, rir, kind: 'hold', note };
   }
 
   // TRICEPS-ONLY dual recommendation. Computes the recommendation for the CURRENT hand mode from its
@@ -2342,7 +2440,19 @@
       const dualCur = dual ? (dual.primary === 'single' ? dual.single : dual.both) : null;
       const targetW = dualCur ? String(Math.round(dualCur.wKg * 100) / 100)
                               : ((suggest && suggest.w) || '');
-      const targetR = (dual ? dual.reps : (suggest && suggest.reps)) || repRange(ex)[0];
+      let targetR = (dual ? dual.reps : (suggest && suggest.reps)) || repRange(ex)[0];
+      // One-tap logging writes this number straight into the row (see the commit handler), so it
+      // must never be able to FABRICATE an earned load increase. A rep target sitting exactly on the
+      // range top would make hitTop true on a session he did not actually top out, and the Coach
+      // would hand him a weight he never earned. Only a HOLD that follows a genuinely topped-out
+      // session may autofill the top; otherwise stay one rep below it.
+      if (suggest && suggest.kind === 'hold' && targetR >= repRange(ex)[1]) {
+        const lastSets = (last && last.sets) || [];
+        const lastTop = lastSets.length ? topWeight(lastSets) : NaN;
+        const lastWork = lastSets.filter(s => Math.abs((parseFloat(s.w) || 0) - lastTop) < 0.5);
+        const toppedOut = lastWork.length > 0 && lastWork.every(s => (parseInt(s.r) || 0) >= repRange(ex)[1]);
+        if (!toppedOut) targetR = Math.max(repRange(ex)[0], repRange(ex)[1] - 1);
+      }
       for (let n = 1; n <= nSets; n++) {
         const w = kgToDisp(exData[`w${n}`] || '', u);
         const r = exData[`r${n}`] || '';
@@ -2392,7 +2502,8 @@
         ? '<span class="notch-ok" title="confirmed on this machine">✓</span>' : '';
       implHtml += `<div class="impl-row"><span class="impl-cap">⬆ Next notch</span><div class="impl-notch">` +
         `<input type="number" inputmode="decimal" step="any" min="0" class="notch-in" data-ex="${ex.id}" value="${notchVal}" placeholder="${!isNaN(curW) && curW > 0 ? kgToDisp(curW, u) : '—'}">` +
-        `<span class="notch-u">${u}</span>${notchMark}</div></div>`;
+        `<span class="notch-u">${u}</span>${notchMark}</div>` +
+        `<div class="impl-hint">the next weight you can see on this machine — not a promise to lift it. The Coach decides when you've earned it.</div></div>`;
 
       // Build cues / mistakes / feel — tucked into a collapsed disclosure (glance-once reference)
       const cuesHtml = `<div class="block cue"><h4>◆ Form cues</h4><ul>${ex.cues.map(c => `<li>${c}</li>`).join('')}</ul></div>`;
@@ -2853,11 +2964,19 @@
   }
   // Where a fresh block STARTS: the program's own dose, pulled into the productive zone
   // (MEV..MAV) — a block never begins above the adaptive sweet spot.
-  function initialTargets() {
+  // Where the mesocycle STARTS. Seeding from the program's nominal sets alone ignores what he has
+  // actually been training and can open a block below his current working volume — the plan then
+  // spends weeks "building up" to a dose he was already exceeding, which is wasted mesocycle. So the
+  // opening target is the greater of the program's nominal delivery and his recent achieved volume,
+  // still bounded by MEV, MAV and what the prescription can physically schedule.
+  function initialTargets(todayDate) {
     const t = programWeeklySets(), cap = deliverableCeiling(), out = {};
+    let recent = {};
+    try { recent = weeklyVolume(todayDate || todayStr()) || {}; } catch (e) { recent = {}; }
     Object.keys(VOL_LANDMARKS).forEach(mu => {
       const L = VOL_LANDMARKS[mu];
-      out[mu] = Math.max(L.mev, Math.min(L.mav, cap[mu], Math.round(t[mu] || L.mev)));
+      const base = Math.max(Math.round(t[mu] || L.mev), Math.round(recent[mu] || 0));
+      out[mu] = Math.max(L.mev, Math.min(L.mav, cap[mu], base));
     });
     return out;
   }
@@ -2950,11 +3069,16 @@
         // back the following week while the reason still reads "progressing".
         nextTargets[mu] = Math.max(L.mev, Math.min(L.mav - 1, base + 1, cap[mu]));
         reasons[mu] = 'fresh block';
-      } else if (cur >= L.mrv || (!responding && cur > L.mav && p.week >= 3)) {
+      } else if (cur >= L.mrv || got >= L.mrv || (!responding && cur > L.mav && p.week >= 3)) {
         // Deload at the recoverable ceiling, or when a muscle stalls ABOVE its sweet spot —
         // and only after a real block (>=3 accumulate weeks), never a one-week block.
-        nextTargets[mu] = Math.max(Math.round(L.mev / 2), Math.round(cur / 2));   // deload week
-        reasons[mu] = cur >= L.mrv ? 'at your ceiling' : 'lifts stalled at high volume';
+        // The ceiling is judged on what he ACTUALLY DID (`got`) as well as on the plan's target
+        // (`cur`). Delivery can run far above the target — the program itself plus his own added
+        // sets — so a muscle can sit over its MRV for weeks while the target never approaches it
+        // and the trigger never fires. Real overreaching has to be visible to the coach.
+        const over = Math.max(cur, got);
+        nextTargets[mu] = Math.max(Math.round(L.mev / 2), Math.round(over / 2));   // deload week
+        reasons[mu] = (cur >= L.mrv || got >= L.mrv) ? 'at your ceiling' : 'lifts stalled at high volume';
         nextPhase = 'deload';
       } else if (cur < L.mev) {
         // Under the minimum effective dose: too little volume is the likeliest reason a muscle
