@@ -24,7 +24,7 @@
   /* ===== Pure monochrome themes — black / white + greys only ===== */
   :root, body[data-theme="dark"]{
     --bg:#000000; --card:#141416; --card2:#1c1c20; --border:#2c2c31;
-    --text:#fafafa; --muted:#a2a2a8; --muted2:#6c6c74;
+    --text:#fafafa; --muted:#a6a6ad; --muted2:#7c7c85;
     --accent:#ffffff; --accent2:#ffffff; --accent-rgb:255,255,255;
     --on-accent:#000000; --field:#17171a; --tint:255,255,255;
     --good:#ffffff; --warn:#c9c9cf; --bad:#bdbdc4;
@@ -37,7 +37,7 @@
   }
   body[data-theme="light"]{
     --bg:#ffffff; --card:#f4f4f6; --card2:#e9e9ee; --border:#d7d7de;
-    --text:#0b0b0c; --muted:#5b5b63; --muted2:#9a9aa2;
+    --text:#0b0b0c; --muted:#54545c; --muted2:#7c7c86;
     --accent:#0b0b0c; --accent2:#0b0b0c; --accent-rgb:0,0,0;
     --on-accent:#ffffff; --field:#ffffff; --tint:0,0,0;
     --good:#0b0b0c; --warn:#555555; --bad:#666666;
@@ -110,7 +110,7 @@
   .unit-row{margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .unit-cap{font-size:.72rem;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:.1em}
   .unit-seg{display:inline-flex;background:rgba(var(--tint),.04);border:1px solid var(--border);border-radius:11px;padding:3px;gap:3px}
-  .unit-opt{min-width:48px;min-height:40px;padding:7px 16px;border:none;background:transparent;color:var(--muted);font-weight:800;font-size:.82rem;border-radius:8px;cursor:pointer;font-family:inherit;letter-spacing:.05em;transition:background var(--dur),color var(--dur),transform .12s var(--ease)}
+  .unit-opt{min-width:52px;min-height:44px;padding:8px 16px;border:none;background:transparent;color:var(--muted);font-weight:800;font-size:.82rem;border-radius:8px;cursor:pointer;font-family:inherit;letter-spacing:.05em;transition:background var(--dur),color var(--dur),transform .12s var(--ease)}
   .unit-opt:active{transform:scale(.93)}
   .unit-opt.active{background:var(--text);color:var(--on-accent)}
   .unit-note{font-size:.66rem;color:var(--muted2);opacity:.85;font-style:italic}
@@ -128,18 +128,18 @@
   .impl-row{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
   .impl-cap{font-size:.64rem;color:var(--muted2);font-weight:800;text-transform:uppercase;letter-spacing:.1em}
   .impl-seg{display:inline-flex;background:rgba(var(--tint),.04);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px}
-  .impl-opt{min-height:40px;padding:8px 15px;border:none;background:transparent;color:var(--muted);font-weight:700;font-size:.8rem;border-radius:7px;cursor:pointer;font-family:inherit;transition:background var(--dur),color var(--dur),transform .12s var(--ease)}
+  .impl-opt{min-height:44px;padding:9px 16px;border:none;background:transparent;color:var(--muted);font-weight:700;font-size:.8rem;border-radius:7px;cursor:pointer;font-family:inherit;transition:background var(--dur),color var(--dur),transform .12s var(--ease)}
   .impl-opt:active{transform:scale(.92)}
   .impl-opt.active{background:var(--text);color:var(--on-accent)}
   .impl-notch{display:inline-flex;align-items:center;gap:7px;background:rgba(var(--tint),.04);border:1px solid var(--border);border-radius:10px;padding:3px 10px 3px 3px}
-  .impl-notch .notch-in{width:84px;min-height:40px;padding:8px 10px;border:none;background:transparent;color:var(--text);font-weight:800;font-size:.9rem;font-family:inherit;text-align:center;border-radius:7px;-moz-appearance:textfield}
+  .impl-notch .notch-in{width:88px;min-height:44px;padding:8px 10px;border:none;background:transparent;color:var(--text);font-weight:800;font-size:.9rem;font-family:inherit;text-align:center;border-radius:7px;-moz-appearance:textfield}
   .impl-notch .notch-in::-webkit-outer-spin-button,.impl-notch .notch-in::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .impl-notch .notch-in:focus{outline:none;background:rgba(var(--tint),.09)}
   .impl-notch .notch-u{font-size:.72rem;color:var(--muted2);font-weight:800}
   .impl-notch .notch-ok{color:var(--good);font-weight:900;font-size:.82rem}
   .impl-hint{flex-basis:100%;font-size:.68rem;color:var(--muted2);line-height:1.45;margin-top:-2px}
 
-  .progress-bar{height:7px;background:rgba(var(--tint),.05);border-radius:99px;margin-top:13px;overflow:hidden;position:relative;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
+  .progress-bar{height:8px;background:rgba(var(--tint),.05);border-radius:99px;margin-top:13px;overflow:hidden;position:relative;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
   .progress-fill{height:100%;width:0%;border-radius:99px;background:var(--text);transition:width .45s var(--ease-out)}
 
   /* RULES */
@@ -186,7 +186,7 @@
   .card.open .num{background:rgba(var(--accent-rgb),.16);color:var(--accent);box-shadow:inset 0 0 0 1px rgba(var(--accent-rgb),.35)}
   .card.done .num{background:rgba(var(--tint),.12);color:var(--text);box-shadow:inset 0 0 0 1px rgba(var(--tint),.3)}
   .card-title{flex:1;min-width:0}
-  .card-title .name{font-weight:700;font-size:.97rem;letter-spacing:-0.01em;line-height:1.25}
+  .card-title .name{font-weight:800;font-size:1rem;letter-spacing:-0.01em;line-height:1.25}
   .card-title .meta{color:var(--muted2);font-size:.72rem;margin-top:3px}
   .chev{color:var(--muted2);font-size:1.25rem;line-height:1;transition:transform .3s var(--spring),color var(--dur);flex-shrink:0}
   .card.open .chev{transform:rotate(90deg);color:var(--accent)}
@@ -212,6 +212,31 @@
   .coach-hands > div.coach-live{color:var(--text);font-weight:800}
   .coach-hands > div.deload{text-decoration:underline;text-underline-offset:3px}
   .last-session.is-deload{border-left-color:var(--text);border-left-style:dashed;background:rgba(var(--tint),.05)}
+  /* COACH PANEL — the prescription reads at a glance; the reasoning is one tap away */
+  .coach-panel{padding:11px 12px 9px}
+  .last-line{margin-bottom:8px}
+  .rx-head{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+  .rx-kind{display:inline-block;font-size:.6rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:2px 8px;border-radius:99px;border:1px solid var(--border);color:var(--muted)}
+  .rx-kind.k-bump{background:var(--text);color:var(--on-accent);border-color:var(--text)}
+  .rx-kind.k-hold{background:rgba(var(--tint),.07);color:var(--text)}
+  .rx-kind.k-deload{background:transparent;color:var(--text);border-style:dashed;border-color:var(--text)}
+  .rx-line{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;padding:1px 0}
+  .rx-big{font-size:1.32rem;font-weight:800;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums;line-height:1.2}
+  .rx-x{color:var(--muted2);font-size:.9rem;font-weight:600}
+  .rx-reps{font-size:1.06rem;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}
+  .rx-rir{font-size:.7rem;color:var(--muted);font-weight:600;align-self:center}
+  .rx-mode{font-size:.74rem;font-weight:700;color:var(--muted);min-width:74px}
+  .coach-hands .rx-line{opacity:.55}
+  .coach-hands .rx-line.coach-live{opacity:1}
+  .coach-hands .rx-line.coach-live .rx-mode{color:var(--text)}
+  .rx-line.deload .rx-big{text-decoration:underline;text-underline-offset:3px}
+  .coach-why{margin-top:6px}
+  .coach-why summary{list-style:none;display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:.68rem;font-weight:700;color:var(--muted2);padding:5px 0;text-transform:uppercase;letter-spacing:.08em;min-height:30px}
+  .coach-why summary::-webkit-details-marker{display:none}
+  .coach-why summary::after{content:'›';font-size:.95rem;transition:transform .25s var(--spring)}
+  .coach-why[open] summary::after{transform:rotate(90deg)}
+  .coach-why[open] summary{color:var(--muted)}
+  .why-body{font-size:.76rem;color:var(--muted);line-height:1.55;padding:4px 0 3px;border-top:1px solid var(--hairline);margin-top:2px}
   .last-session .target.deload{color:var(--text);text-decoration:underline;text-underline-offset:3px}
 
   /* CUE BLOCKS */
@@ -231,22 +256,22 @@
 
   /* SETS TABLE */
   .sets{margin-top:13px;background:var(--card2);border-radius:var(--r-sm);padding:10px;border:1px solid var(--hairline)}
-  .sets-header{display:grid;grid-template-columns:24px 1.35fr 1fr 46px;gap:9px;padding:0 4px 7px;font-size:.6rem;text-transform:uppercase;color:var(--muted2);letter-spacing:0.1em;font-weight:700}
+  .sets-header{display:grid;grid-template-columns:24px 1.35fr 1fr 52px;gap:9px;padding:0 4px 7px;font-size:.6rem;text-transform:uppercase;color:var(--muted2);letter-spacing:0.1em;font-weight:700}
   .sets-header > div{text-align:center}
-  .set-row{display:grid;grid-template-columns:24px 1.35fr 1fr 46px;gap:9px;align-items:center;padding:6px 4px;border-top:1px solid var(--hairline)}
+  .set-row{display:grid;grid-template-columns:24px 1.35fr 1fr 52px;gap:9px;align-items:center;padding:7px 4px;border-top:1px solid var(--hairline);border-radius:8px}
   .set-row .lbl{font-weight:800;color:var(--muted2);font-size:.8rem;text-align:center}
   .set-row input[type=number]{background:var(--field);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:13px 6px;font-size:1.08rem;font-weight:700;width:100%;min-width:0;text-align:center;font-family:inherit;font-variant-numeric:tabular-nums;transition:border-color var(--dur),box-shadow var(--dur),background var(--dur);-moz-appearance:textfield}
   .set-row input[type=number]::-webkit-outer-spin-button,.set-row input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .set-row input:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:var(--ring)}
   .set-row input::placeholder{color:var(--muted2);font-weight:500}
-  .set-row .check{appearance:none;-webkit-appearance:none;width:36px;height:36px;border:2px solid var(--border);border-radius:10px;cursor:pointer;background:var(--field);justify-self:center;position:relative;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),transform .15s var(--spring)}
+  .set-row .check{appearance:none;-webkit-appearance:none;width:44px;height:44px;border:2px solid var(--border);border-radius:10px;cursor:pointer;background:var(--field);justify-self:center;position:relative;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),transform .15s var(--spring)}
   .set-row .check:active{transform:scale(.88)}
   .set-row .check:checked{background:var(--good);border-color:var(--good);animation:check-pop .28s var(--spring)}
-  .set-row .check:checked::after{content:"";position:absolute;left:12px;top:5px;width:9px;height:16px;border:solid var(--on-accent);border-width:0 3px 3px 0;transform:rotate(45deg)}
+  .set-row .check:checked::after{content:"";position:absolute;left:15px;top:8px;width:10px;height:18px;border:solid var(--on-accent);border-width:0 3px 3px 0;transform:rotate(45deg)}
   @keyframes check-pop{0%{transform:scale(.6)}55%{transform:scale(1.18)}100%{transform:scale(1)}}
   /* add / remove a set */
   .set-ctl{display:flex;gap:8px;justify-content:flex-end;padding:9px 4px 1px;border-top:1px solid var(--hairline);margin-top:2px}
-  .set-ctl-btn{min-height:34px;padding:6px 14px;border:1px solid var(--border);background:var(--card2);color:var(--muted);border-radius:var(--r-sm);font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer;transition:transform .12s var(--ease),color var(--dur),border-color var(--dur)}
+  .set-ctl-btn{min-height:44px;padding:8px 16px;border:1px solid var(--border);background:var(--card2);color:var(--muted);border-radius:var(--r-sm);font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer;transition:transform .12s var(--ease),color var(--dur),border-color var(--dur)}
   .set-ctl-btn:active{transform:scale(.94)}
   .set-ctl-btn:disabled{opacity:.34;cursor:default}
   .set-ctl-btn:not(:disabled):hover{color:var(--text);border-color:var(--text)}
@@ -297,7 +322,7 @@
   /* rest-over alarm: hard flashing + tappable to silence */
   .timer-display.alarm{color:var(--on-accent);background:var(--text);border-radius:9px;padding:4px 8px;cursor:pointer;animation:alarmflash .5s steps(1) infinite;font-size:1.05rem}
   @keyframes alarmflash{0%,100%{background:var(--text);color:var(--on-accent)}50%{background:var(--bg);color:var(--text)}}
-  .tbtn{min-height:42px;padding:9px 13px;border-radius:11px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-weight:800;font-size:.78rem;cursor:pointer;font-family:inherit;transition:transform .12s var(--ease)}
+  .tbtn{min-height:46px;padding:10px 14px;border-radius:11px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-weight:800;font-size:.78rem;cursor:pointer;font-family:inherit;transition:transform .12s var(--ease)}
   .tbtn:active{transform:scale(.93)}
   .tbtn.go{background:var(--text);border-color:transparent;color:var(--on-accent)}
 
@@ -383,6 +408,8 @@
   /* completed set row highlight */
   .set-row{transition:background .25s var(--ease),box-shadow .25s var(--ease)}
   .set-row.set-done{background:rgba(var(--tint),.05);box-shadow:inset 3px 0 0 var(--text)}
+  .set-row.set-next{background:rgba(var(--tint),.03);box-shadow:inset 2px 0 0 rgba(var(--tint),.45)}
+  .set-row.set-next .lbl{color:var(--text)}
   .set-row.set-done input[type=number]{border-color:rgba(var(--tint),.28)}
 
   /* header live session stats */
@@ -396,8 +423,8 @@
 
   /* stats: per-workout summary + history modal */
   .sum-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 12px}
-  .sum-grid > div{background:var(--field);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 6px;text-align:center;display:flex;flex-direction:column;gap:2px}
-  .sum-grid b{color:var(--text);font-size:1.05rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .sum-grid > div{background:var(--field);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 6px;text-align:center;display:flex;flex-direction:column;gap:2px}
+  .sum-grid b{color:var(--text);font-size:1.18rem;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
   .sum-grid span{color:var(--muted2);font-size:.6rem;text-transform:uppercase;letter-spacing:.06em}
   .sum-tbl{width:100%;border-collapse:collapse;font-size:.76rem;font-variant-numeric:tabular-nums}
   .sum-tbl th{text-align:left;color:var(--muted2);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;padding:4px 6px;border-bottom:1px solid var(--border)}
@@ -1661,8 +1688,11 @@
   }
   // The full ladder used for SNAPPING: declared rungs plus everything logged. Declared rungs are
   // always honoured in full — he read them off the machine.
-  function ladderFor(fn, history, near){
-    const rungs = declaredRungs(fn);
+  // `asOf` scopes the DECLARED rungs to what he had typed by that date — without it a notch
+  // typed today would leak backwards through every snap and rewrite historical answers (the same
+  // retroactivity class as the old triceps date-leak). Omitting asOf = current full ladder.
+  function ladderFor(fn, history, near, asOf){
+    const rungs = asOf ? declaredRungsAsOf(fn, asOf).slice() : declaredRungs(fn);
     for (const w of loggedRungs(fn, history, near)) mergeRung(rungs, w);
     return rungs.sort((a, b) => a - b);
   }
@@ -1679,12 +1709,12 @@
   // "next notch" field earns its keep. Declared rungs bypass this — he read those off the machine.
   const RUNG_UP_MAX   = 1.5;    // a jump over +50% is a gap in the data, not the next pin
   const RUNG_DOWN_MIN = 0.6;    // likewise a drop past -40%
-  function rungAbove(fn, history, kg){
-    for (const r of ladderFor(fn, history, kg)) if (r > kg + 0.01) return r <= kg * RUNG_UP_MAX ? r : null;
+  function rungAbove(fn, history, kg, asOf){
+    for (const r of ladderFor(fn, history, kg, asOf)) if (r > kg + 0.01) return r <= kg * RUNG_UP_MAX ? r : null;
     return null;
   }
-  function rungBelow(fn, history, kg){
-    const L = ladderFor(fn, history, kg);
+  function rungBelow(fn, history, kg, asOf){
+    const L = ladderFor(fn, history, kg, asOf);
     for (let i = L.length - 1; i >= 0; i--) if (L[i] < kg - 0.01) return L[i] >= kg * RUNG_DOWN_MIN ? L[i] : null;
     return null;
   }
@@ -1699,9 +1729,9 @@
   // from both-arm history: the pins are shared, but the loads differ by the bilateral factor, so an
   // unbounded nearest-rung search would snap a per-arm weight onto a both-arm pin and silently undo
   // the conversion. Returns null when no rung is genuinely close, leaving the caller its fallback.
-  function snapNear(fn, history, kg, tol){
+  function snapNear(fn, history, kg, tol, asOf){
     let best = null, bd = Infinity;
-    for (const r of ladderFor(fn, history, kg)) {
+    for (const r of ladderFor(fn, history, kg, asOf)) {
       const d = Math.abs(r - kg);
       if (d < bd && d <= kg * tol) { bd = d; best = r; }
     }
@@ -1712,8 +1742,8 @@
   // that only knows the current weight quietly cancel the reduction entirely. `dir` is -1 (must land
   // strictly below `anchor`) or +1 (strictly above). Returns null when that side is unknown, so the
   // caller can fall back to the lattice or the clean grid instead of silently doing nothing.
-  function snapToLadder(fn, history, kg, anchor, dir){
-    let L = ladderFor(fn, history, anchor != null ? anchor : kg);
+  function snapToLadder(fn, history, kg, anchor, dir, asOf){
+    let L = ladderFor(fn, history, anchor != null ? anchor : kg, asOf);
     if (anchor != null && dir < 0) L = L.filter(r => r < anchor - 0.01);
     else if (anchor != null && dir > 0) L = L.filter(r => r > anchor + 0.01);
     let best = null, bd = Infinity;
@@ -1778,8 +1808,8 @@
     // a rung is a weight known to exist. Whenever the ladder can answer, it wins — that is what
     // makes it impossible for the Coach to name a weight the equipment doesn't have.
     const fnKey   = exDef._fn || exDef.fn;
-    const rungUp  = (kg) => rungAbove(fnKey, history, kg);
-    const rungDn  = (kg) => rungBelow(fnKey, history, kg);
+    const rungUp  = (kg) => rungAbove(fnKey, history, kg, today);
+    const rungDn  = (kg) => rungBelow(fnKey, history, kg, today);
     // Land a REDUCED load (deload / layoff restart) on a weight that exists AND actually reduces.
     // Two independent kinds of evidence say what is real — a rung he has lifted, and the learned
     // lattice step — so both are offered as candidates and the one CLOSEST to the ideal target
@@ -1795,7 +1825,7 @@
       // neighbouring weight may be trusted, exactly as it does in rungBelow.
       const ok = (v) => v != null && v > 0 && v <= ceilKg + 1e-9 && v >= anchorKg * RUNG_DOWN_MIN;
       const cands = [];
-      const rung = snapToLadder(fnKey, history, targetKg, anchorKg, -1);
+      const rung = snapToLadder(fnKey, history, targetKg, anchorKg, -1, today);
       if (ok(rung)) cands.push({ v: rung, real: true });
       if (latticeKg) { const lat = snapStep(targetKg, latticeKg, anchorKg); if (ok(lat)) cands.push({ v: lat, real: true }); }
       if (!cands.length) { const cs = cleanSnap(targetKg, U); if (ok(cs)) cands.push({ v: cs, real: false }); }
@@ -1846,7 +1876,7 @@
     // 1) BODYWEIGHT
     if (lastWork === 0) {
       // First added load must be a real weight too — any rung above bare bodyweight qualifies.
-      const addKg = round2(snapToLadder(fnKey, history, inc, 0, 1) || cleanSnap(inc, U) || inc);
+      const addKg = round2(snapToLadder(fnKey, history, inc, 0, 1, today) || cleanSnap(inc, U) || inc);
       return hitTop
         ? { w: addKg.toString(), reps: lo, repsText: String(lo), rir, kind: 'bump',
             note: `bodyweight: ${hi}+ on every set — add about ${dispBump(addKg)} ${U} and rebuild from ${lo}.` }
@@ -1908,7 +1938,7 @@
       // exists too and is nearer. With no declared notch, the lattice still fills gaps the ladder
       // hasn't seen yet (30 kg dumbbells → 32, not straight to the 34 he happens to have logged).
       const declNext = declaredAbove(fnKey, lastWork, today);
-      const histNext = loggedRungAbove(fnKey, history, lastWork);
+      const histNext = loggedRungAbove(fnKey, history, lastWork);   // logged evidence needs no asOf: history is already date-scoped
       const estNext  = round2(lastWork + inc);
       let next, nextSrc;
       if (declNext != null) {
@@ -2091,7 +2121,7 @@
     // Both hand modes share one physical stack, so the ladder for the base lift is the right grid;
     // it falls back to the clean display grid only when no rung is known.
     if (converted && curKg > 0) {
-      const rung = snapNear(baseFn, histOther, curKg, 0.15);
+      const rung = snapNear(baseFn, histOther, curKg, 0.15, asOf);
       const snapped = rung != null ? rung : cleanSnap(curKg, dispUnit);
       if (snapped > 0) curKg = snapped;
     }
@@ -2099,7 +2129,7 @@
     // then the partner mode's own learned lattice, then a clean display value.
     const partnerRaw = mode === 'single' ? uniToBi(curKg) : biToUni(curKg);
     let partnerKg;
-    const pRung = snapNear(baseFn, histOther, partnerRaw, 0.15);
+    const pRung = snapNear(baseFn, histOther, partnerRaw, 0.15, asOf);
     const pLat = learnStep(histOther, dispUnit);
     const pAnchor = histOther.length ? topWeight(histOther[0].sets) : NaN;
     if (pRung != null) partnerKg = pRung;
@@ -2400,20 +2430,28 @@
       // use the SAME values the card displays). Renders even if the current hand-mode has no
       // history yet — tricepsDualSuggest derives it from the other mode via the bilateral deficit.
       const dual = ex.cat === 'Triceps' ? tricepsDualSuggest(ex, exData, u, currentDate) : null;
+      // Coach panel — the prescription is what he needs mid-workout, so it reads at a GLANCE:
+      // a kind badge + a big weight × reps line, with the full reasoning one tap away ("why").
+      // Values are the SAME suggest/dual objects as always — presentation only, zero engine change.
+      const kindBadge = (kind) => kind === 'bump'   ? '<span class="rx-kind k-bump">▲ increase</span>'
+                            : kind === 'deload'     ? '<span class="rx-kind k-deload">▼ lighter</span>'
+                            :                         '<span class="rx-kind k-hold">▶ hold</span>';
+      const whyHtml = (note) => `<details class="coach-why"><summary>why?</summary><div class="why-body">${note}</div></details>`;
       let lastHtml = '';
       if (ex.cat === 'Triceps') {
         if (dual) {
-          const cls = dual.kind === 'deload' ? 'target deload' : 'target';
-          const rirTxt = dual.rir ? ` @ ${dual.rir}` : '';
+          const rirTxt = dual.rir ? `<span class="rx-rir">@ ${dual.rir}</span>` : '';
           const fmtW = (wKg) => `${kgToDisp(wKg, u)} ${u}`;   // values arrive lattice-snapped from tricepsDualSuggest
           const head = last
-            ? `<b>Last ${last.day} (${last.date}):</b> ${last.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ')}`
-            : `<b>${armsMode(ex, exData) === 'single' ? '🖐️ Single-arm' : '🙌 Both-arm'} — first time:</b>`;
-          lastHtml = `<div class="last-session ${dual.kind === 'deload' ? 'is-deload' : ''}">${head}` +
-            `<br><span class="coach-tag">⌾ COACH</span><div class="coach-hands">` +
-            `<div class="${cls}${dual.primary === 'single' ? ' coach-live' : ''}">🖐️ Single hand: ${fmtW(dual.single.wKg)} × ${dual.single.repsText}${rirTxt}</div>` +
-            `<div class="${cls}${dual.primary === 'both' ? ' coach-live' : ''}">🙌 Both hands: ${fmtW(dual.both.wKg)} × ${dual.both.repsText}${rirTxt}</div>` +
-            `</div>— ${dual.note}</div>`;
+            ? `<div class="last-line"><b>Last ${last.day} (${last.date}):</b> ${last.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ')}</div>`
+            : `<div class="last-line"><b>${armsMode(ex, exData) === 'single' ? '🖐️ Single-arm' : '🙌 Both-arm'} — first time:</b></div>`;
+          const dcls = dual.kind === 'deload' ? ' deload' : '';
+          lastHtml = `<div class="last-session coach-panel ${dual.kind === 'deload' ? 'is-deload' : ''}">${head}` +
+            `<div class="rx-head"><span class="coach-tag">⌾ COACH</span>${kindBadge(dual.kind)}</div>` +
+            `<div class="coach-hands">` +
+            `<div class="rx-line target${dcls}${dual.primary === 'single' ? ' coach-live' : ''}"><span class="rx-mode">🖐️ Single</span><span class="rx-big">${fmtW(dual.single.wKg)}</span><span class="rx-x">×</span><span class="rx-reps">${dual.single.repsText}</span>${rirTxt}</div>` +
+            `<div class="rx-line target${dcls}${dual.primary === 'both' ? ' coach-live' : ''}"><span class="rx-mode">🙌 Both</span><span class="rx-big">${fmtW(dual.both.wKg)}</span><span class="rx-x">×</span><span class="rx-reps">${dual.both.repsText}</span>${rirTxt}</div>` +
+            `</div>${whyHtml(dual.note)}</div>`;
         } else {
           lastHtml = '<div class="last-session none">No prior data — start light, find the rep target.</div>';
         }
@@ -2423,10 +2461,12 @@
         if (suggest) {
           const cls = suggest.kind === 'deload' ? 'target deload' : 'target';
           const repTxt = suggest.repsText || (suggest.reps != null ? String(suggest.reps) : `${repRange(ex)[0]}–${repRange(ex)[1]}`);
-          const rirTxt = suggest.rir ? ` @ ${suggest.rir}` : '';
-          suggestHtml = `<br><span class="coach-tag">⌾ COACH</span> <span class="${cls}">${kgToDisp(suggest.w, u)} ${u} × ${repTxt}${rirTxt}</span> — ${suggest.note}`;
+          const rirTxt = suggest.rir ? `<span class="rx-rir">@ ${suggest.rir}</span>` : '';
+          suggestHtml = `<div class="rx-head"><span class="coach-tag">⌾ COACH</span>${kindBadge(suggest.kind)}</div>` +
+            `<div class="rx-line ${cls}"><span class="rx-big">${kgToDisp(suggest.w, u)} ${u}</span><span class="rx-x">×</span><span class="rx-reps">${repTxt}</span>${rirTxt}</div>` +
+            whyHtml(suggest.note);
         }
-        lastHtml = `<div class="last-session ${suggest && suggest.kind === 'deload' ? 'is-deload' : ''}"><b>Last ${last.day} (${last.date}):</b> ${summary}${suggestHtml}</div>`;
+        lastHtml = `<div class="last-session coach-panel ${suggest && suggest.kind === 'deload' ? 'is-deload' : ''}"><div class="last-line"><b>Last ${last.day} (${last.date}):</b> ${summary}</div>${suggestHtml}</div>`;
       } else {
         lastHtml = '<div class="last-session none">No prior data — start light, find the rep target.</div>';
       }
@@ -2453,11 +2493,15 @@
         const toppedOut = lastWork.length > 0 && lastWork.every(s => (parseInt(s.r) || 0) >= repRange(ex)[1]);
         if (!toppedOut) targetR = Math.max(repRange(ex)[0], repRange(ex)[1] - 1);
       }
+      // "You are here": the first unchecked set gets a quiet accent — mid-workout the eye lands
+      // straight on the row that's next, no scanning. Presentation only.
+      let nextRow = 0;
+      for (let n = 1; n <= nSets; n++) if (!exData[`c${n}`]) { nextRow = n; break; }
       for (let n = 1; n <= nSets; n++) {
         const w = kgToDisp(exData[`w${n}`] || '', u);
         const r = exData[`r${n}`] || '';
         const c = exData[`c${n}`] ? ' checked' : '';
-        const doneCls = exData[`c${n}`] ? ' set-done' : '';
+        const doneCls = (exData[`c${n}`] ? ' set-done' : '') + (n === nextRow ? ' set-next' : '');
         setsHtml += `<div class="set-row${doneCls}">
           <div class="lbl">${n}</div>
           <input type="number" inputmode="decimal" data-id="${ex.id}" data-f="w${n}" value="${w}" placeholder="${kgToDisp(targetW, u)}">
@@ -2495,7 +2539,7 @@
       // the only trustworthy source for the next rung is the number in front of you. Pre-filled with
       // the ladder's best guess, so it is normally a confirmation rather than typing.
       const curW = last ? topWeight(last.sets) : NaN;
-      const knownUp = (!isNaN(curW) && curW > 0) ? rungAbove(ladderFn, history, curW) : null;
+      const knownUp = (!isNaN(curW) && curW > 0) ? rungAbove(ladderFn, history, curW, currentDate) : null;
       const notchKg = (exData.nx != null) ? exData.nx : knownUp;
       const notchVal = (notchKg != null) ? kgToDisp(notchKg, u) : '';
       const notchMark = (notchKg != null && declaredRungs(ladderFn).some(r => Math.abs(r - notchKg) < RUNG_EPS))
@@ -2576,6 +2620,7 @@
       card.querySelectorAll('input[data-id]').forEach(inp => {
         const commit = () => {
           const id = inp.dataset.id, f = inp.dataset.f;
+          const n = f.slice(1);                 // set index — used by BOTH check and uncheck paths
           if (!session.exercises[id]) session.exercises[id] = {};
           if (inp.type === 'checkbox') {
             session.exercises[id][f] = inp.checked;
@@ -2583,7 +2628,6 @@
             if (row) row.classList.toggle('set-done', inp.checked);
             if (inp.checked) {
               // one-tap logging: fill the planned numbers into any empty field on this row
-              const n = f.slice(1);
               const wEl = card.querySelector(`input[data-f="w${n}"]`);
               const rEl = card.querySelector(`input[data-f="r${n}"]`);
               if (wEl && !wEl.value && targetW) { wEl.value = kgToDisp(targetW, u); session.exercises[id]['w' + n] = dispToKg(wEl.value, u); }
