@@ -3113,17 +3113,23 @@
         // back the following week while the reason still reads "progressing".
         nextTargets[mu] = Math.max(L.mev, Math.min(L.mav - 1, base + 1, cap[mu]));
         reasons[mu] = 'fresh block';
-      } else if (cur >= L.mrv || got >= L.mrv || (!responding && cur > L.mav && p.week >= 3)) {
-        // Deload at the recoverable ceiling, or when a muscle stalls ABOVE its sweet spot —
-        // and only after a real block (>=3 accumulate weeks), never a one-week block.
-        // The ceiling is judged on what he ACTUALLY DID (`got`) as well as on the plan's target
-        // (`cur`). Delivery can run far above the target — the program itself plus his own added
-        // sets — so a muscle can sit over its MRV for weeks while the target never approaches it
-        // and the trigger never fires. Real overreaching has to be visible to the coach.
+      } else if (!responding && (cur >= L.mrv || got >= L.mrv || (cur > L.mav && p.week >= 3))) {
+        // REACTIVE deload: high dose (target OR actual delivery at/over MRV, or stalled above the
+        // sweet spot after a real block) — but ONLY when the muscle has actually stopped
+        // responding. A deload is a treatment for a symptom; volume alone is not the symptom.
+        // Coleman 2024 (PMID 38274324): a scheduled/dose-triggered deload bought no hypertrophy
+        // and cost strength versus training straight through. The response signal already exists
+        // (muscleResponse), so the coach cuts the week in half only when the lifts say so.
         const over = Math.max(cur, got);
         nextTargets[mu] = Math.max(Math.round(L.mev / 2), Math.round(over / 2));   // deload week
         reasons[mu] = (cur >= L.mrv || got >= L.mrv) ? 'at your ceiling' : 'lifts stalled at high volume';
         nextPhase = 'deload';
+      } else if (cur >= L.mrv || got >= L.mrv) {
+        // Responding AT the ceiling: hold the dose there and keep growing — never cut a week in
+        // half while every lift is still improving. The deload above fires the moment response
+        // stops; until then MRV is a ceiling to sit at, not a tripwire.
+        nextTargets[mu] = Math.min(L.mrv, cap[mu], Math.max(cur, L.mev));
+        reasons[mu] = 'at your ceiling — hold';
       } else if (cur < L.mev) {
         // Under the minimum effective dose: too little volume is the likeliest reason a muscle
         // isn't growing, so climb to MEV regardless of the trend signal.
