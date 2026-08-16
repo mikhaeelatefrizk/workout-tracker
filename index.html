@@ -1988,7 +1988,11 @@
       const estNext  = round2(lastWork + inc);
       let next, nextSrc;
       if (declNext != null) {
-        if (histNext != null && histNext < declNext - 0.01) { next = round2(histNext); nextSrc = 'logged'; }
+        // A logged weight sitting within 1% UNDER the declared notch is the SAME physical pin recorded
+        // in another unit era (e.g. 40.5 "kg" typed on a 90 lb = 40.82 kg pin) — the number he read
+        // off the machine is the truth for that pin, not the rounding artefact.
+        const samePin = Math.max(RUNG_EPS, 0.01 * declNext);
+        if (histNext != null && histNext < declNext - samePin) { next = round2(histNext); nextSrc = 'logged'; }
         else { next = round2(declNext); nextSrc = 'declared'; }
       } else {
         const cands = [];
