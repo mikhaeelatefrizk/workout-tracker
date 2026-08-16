@@ -229,6 +229,8 @@
   .coach-hands .rx-line{opacity:.55}
   .coach-hands .rx-line.coach-live{opacity:1}
   .coach-hands .rx-line.coach-live .rx-mode{color:var(--text)}
+  .rx-derived{font-size:.62rem;font-weight:700;letter-spacing:.04em;color:var(--muted2);align-self:center;margin-left:4px;white-space:nowrap}
+  .coach-hands .rx-line.rx-none .rx-reps{font-size:.78rem;color:var(--muted2);font-weight:600}
   .rx-line.deload .rx-big{text-decoration:underline;text-underline-offset:3px}
   .coach-why{margin-top:6px}
   .coach-why summary{list-style:none;display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:.68rem;font-weight:700;color:var(--muted2);padding:5px 0;text-transform:uppercase;letter-spacing:.08em;min-height:30px}
@@ -788,7 +790,7 @@
         },
         { id:'A3', name:'Flat Dumbbell Bench Press', fn:'Dumbbell Bench Press', cat:'Chest',
           sets:3, reps:10, compound:true, inc:2, video:'03-db-bench',
-          variants:[{label:'Dumbbell',fn:'Dumbbell Bench Press',inc:2},{label:'Barbell',fn:'Barbell Bench Press',inc:2.5}],
+          variants:[{label:'Dumbbell',fn:'Dumbbell Bench Press',inc:2,perHand:true},{label:'Barbell',fn:'Barbell Bench Press',inc:2.5}],
           cues:[
             'Sit on bench with DBs on thighs. Lie back and kick them up one at a time.',
             'Pinch shoulder blades together and DOWN (away from ears). Slight arch in lower back.',
@@ -808,6 +810,7 @@
         },
         { id:'A4', name:'Lat Pulldown', fn:'Lat Pulldown', cat:'Back',
           sets:3, reps:10, compound:true, video:'06-lat-pulldown',
+          variants:[{label:'Cable',fn:'Lat Pulldown'},{label:'Machine',fn:'Machine Lat Pulldown',inc:5}],
           cues:[
             'Grip slightly wider than shoulder-width, overhand.',
             'Thighs locked under the pad. Sit tall, slight backward lean (~10–15°).',
@@ -827,7 +830,7 @@
         },
         { id:'A5', name:'Seated Dumbbell Shoulder Press', fn:'Dumbbell Shoulder Press', cat:'Shoulders',
           sets:3, reps:10, compound:true, inc:2, video:'05-shoulder-press',
-          variants:[{label:'Dumbbell',fn:'Dumbbell Shoulder Press',inc:2},{label:'Barbell',fn:'Barbell Shoulder Press',inc:2.5},{label:'Machine',fn:'Machine Shoulder Press',inc:5}],
+          variants:[{label:'Dumbbell',fn:'Dumbbell Shoulder Press',inc:2,perHand:true},{label:'Barbell',fn:'Barbell Shoulder Press',inc:2.5},{label:'Machine',fn:'Machine Shoulder Press',inc:5}],
           cues:[
             'Upright bench with back support. Sit with back firmly against pad, feet flat.',
             'Start with DBs at ear height, palms facing forward, elbows slightly in FRONT of body (not straight out to sides).',
@@ -863,7 +866,7 @@
         },
         { id:'A7', name:'Hammer Curl', fn:'Hammer Curl', cat:'Biceps',
           sets:2, reps:12, compound:false, video:'09-bicep-curl',
-          variants:[{label:'Dumbbell',fn:'Hammer Curl',inc:2},{label:'Barbell',fn:'Barbell Hammer Curl',inc:2.5}],
+          variants:[{label:'Dumbbell',fn:'Hammer Curl',inc:2,perHand:true},{label:'Barbell',fn:'Barbell Hammer Curl',inc:2.5}],
           isFinisher:true,
           note:'Neutral-grip (thumbs-up) curl — targets the brachialis & brachioradialis to add arm thickness/width. The clip shows the exact hammer curl; cues (elbows pinned, no swing, slow lowering) below.',
           cues:[
@@ -882,6 +885,7 @@
         },
         { id:'A8', name:'Reverse-Grip Cable Pushdown', fn:'Reverse-Grip Cable Pushdown', cat:'Triceps',
           sets:2, reps:12, compound:false, video:'10-tricep-pushdown',
+          variants:[{label:'Cable',fn:'Reverse-Grip Cable Pushdown'}],
           isFinisher:true,
           note:'Underhand (supinated) cable pushdown — biases the often-neglected MEDIAL head of the triceps.',
           cues:[
@@ -945,7 +949,7 @@
         },
         { id:'B3', name:'Incline Dumbbell Bench Press', fn:'Incline Dumbbell Bench Press', cat:'Chest',
           sets:3, reps:10, compound:true, inc:2, video:'13-incline-db-bench',
-          variants:[{label:'Dumbbell',fn:'Incline Dumbbell Bench Press',inc:2},{label:'Barbell',fn:'Incline Barbell Bench Press',inc:2.5}],
+          variants:[{label:'Dumbbell',fn:'Incline Dumbbell Bench Press',inc:2,perHand:true},{label:'Barbell',fn:'Incline Barbell Bench Press',inc:2.5}],
           cues:[
             'Bench angle 30–45° (closer to 30° = more upper chest, less front delt).',
             'Same setup as flat: shoulder blades pinned down and back, slight arch.',
@@ -963,6 +967,7 @@
         },
         { id:'B4', name:'Seated Cable Row (Close Grip)', fn:'Seated Cable Row', cat:'Back',
           sets:3, reps:10, compound:true, video:'04-cable-row',
+          variants:[{label:'Cable',fn:'Seated Cable Row'},{label:'Machine',fn:'Machine Seated Row',inc:5}],
           cues:[
             'Close-grip V-handle. Feet on platform, slight knee bend, chest up.',
             'Sit tall — torso ~80–90°. Slight backward lean only.',
@@ -981,7 +986,7 @@
         },
         { id:'B5', name:'Cable Lateral Raise', fn:'Cable Lateral Raise', cat:'Shoulders',
           sets:3, reps:15, compound:false, inc:2, video:'07-lateral-raise',
-          variants:[{label:'Cable',fn:'Cable Lateral Raise',inc:2.3},{label:'Dumbbell',fn:'Dumbbell Lateral Raise',inc:2},{label:'Machine',fn:'Machine Lateral Raise',inc:5}],
+          variants:[{label:'Cable',fn:'Cable Lateral Raise',inc:2.3,perHand:true},{label:'Dumbbell',fn:'Dumbbell Lateral Raise',inc:2,perHand:true},{label:'Machine',fn:'Machine Lateral Raise',inc:5}],
           note:'The clip shows the exact dumbbell lateral raise. Running it on the cable instead? Identical movement — just across your body, as in the cues below.',
           cues:[
             'Pulley at lowest setting. Stand side-on, cable from the OPPOSITE side (across body).',
@@ -1000,6 +1005,7 @@
         },
         { id:'B6', name:'Rear Delt Fly Machine', fn:'Rear Delt Machine Fly', cat:'Shoulders',
           sets:3, reps:15, compound:false, inc:4.5, video:'14-rear-delt-fly',
+          variants:[{label:'Machine',fn:'Rear Delt Machine Fly',inc:4.5},{label:'Cable',fn:'Cable Rear Delt Fly',inc:2.3,perHand:true},{label:'Dumbbell',fn:'Dumbbell Rear Delt Fly',inc:2,perHand:true}],
           cues:[
             'Chest against pad, sit upright. Adjust handle/seat so arms are at shoulder height.',
             'Slight bend in elbows — locked for the rep.',
@@ -1033,7 +1039,7 @@
         },
         { id:'B8', name:'Incline Dumbbell Curl', fn:'Incline Dumbbell Curl', cat:'Biceps',
           sets:2, reps:12, compound:false, inc:2, video:'16-incline-db-curl',
-          variants:[{label:'Dumbbell',fn:'Incline Dumbbell Curl',inc:2},{label:'Barbell',fn:'Incline Barbell Curl',inc:2.5}],
+          variants:[{label:'Dumbbell',fn:'Incline Dumbbell Curl',inc:2,perHand:true},{label:'Barbell',fn:'Incline Barbell Curl',inc:2.5}],
           isFinisher:true,
           cues:[
             'Bench at 45–60°. Sit back fully — shoulders touch the pad.',
@@ -1051,6 +1057,7 @@
         },
         { id:'B9', name:'Overhead Cable Tricep Extension', fn:'Overhead Cable Tricep Extension', cat:'Triceps',
           sets:2, reps:12, compound:false, video:'17-overhead-cable-tri',
+          variants:[{label:'Cable',fn:'Overhead Cable Tricep Extension'},{label:'Dumbbell',fn:'Dumbbell Overhead Tricep Extension',inc:2}],
           isFinisher:true,
           cues:[
             'Cable at low or mid setting. Rope attachment.',
@@ -1115,6 +1122,7 @@
         },
         { id:'C3', name:'Cable Crossover', fn:'Cable Crossover', cat:'Chest',
           sets:3, reps:12, compound:false, inc:2.3, video:'19-cable-crossover',
+          variants:[{label:'Cable',fn:'Cable Crossover',inc:2.3,perHand:true},{label:'Machine',fn:'Machine Chest Fly',inc:5},{label:'Dumbbell',fn:'Dumbbell Fly',inc:2,perHand:true}],
           cues:[
             'Pulleys set high (for low-to-mid chest focus). Stand between them.',
             'Slight forward lean. Step one foot forward, brace the core.',
@@ -1133,6 +1141,7 @@
         },
         { id:'C4', name:'Chest-Supported Row', fn:'Chest-Supported T-Bar Row', cat:'Back',
           sets:3, reps:10, compound:true, video:'20-chest-supported-row',
+          variants:[{label:'T-Bar',fn:'Chest-Supported T-Bar Row'},{label:'Dumbbell',fn:'Chest-Supported Dumbbell Row',inc:2,perHand:true},{label:'Machine',fn:'Chest-Supported Machine Row',inc:5}],
           note:'AthleanX row-form video — the shoulder-blades-first, drive-elbows-back cues apply directly to the chest-supported row (the chest pad just removes lower-back involvement for you).',
           cues:[
             'Chest fully on the pad. This eliminates lower-back involvement so back muscles do the work.',
@@ -1151,7 +1160,7 @@
         },
         { id:'C5', name:'Seated Dumbbell Shoulder Press', fn:'Dumbbell Shoulder Press', cat:'Shoulders',
           sets:3, reps:10, compound:true, inc:2, video:'05-shoulder-press',
-          variants:[{label:'Dumbbell',fn:'Dumbbell Shoulder Press',inc:2},{label:'Barbell',fn:'Barbell Shoulder Press',inc:2.5},{label:'Machine',fn:'Machine Shoulder Press',inc:5}],
+          variants:[{label:'Dumbbell',fn:'Dumbbell Shoulder Press',inc:2,perHand:true},{label:'Barbell',fn:'Barbell Shoulder Press',inc:2.5},{label:'Machine',fn:'Machine Shoulder Press',inc:5}],
           cues:[
             'Same as Day A. Upright bench, back firmly against pad.',
             'DBs at ear height to start, palms forward, elbows slightly in front.',
@@ -1168,6 +1177,7 @@
         },
         { id:'C6', name:'Cable Face Pull', fn:'Cable Face Pull', cat:'Shoulders',
           sets:3, reps:15, compound:false, inc:4.5, video:'21-face-pull',
+          variants:[{label:'Cable',fn:'Cable Face Pull',inc:4.5}],
           cues:[
             'Cable at upper-chest height. Rope attachment.',
             'Step back so the cable has tension at full arm extension.',
@@ -1202,7 +1212,7 @@
         },
         { id:'C8', name:'Preacher Curl', fn:'Preacher Curl', cat:'Biceps',
           sets:2, reps:12, compound:false, video:'22-preacher-curl',
-          variants:[{label:'Bar',fn:'Preacher Curl',inc:2.5},{label:'Dumbbell',fn:'Dumbbell Preacher Curl',inc:2}],
+          variants:[{label:'Bar',fn:'Preacher Curl',inc:2.5},{label:'Dumbbell',fn:'Dumbbell Preacher Curl',inc:2,perHand:true}],
           isFinisher:true,
           note:'The clip shows the exact single-arm dumbbell preacher curl. No full lockout at the bottom of the pad; squeeze hard at the top.',
           cues:[
@@ -1222,6 +1232,7 @@
         },
         { id:'C9', name:'Cable Pushdown', fn:'Cable Pushdown', cat:'Triceps',
           sets:2, reps:12, compound:false, video:'10-tricep-pushdown',
+          variants:[{label:'Cable',fn:'Cable Pushdown'}],
           isFinisher:true,
           note:'Standard overhand cable pushdown — biases the LATERAL head of the triceps (the outer sweep).',
           cues:[
@@ -1273,7 +1284,34 @@
   function loadSession(day, date) {
     const raw = localStorage.getItem(sessionKey(day, date));
     try { if (raw) return JSON.parse(raw); } catch (e) {}
-    return { exercises:{}, warmup:{}, cooldown:{}, ts:Date.now() };
+    return { exercises: carryOverExercises(day, date), warmup:{}, cooldown:{}, ts:Date.now() };
+  }
+
+  // "The standard": a BRAND-NEW session inherits, per exercise, the hand mode and implement he
+  // actually used the last time he trained that slot (newest earlier session with real work), so he
+  // never has to re-tap Single / Dumbbell every workout. In-memory only until the first real write;
+  // existing sessions are never touched. Preserves the conventions: `arms` is written only when
+  // 'single', `impl` only when it differs from the exercise's default variant.
+  function carryOverExercises(day, date) {
+    const out = {};
+    const dayDef = PROGRAM[day]; if (!dayDef) return out;
+    let sessions = null;
+    for (const ex of dayDef.exercises) {
+      if (sessions === null) sessions = allSessions();          // newest-first; lazy (empty on first run)
+      let src = null;
+      for (const s of sessions) {
+        if (s.date >= date) continue;                           // only the past feeds a date (reproducible)
+        const d = s.data && s.data.exercises && s.data.exercises[ex.id];
+        if (d && exDataHasWork(d)) { src = d; break; }
+      }
+      if (!src) continue;
+      const carry = {};
+      if (src.arms === 'single') carry.arms = 'single';
+      const v = variantFor(ex, src), def = variantFor(ex, {});
+      if (v && def && v.label !== def.label) carry.impl = v.label;
+      if (Object.keys(carry).length) out[ex.id] = carry;
+    }
+    return out;
   }
 
   let _saveWarned = false;
@@ -1308,9 +1346,12 @@
     return out.sort((a,b) => b.date.localeCompare(a.date));
   }
 
-  // ---- Equipment variants (dumbbell / barbell / machine) ----
-  // Each variant maps to its own FitNotes exercise name + increment, so the
-  // Coach tracks each implement's progression separately (different lifts).
+  // ---- Equipment variants (cable / machine / dumbbell / barbell) — EVERY lift has them ----
+  // Each variant maps to its own FitNotes exercise name + increment, so the Coach tracks each
+  // implement's progression separately (different lifts). `perHand:true` marks implements that put
+  // a load in EACH hand (dumbbells, dual-stack cables, one-arm-at-a-time cables): for those, single-
+  // vs both-hands does not change the weight, so the two hand modes share ONE lift/history. Absent
+  // = shared load (one stack / one bar): single-arm is its own lift and loads convert by a ratio.
   function variantFor(ex, exData){
     if (!ex.variants) return null;
     const label = exData && exData.impl;
@@ -1319,6 +1360,8 @@
   }
   function effectiveFn(ex, exData){ const v = variantFor(ex, exData); return v ? v.fn : ex.fn; }
   function effectiveInc(ex, exData){ const v = variantFor(ex, exData); return (v && v.inc) || ex.inc; }
+  function isPerHand(ex, exData){ const v = variantFor(ex, exData); return !!(v && v.perHand); }
+  function dualApplies(ex, exData){ return !isPerHand(ex, exData); }   // shared load ⇒ two distinct lifts
 
   // Legs are no longer trained in this tracker — strip every leg exercise from the program before
   // anything reads it, so they never render, get recommended, or count. Touches ONLY cat:'Legs';
@@ -1327,15 +1370,17 @@
     PROGRAM[day].exercises = PROGRAM[day].exercises.filter(ex => ex.cat !== 'Legs');
   }
 
-  // ---- Single-arm (unilateral) TRICEPS option ----
-  // Triceps work can be logged single-arm (one hand at a time) or both-arm. Single-arm is tracked as
-  // its OWN FitNotes/Coach lift (lighter per-arm loads must never mix with two-arm history). Applies
-  // to cat:'Triceps' ONLY — every other exercise is completely unaffected.
+  // ---- Hands: single-arm (unilateral) vs both — on EVERY lift ----
+  // `exData.arms === 'single'` is the only signal; BOTH = the field is ABSENT (never written), so
+  // every historical key stays stable. On a SHARED-load implement (one stack / one bar) single-arm is
+  // tracked as its OWN FitNotes/Coach lift ('Single-Arm ' + fn) — lighter per-arm loads must never
+  // mix with two-arm history. On a PER-HAND implement (dumbbells, per-side cables) the weight per
+  // hand is identical either way, so the mode is recorded on the session but the lift is the same.
   const SINGLE_ARM_PREFIX = 'Single-Arm ';
-  function armsMode(ex, exData){ return (ex && ex.cat === 'Triceps' && exData && exData.arms === 'single') ? 'single' : 'both'; }
+  function armsMode(ex, exData){ return (exData && exData.arms === 'single') ? 'single' : 'both'; }
   function armsFn(ex, exData){
-    const base = effectiveFn(ex, exData);                  // triceps have no variants → base === ex.fn
-    return armsMode(ex, exData) === 'single' ? SINGLE_ARM_PREFIX + base : base;
+    const base = effectiveFn(ex, exData);
+    return (armsMode(ex, exData) === 'single' && !isPerHand(ex, exData)) ? SINGLE_ARM_PREFIX + base : base;
   }
 
   // ---- Global exercise lookup (built once from PROGRAM) ----
@@ -1632,7 +1677,8 @@
   // engine irreproducible — the same defect class as the triceps date-leak. Cached per date and
   // cleared whenever a session or the ladder is written.
   let _declCache = {};
-  function clearDeclCache(){ _declCache = {}; }
+  let _ratioCache = {};        // learned single↔both ratios (see ratioFor) — same invalidation rules
+  function clearDeclCache(){ _declCache = {}; _ratioCache = {}; }
   function declaredRungsAsOf(fn, asOf){
     if (!asOf) return declaredRungs(fn);
     const key = asOf;
@@ -2093,56 +2139,63 @@
     return { w: lastWork.toString(), reps: repTarget, repsText: rangeText, rir, kind: 'hold', note };
   }
 
-  // TRICEPS-ONLY dual recommendation. Computes the recommendation for the CURRENT hand mode from its
-  // own history via suggestNext, then derives the OTHER mode via the bilateral-deficit factor so both
-  // are shown and stay scientifically consistent (same reps/RIR, load differs by ×1.8). If the current
-  // mode has no history yet, it seeds the target by converting the OTHER mode's history (continuity on
-  // switch). Returns {single:{wKg,repsText,rir}, both:{...}, kind, note, primary} or null.
-  function tricepsDualSuggest(ex, exData, dispUnit, todayDate) {
+  // DUAL recommendation — for every SHARED-load lift (one stack / one bar): the Coach's answer for
+  // BOTH hand modes, each computed independently ("what would the Coach say if he toggled to that
+  // mode?"), so the dimmed partner line always equals what he gets after tapping it. Basis per mode:
+  //  · own-mode history within 21 days (in-block) always wins — direct evidence;
+  //  · else, if the OTHER mode has a more recent session, the other mode's own recommendation is
+  //    converted by the learned ratio (freshest evidence of his strength) and snapped to a real pin;
+  //  · else own history (the layoff/restart logic), or null when the mode has never been trained.
+  // The OUTPUT is converted, never a fabricated converted history: the source mode keeps its real
+  // rungs and notes; the converted weight snaps to the shared stack's ladder (both modes' pins +
+  // declared notches), then the target mode's own lattice, then a clean display value.
+  // History is scoped to the date being computed FOR, so answers are reproducible and a later workout
+  // can never leak into an earlier date. `inject={single,both}` lets the harness feed histories.
+  function dualSuggest(ex, exData, dispUnit, todayDate, inject) {
     const mode = armsMode(ex, exData);                              // 'single' | 'both'
-    const incEx = Object.assign({}, ex, { inc: effectiveInc(ex, exData) });
     const baseFn = effectiveFn(ex, exData);
-    const curFn = mode === 'single' ? SINGLE_ARM_PREFIX + baseFn : baseFn;
-    const otherFn = mode === 'single' ? baseFn : SINGLE_ARM_PREFIX + baseFn;
-    // History is scoped to the date being computed FOR (not the app's currently open date), so the
-    // dual lines are reproducible and a later workout can never leak into an earlier date's answer.
     const asOf = todayDate || currentDate;
-    let basis = recentSessionsFor(curFn, asOf);
-    const histOther = recentSessionsFor(otherFn, asOf);
-    const converted = !basis.length && histOther.length > 0;
-    if (converted) {                                                // fall back to the other mode, converted
-      const conv = mode === 'single' ? biToUni : uniToBi;
-      basis = histOther.map(s => ({ date: s.date, day: s.day, sets: s.sets.map(x => ({ w: String(conv(x.w)), r: x.r })) }));
-    }
-    const s = suggestNext(Object.assign({}, incEx, { _fn: baseFn }), basis, dispUnit, todayDate);
-    if (!s) return null;
-    let curKg = parseFloat(s.w) || 0;
-    // A ×/÷1.8-converted basis produces off-pin floats — snap the PRIMARY line to a real weight too.
-    // Both hand modes share one physical stack, so the ladder for the base lift is the right grid;
-    // it falls back to the clean display grid only when no rung is known.
-    if (converted && curKg > 0) {
-      const rung = snapNear(baseFn, histOther, curKg, 0.15, asOf);
-      const snapped = rung != null ? rung : cleanSnap(curKg, dispUnit);
-      if (snapped > 0) curKg = snapped;
-    }
-    // The DERIVED partner-mode load lands on a real weight as well: the shared stack's ladder first,
-    // then the partner mode's own learned lattice, then a clean display value.
-    const partnerRaw = mode === 'single' ? uniToBi(curKg) : biToUni(curKg);
-    let partnerKg;
-    const pRung = snapNear(baseFn, histOther, partnerRaw, 0.15, asOf);
-    const pLat = learnStep(histOther, dispUnit);
-    const pAnchor = histOther.length ? topWeight(histOther[0].sets) : NaN;
-    if (pRung != null) partnerKg = pRung;
-    else if (pLat && !isNaN(pAnchor) && pAnchor > 0) partnerKg = snapStep(partnerRaw, pLat, pAnchor);
-    else partnerKg = cleanSnap(partnerRaw, dispUnit);
-    if (partnerKg <= 0) partnerKg = partnerRaw;
-    const singleKg = mode === 'single' ? curKg : partnerKg;
-    const bothKg   = mode === 'both'   ? curKg : partnerKg;
-    return {
-      single: { wKg: singleKg, repsText: s.repsText, rir: s.rir },
-      both:   { wKg: bothKg,   repsText: s.repsText, rir: s.rir },
-      kind: s.kind, note: s.note, primary: mode, reps: s.reps
+    const U = dispUnit || unit;
+    const exM = Object.assign({}, ex, { inc: effectiveInc(ex, exData), _fn: baseFn });
+    const histS = (inject && inject.single) || recentSessionsFor(SINGLE_ARM_PREFIX + baseFn, asOf);
+    const histB = (inject && inject.both)   || recentSessionsFor(baseFn, asOf);
+    const rat = ratioFor(baseFn, asOf, inject ? histS : undefined, inject ? histB : undefined);
+    const dayN = (d) => Math.round(new Date(d + 'T00:00:00').getTime() / 86400000);
+    const ageOf = (h) => h.length ? dayN(asOf) - dayN(h[0].date) : Infinity;
+    const pickBasis = (own, other) => {
+      if (own.length && ageOf(own) <= 21) return 'own';
+      if (other.length && (!own.length || other[0].date > own[0].date)) return 'other';
+      return 'own';
     };
+    const lineFor = (m) => {
+      const own = m === 'single' ? histS : histB, other = m === 'single' ? histB : histS;
+      const basis = pickBasis(own, other);
+      if (basis === 'own') {
+        if (!own.length) return null;
+        const s = suggestNext(exM, own, U, asOf);
+        if (!s) return null;
+        return { wKg: parseFloat(s.w) || 0, reps: s.reps, repsText: s.repsText, rir: s.rir, kind: s.kind, note: s.note, basis: 'own', converted: false };
+      }
+      const s = suggestNext(exM, other, U, asOf);
+      if (!s) return null;
+      const src = parseFloat(s.w) || 0;
+      const raw = m === 'single' ? src / rat.r : src * rat.r;
+      let kg = snapNear(baseFn, own.concat(other), raw, 0.15, asOf);
+      if (kg == null && own.length) {
+        const lat = learnStep(own, U), anchor = topWeight(own[0].sets);
+        if (lat && !isNaN(anchor) && anchor > 0) kg = snapStep(raw, lat, anchor);
+      }
+      if (kg == null) kg = cleanSnap(raw, U);
+      if (!(kg > 0)) kg = raw;
+      const how = rat.learned ? `learned from ${rat.n} paired session${rat.n > 1 ? 's' : ''} of yours` : 'default until your log pairs both modes';
+      const note = `Derived from your ${m === 'single' ? 'both-hands' : 'single-arm'} history ${m === 'single' ? '÷' : '×'}${rat.r} (${how}) → ${kgToDisp(kg, U)} ${U}. ` + s.note;
+      return { wKg: kg, reps: s.reps, repsText: s.repsText, rir: s.rir, kind: s.kind, note, basis: 'other', converted: true };
+    };
+    const single = lineFor('single'), both = lineFor('both');
+    const prim = mode === 'single' ? single : both;
+    if (!prim) return null;
+    return { single, both, primary: mode, kind: prim.kind, note: prim.note, reps: prim.reps,
+             repsText: prim.repsText, rir: prim.rir, ratio: rat.r, ratioN: rat.n, ratioLearned: rat.learned };
   }
 
   // ============================================================
@@ -2184,13 +2237,43 @@
   function unitFor(exId){ return exUnits[exId] || unit; }                   // per-exercise override, else global
   function setExUnit(exId, u){ exUnits[exId] = u; localStorage.setItem(EXUNIT_KEY, JSON.stringify(exUnits)); }
 
-  // ---- Bilateral deficit (single-arm vs both-arm), TRICEPS only ----
-  // Both arms working together produce LESS than the sum of each arm alone — the bilateral deficit.
-  // Upper-limb elbow extension BLD is ~5–25% in the literature; ~10% is a defensible central value.
-  // So both-hands total load ≈ single-hand × BI_PER_UNI;  single-hand ≈ both-hands ÷ BI_PER_UNI.
-  const BI_PER_UNI = 1.8;                                   // = 2 × (1 − 0.10); single tunable constant
-  const uniToBi = (kg) => (parseFloat(kg) || 0) * BI_PER_UNI;   // single-arm load → both-hands load
-  const biToUni = (kg) => (parseFloat(kg) || 0) / BI_PER_UNI;   // both-hands load → single-arm load
+  // ---- Single↔both LOAD RATIO — learned from HIS paired sessions; physics prior until then ----
+  // Both hands on one stack move roughly twice one hand minus the bilateral deficit (upper-limb BLD
+  // ~5–25% in the literature → 1.8 is a defensible prior). His own log is the better teacher: when a
+  // lift has a single-arm and a both-hands session within RATIO_PAIR_DAYS of each other, their
+  // capped-Epley e1RMs give a measured ratio; implausible pairs (unit-era flips, setup artifacts)
+  // are discarded; the median of the survivors is shrunk toward the prior with weight RATIO_PRIOR_N
+  // so one lucky pair can't swing it. Direction: single→both ×r, both→single ÷r. Cached per lift+date
+  // (invalidated with the declared-notch cache on every session write / restore / reset).
+  const RATIO_DEFAULT = 1.8, RATIO_MIN = 1.2, RATIO_MAX = 2.3, RATIO_PAIR_DAYS = 21, RATIO_PRIOR_N = 1;
+  function ratioFor(baseFn, asOf, singles, boths) {
+    const injected = !!(singles || boths);
+    const key = baseFn + '|' + (asOf || '');
+    if (!injected && _ratioCache[key]) return _ratioCache[key];
+    const S = singles || recentSessionsFor(SINGLE_ARM_PREFIX + baseFn, asOf || '9999-12-31');
+    const B = boths   || recentSessionsFor(baseFn, asOf || '9999-12-31');
+    const dayN = (d) => Math.round(new Date(d + 'T00:00:00').getTime() / 86400000);
+    const ratios = [];
+    for (const sS of S) {
+      let best = null, bestGap = Infinity;
+      for (const sB of B) { const g = Math.abs(dayN(sS.date) - dayN(sB.date)); if (g <= RATIO_PAIR_DAYS && g < bestGap) { best = sB; bestGap = g; } }
+      if (!best) continue;
+      const eS = sessionBestE1RM(sS, true), eB = sessionBestE1RM(best, true);
+      if (!(eS > 0 && eB > 0)) continue;
+      const r = eB / eS;
+      if (r >= RATIO_MIN && r <= RATIO_MAX) ratios.push(r);
+    }
+    let out;
+    if (!ratios.length) out = { r: RATIO_DEFAULT, n: 0, learned: false, median: null };
+    else {
+      const so = ratios.slice().sort((x, y) => x - y), L = so.length;
+      const med = L % 2 ? so[(L - 1) / 2] : (so[L / 2 - 1] + so[L / 2]) / 2;
+      const r = Math.round(((L * med + RATIO_PRIOR_N * RATIO_DEFAULT) / (L + RATIO_PRIOR_N)) * 1000) / 1000;
+      out = { r, n: L, learned: true, median: Math.round(med * 1000) / 1000 };
+    }
+    if (!injected) _ratioCache[key] = out;
+    return out;
+  }
   function setUnit(u){
     if (u === unit) return;
     unit = u; localStorage.setItem(UNIT_KEY, u);
@@ -2365,7 +2448,7 @@
     const fn = armsFn(ex, exData);
     if (fn === ex.fn) return ex.name;                       // default variant → the program's name
     const v = variantFor(ex, exData);
-    const single = armsMode(ex, exData) === 'single';
+    const single = fn.startsWith(SINGLE_ARM_PREFIX);           // from armsFn: per-hand singles keep the plain lift
     if (v && v.fn !== ex.fn) return single ? SINGLE_ARM_PREFIX + v.fn : v.fn;
     return single ? SINGLE_ARM_PREFIX + ex.name : ex.name;
   }
@@ -2426,10 +2509,14 @@
       // _fn keys the weight ladder: per lift AND implement, shared across both arms modes.
       const ladderFn = effectiveFn(ex, exData);
       const suggest = suggestNext(Object.assign({}, ex, { inc: effectiveInc(ex, exData), _fn: ladderFn }), history, u);
-      // Triceps: dual single/both-hand recommendation (computed here so the fill targets below can
-      // use the SAME values the card displays). Renders even if the current hand-mode has no
-      // history yet — tricepsDualSuggest derives it from the other mode via the bilateral deficit.
-      const dual = ex.cat === 'Triceps' ? tricepsDualSuggest(ex, exData, u, currentDate) : null;
+      // Shared-load lifts: dual single/both-hands recommendation (computed here so the fill targets
+      // below use the SAME values the card displays). Renders even if the current hand mode has no
+      // history yet — dualSuggest derives it from the other mode via the learned load ratio.
+      // Per-hand lifts (dumbbells, per-side cables) have one history for both modes → no dual.
+      const dual = dualApplies(ex, exData) ? dualSuggest(ex, exData, u, currentDate) : null;
+      // the other hand mode's most recent session (shown when this mode has none of its own)
+      const otherFn = SINGLE_ARM_PREFIX + ladderFn === curFn ? ladderFn : SINGLE_ARM_PREFIX + ladderFn;
+      const lastOther = dual && !last ? (recentSessionsFor(otherFn, currentDate, 1)[0] || null) : null;
       // Coach panel — the prescription is what he needs mid-workout, so it reads at a GLANCE:
       // a kind badge + a big weight × reps line, with the full reasoning one tap away ("why").
       // Values are the SAME suggest/dual objects as always — presentation only, zero engine change.
@@ -2438,23 +2525,26 @@
                             :                         '<span class="rx-kind k-hold">▶ hold</span>';
       const whyHtml = (note) => `<details class="coach-why"><summary>why?</summary><div class="why-body">${note}</div></details>`;
       let lastHtml = '';
-      if (ex.cat === 'Triceps') {
-        if (dual) {
-          const rirTxt = dual.rir ? `<span class="rx-rir">@ ${dual.rir}</span>` : '';
-          const fmtW = (wKg) => `${kgToDisp(wKg, u)} ${u}`;   // values arrive lattice-snapped from tricepsDualSuggest
-          const head = last
-            ? `<div class="last-line"><b>Last ${last.day} (${last.date}):</b> ${last.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ')}</div>`
-            : `<div class="last-line"><b>${armsMode(ex, exData) === 'single' ? '🖐️ Single-arm' : '🙌 Both-arm'} — first time:</b></div>`;
-          const dcls = dual.kind === 'deload' ? ' deload' : '';
-          lastHtml = `<div class="last-session coach-panel ${dual.kind === 'deload' ? 'is-deload' : ''}">${head}` +
-            `<div class="rx-head"><span class="coach-tag">⌾ COACH</span>${kindBadge(dual.kind)}</div>` +
-            `<div class="coach-hands">` +
-            `<div class="rx-line target${dcls}${dual.primary === 'single' ? ' coach-live' : ''}"><span class="rx-mode">🖐️ Single</span><span class="rx-big">${fmtW(dual.single.wKg)}</span><span class="rx-x">×</span><span class="rx-reps">${dual.single.repsText}</span>${rirTxt}</div>` +
-            `<div class="rx-line target${dcls}${dual.primary === 'both' ? ' coach-live' : ''}"><span class="rx-mode">🙌 Both</span><span class="rx-big">${fmtW(dual.both.wKg)}</span><span class="rx-x">×</span><span class="rx-reps">${dual.both.repsText}</span>${rirTxt}</div>` +
-            `</div>${whyHtml(dual.note)}</div>`;
-        } else {
-          lastHtml = '<div class="last-session none">No prior data — start light, find the rep target.</div>';
-        }
+      if (dual) {
+        // Both hand modes, each the Coach's own answer for that mode (values arrive pin-snapped from
+        // dualSuggest). The live line is the current mode; a converted line is marked "≈ derived".
+        const fmtW = (wKg) => `${kgToDisp(wKg, u)} ${u}`;
+        const modeTag = armsMode(ex, exData) === 'single' ? '🖐️ Single-arm' : '🙌 Both-hands';
+        const head = last
+          ? `<div class="last-line"><b>Last ${last.day} (${last.date}):</b> ${last.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ')}</div>`
+          : lastOther
+            ? `<div class="last-line"><b>${modeTag} — first time.</b> Last ${lastOther.day} (${lastOther.date}) ${armsMode(ex, exData) === 'single' ? '🙌 both-hands' : '🖐️ single-arm'}: ${lastOther.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ')}</div>`
+            : `<div class="last-line"><b>${modeTag} — first time:</b></div>`;
+        const dcls = dual.kind === 'deload' ? ' deload' : '';
+        const line = (m, L) => {
+          if (!L) return `<div class="rx-line target rx-none"><span class="rx-mode">${m === 'single' ? '🖐️ Single' : '🙌 Both'}</span><span class="rx-reps">no history yet</span></div>`;
+          const rirTxt = L.rir ? `<span class="rx-rir">@ ${L.rir}</span>` : '';
+          const der = L.converted ? '<span class="rx-derived" title="converted from the other hand mode">≈ derived</span>' : '';
+          return `<div class="rx-line target${dcls}${dual.primary === m ? ' coach-live' : ''}"><span class="rx-mode">${m === 'single' ? '🖐️ Single' : '🙌 Both'}</span><span class="rx-big">${fmtW(L.wKg)}</span><span class="rx-x">×</span><span class="rx-reps">${L.repsText}</span>${rirTxt}${der}</div>`;
+        };
+        lastHtml = `<div class="last-session coach-panel ${dual.kind === 'deload' ? 'is-deload' : ''}">${head}` +
+          `<div class="rx-head"><span class="coach-tag">⌾ COACH</span>${kindBadge(dual.kind)}</div>` +
+          `<div class="coach-hands">${line('single', dual.single)}${line('both', dual.both)}</div>${whyHtml(dual.note)}</div>`;
       } else if (last) {
         const summary = last.sets.map(s => `${kgToDisp(s.w, u)}×${s.r}`).join(', ');
         let suggestHtml = '';
@@ -2474,7 +2564,7 @@
       // Sets table — large clear inputs; weights shown in this exercise's unit, always stored as kg
       let setsHtml = '<div class="sets">';
       setsHtml += `<div class="sets-header"><div></div><div>Weight (${u})</div><div>Reps</div><div>✓</div></div>`;
-      // Fill targets: for triceps cards they come from the SAME dual recommendation the card
+      // Fill targets: for shared-load cards they come from the SAME dual recommendation the card
       // displays (the current hand-mode's line) — the shown weight and the one-tap-logged weight
       // can never disagree, including the first session of a newly-toggled hand mode.
       const dualCur = dual ? (dual.primary === 'single' ? dual.single : dual.both) : null;
@@ -2486,8 +2576,10 @@
       // range top would make hitTop true on a session he did not actually top out, and the Coach
       // would hand him a weight he never earned. Only a HOLD that follows a genuinely topped-out
       // session may autofill the top; otherwise stay one rep below it.
-      if (suggest && suggest.kind === 'hold' && targetR >= repRange(ex)[1]) {
-        const lastSets = (last && last.sets) || [];
+      const rx = dual || suggest;
+      if (rx && rx.kind === 'hold' && targetR >= repRange(ex)[1]) {
+        const lastSets = (last && last.sets) || [];   // own-mode history: a converted basis is never "topped out"
+
         const lastTop = lastSets.length ? topWeight(lastSets) : NaN;
         const lastWork = lastSets.filter(s => Math.abs((parseFloat(s.w) || 0) - lastTop) < 0.5);
         const toppedOut = lastWork.length > 0 && lastWork.every(s => (parseInt(s.r) || 0) >= repRange(ex)[1]);
@@ -2516,21 +2608,32 @@
       setsHtml += '</div>';
 
       // Settings: equipment (dumbbell/barbell/machine) when the lift has variants, + per-exercise unit
+      // Every card carries the three attributes of the lift as performed — ✋ Hands, ⚙ Equipment,
+      // 📏 Unit — recorded on the workout and read by the Coach.
       let implHtml = '';
+      // ✋ Hands: single-arm vs both. Shared-load implement → single-arm is its own lift and the two
+      // loads convert by the learned ratio; per-hand implement → same weight in each hand either way.
+      {
+        const curArms = armsMode(ex, exData);
+        const perHand = isPerHand(ex, exData);
+        const hint = perHand
+          ? 'per-hand load — the same weight in each hand either way; one history for both.'
+          : dual
+            ? `one stack — single-arm is tracked as its own lift; loads convert ×${dual.ratio} (${dual.ratioLearned ? `learned from ${dual.ratioN} paired session${dual.ratioN > 1 ? 's' : ''} of yours` : 'default until your log pairs both modes'}).`
+            : 'one stack — single-arm is tracked as its own lift; loads convert by a ratio learned from your log.';
+        implHtml += `<div class="impl-row"><span class="impl-cap">✋ Hands</span><div class="impl-seg">` +
+          [['both','🙌 Both'],['single','🖐️ Single']].map(([val,lab]) => `<button type="button" class="impl-opt${val === curArms ? ' active' : ''}" data-ex="${ex.id}" data-arms="${val}">${lab}</button>`).join('') +
+          `</div><div class="impl-hint">${hint}</div></div>`;
+      }
+      // ⚙ Equipment: every lift declares its real implement first (+ physically sensible alternatives,
+      // each its own FitNotes lift with its own history). A one-implement lift shows a single active pill.
       if (ex.variants) {
         const curLabel = (variantFor(ex, exData) || {}).label;
         implHtml += `<div class="impl-row"><span class="impl-cap">⚙ Equipment</span><div class="impl-seg">` +
           ex.variants.map(v => `<button type="button" class="impl-opt${v.label === curLabel ? ' active' : ''}" data-ex="${ex.id}" data-impl="${v.label}">${v.label}</button>`).join('') +
           `</div></div>`;
       }
-      // Hands mode (TRICEPS only): both-arm vs single-arm — tracked as separate lifts, dual rec shown
-      if (ex.cat === 'Triceps') {
-        const curArms = armsMode(ex, exData);
-        implHtml += `<div class="impl-row"><span class="impl-cap">✋ Hands</span><div class="impl-seg">` +
-          [['both','🙌 Both'],['single','🖐️ Single']].map(([val,lab]) => `<button type="button" class="impl-opt${val === curArms ? ' active' : ''}" data-ex="${ex.id}" data-arms="${val}">${lab}</button>`).join('') +
-          `</div></div>`;
-      }
-      // Per-exercise unit (some machines load in lb, others kg) — display only; always saved as kg
+      // 📏 Unit — per-exercise (some machines load in lb, others kg) — display only; always saved as kg
       implHtml += `<div class="impl-row"><span class="impl-cap">📏 Unit</span><div class="impl-seg">` +
         ['kg','lb'].map(uu => `<button type="button" class="impl-opt${uu === u ? ' active' : ''}" data-ex="${ex.id}" data-u="${uu}">${uu}</button>`).join('') +
         `</div></div>`;
@@ -2630,7 +2733,7 @@
               // one-tap logging: fill the planned numbers into any empty field on this row
               const wEl = card.querySelector(`input[data-f="w${n}"]`);
               const rEl = card.querySelector(`input[data-f="r${n}"]`);
-              if (wEl && !wEl.value && targetW) { wEl.value = kgToDisp(targetW, u); session.exercises[id]['w' + n] = dispToKg(wEl.value, u); }
+              if (wEl && !wEl.value && targetW) { wEl.value = kgToDisp(targetW, u); session.exercises[id]['w' + n] = dispToKg(wEl.value, u); session.exercises[id].u = u; }
               // Reps auto-fill ONLY when the row has (or just got) a weight — a checked row with
               // reps but no weight is invisible to the engine/volume and silently loses the set.
               if (rEl && !rEl.value && wEl && wEl.value) { rEl.value = String(targetR); session.exercises[id]['r' + n] = String(targetR); }
@@ -2645,6 +2748,9 @@
             if (inp.checked && autoRest.on) startRest(ex.compound ? 150 : 90);   // 2.5 min compounds, 90s isolation
           } else {
             session.exercises[id][f] = (f[0] === 'w') ? dispToKg(inp.value, u) : inp.value;
+            // per-workout unit stamp: the unit this weight was ENTERED in (data-integrity record —
+            // a machine's kg/lb setting can change over time; the log then explains itself)
+            if (f[0] === 'w') session.exercises[id].u = u;
           }
           persist();
         };
@@ -2685,13 +2791,15 @@
           vibrate(8);
         });
       });
-      // Hands toggle (triceps) — single vs both arm; switches the Coach history + dual recommendation
+      // Hands toggle (every lift) — single vs both; switches the Coach history + dual recommendation.
+      // BOTH is the absence of the field (never written) so history keys stay stable.
       card.querySelectorAll('button.impl-opt[data-arms]').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const id = btn.dataset.ex;
           if (!session.exercises[id]) session.exercises[id] = {};
-          session.exercises[id].arms = btn.dataset.arms;
+          if (btn.dataset.arms === 'single') session.exercises[id].arms = 'single';
+          else delete session.exercises[id].arms;
           persist();
           render();
           vibrate(8);
@@ -2711,6 +2819,7 @@
           const kg = parseFloat(dispToKg(inp.value, unitFor(id)));
           if (!isNaN(kg) && kg > 0) {
             exd.nx = kg;                                   // audit trail: what he saw, on this date
+            exd.u = unitFor(id);                           // ...and the unit he read it in
             addRung(effectiveFn(exDefN, exd), kg);         // and a permanent rung of that stack
             vibrate(8);
           } else {
@@ -3055,8 +3164,10 @@
     const byMuscle = {};
     const add = (fn, good) => {
       for (const day of Object.keys(PROGRAM)) for (const ex of PROGRAM[day].exercises) {
-        const names = [ex.fn].concat((ex.variants || []).map(v => v.fn));
-        if (ex.cat === 'Triceps') names.push(SINGLE_ARM_PREFIX + ex.fn);
+        // every implement of this slot, in both hand modes (single-arm names only exist for
+        // shared-load implements, but listing the prefix for all is harmless — it never matches)
+        const names = [ex.fn, SINGLE_ARM_PREFIX + ex.fn];
+        for (const v of (ex.variants || [])) names.push(v.fn, SINGLE_ARM_PREFIX + v.fn);
         if (names.indexOf(fn) < 0) continue;
         const mm = musclesFor(ex);
         for (const mu in mm) {
@@ -3834,6 +3945,7 @@
         unit = (localStorage.getItem(UNIT_KEY) === 'lb') ? 'lb' : 'kg';
         try { exUnits = JSON.parse(localStorage.getItem(EXUNIT_KEY) || '{}') || {}; } catch (e2) { exUnits = {}; }
         exLadder = readLadder();
+        clearDeclCache();                                     // restored sessions/notches: drop memoized answers
         // Preferences live in storage too — reload them, or the restored values sit unused in
         // localStorage while the old in-memory ones stay live and get written back on next change.
         autoRest.on = localStorage.getItem(AUTOREST_KEY) !== 'off';
@@ -3869,6 +3981,7 @@
   function resetCurrent() {
     if (!confirm(`Reset this session (${currentDay} on ${currentDate})? All entered values will be cleared. Other sessions are NOT affected.`)) return;
     localStorage.removeItem(sessionKey(currentDay, currentDate));
+    clearDeclCache();                                         // this date's notch/ratio evidence is gone
     loadCurrentSession();
     render();
   }
