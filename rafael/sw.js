@@ -1,11 +1,10 @@
 /* Service worker for Rafael's tracker — registered at /workout-tracker/rafael/sw.js,
    so its scope is ONLY /workout-tracker/rafael/. It caches just this app's own shell
-   so the page opens offline. The form videos are cached separately by the app itself
-   (IndexedDB). It deliberately:
-     - ignores cross-origin and .mp4 requests,
+   so the page opens offline. It deliberately:
+     - ignores cross-origin requests,
      - only ever deletes caches whose name starts with 'rafael-',
    so it can never read, evict, or interfere with the main workout app's cache or data. */
-const CACHE = 'rafael-shell-v4';
+const CACHE = 'rafael-shell-v5';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -24,7 +23,6 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return; // ignore cross-origin
-  if (url.pathname.endsWith('.mp4')) return; // videos are cached by the app in IndexedDB
   const isDoc = e.request.mode === 'navigate' || e.request.destination === 'document';
   e.respondWith(
     fetch(e.request, isDoc ? { cache: 'no-store' } : {}).then((resp) => {

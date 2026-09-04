@@ -285,13 +285,6 @@
   .btn::after{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at center,rgba(var(--accent-rgb),.22),transparent 60%);opacity:0;transform:scale(.3);transition:transform .5s var(--ease-out),opacity .6s}
   .btn:active::after{opacity:1;transform:scale(1.1);transition-duration:0s}
 
-  /* VIDEO */
-  .video-wrap{margin-top:12px}
-  .video-btn{width:100%;min-height:48px;border:1px solid var(--border);background:var(--card2);color:var(--text);border-radius:var(--r-md);font-family:inherit;font-weight:700;font-size:.86rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .12s var(--ease),background var(--dur),border-color var(--dur)}
-  .video-btn:active{transform:scale(.98)}
-  .form-video{width:100%;display:block;max-height:42vh;background:#000;border:1px solid var(--border);border-radius:var(--r-md)}
-  .form-video[hidden]{display:none}
-
   /* Collapsible form-cues disclosure (glance-once reference, below the sets) */
   .form-notes{margin-top:12px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--card2);overflow:hidden}
   .form-notes summary{list-style:none;cursor:pointer;min-height:46px;padding:12px 14px;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:8px}
@@ -372,19 +365,9 @@
 
   .hint{color:var(--muted2);font-size:.72rem;padding:2px 4px 0;font-weight:400;letter-spacing:0;text-transform:none}
 
-  /* DOWNLOAD BAR (first-run video caching) */
-  .dlbar{display:none;align-items:center;gap:11px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:11px 14px;margin:8px 0 0;font-size:.78rem;color:var(--muted);box-shadow:var(--elev-1)}
-  .dlbar.show{display:flex;animation:card-in .35s var(--ease-out) both}
-  .dlbar #dlmsg{flex:1;min-width:0}
-  .dlbar .bar{width:84px;flex-shrink:0;height:7px;background:var(--card2);border-radius:99px;overflow:hidden}
-  .dlbar .bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--text);transition:width .35s var(--ease-out)}
-  .dlbar.warn{background:var(--card);color:var(--text);border-color:var(--muted2);border-style:dashed}
-  .dlbar.done{background:var(--card);color:var(--text);border-color:var(--muted)}
-  .dlbar.done .bar i{background:var(--text)}
-
-  /* VIDEO substitution note */
-  .video-note{background:rgba(var(--tint),.03);border:1px solid var(--hairline);border-left:3px solid var(--muted2);border-radius:var(--r-sm);padding:10px 12px;margin-top:9px;font-size:.74rem;color:var(--muted);line-height:1.5}
-  /* Muscle panel — anatomy-chart figures; working muscles highlighted; pulses while the form video plays */
+  /* Exercise substitution / setup note */
+  .ex-note{background:rgba(var(--tint),.03);border:1px solid var(--hairline);border-left:3px solid var(--muted2);border-radius:var(--r-sm);padding:10px 12px;margin-top:9px;font-size:.74rem;color:var(--muted);line-height:1.5}
+  /* Muscle panel — anatomy-chart figures; working muscles highlighted */
   .muscle-panel{display:flex;gap:12px;align-items:center;justify-content:center;padding:12px 10px;border:1px solid var(--hairline);border-radius:var(--r-md);margin-top:9px;background:rgba(var(--tint),.02)}
   .mp-fig{width:78px;height:auto;display:block}
   .mp-fig path{stroke:rgba(var(--tint),.16);stroke-width:.75;vector-effect:non-scaling-stroke;stroke-linejoin:round}
@@ -393,9 +376,6 @@
   .mp-fig .mm.pri{fill:rgba(var(--tint),.9)}
   .mp-fig .mm.syn{fill:rgba(var(--tint),.34)}
   .mp-fig .mdet{fill:none}
-  .muscle-panel.mp-live .mm.pri{animation:mpulse 1.1s var(--ease) infinite}
-  .muscle-panel.mp-live .mm.syn{animation:mpulse 1.1s var(--ease) infinite;animation-delay:.18s}
-  @keyframes mpulse{0%,100%{opacity:1}50%{opacity:.4}}
   .mp-cap{font-size:.58rem;color:var(--muted2);text-align:center;margin-top:3px;letter-spacing:.04em}
   .mp-leg{font-size:.7rem;color:var(--muted);line-height:1.7;max-width:38%}
   .mp-leg b{color:var(--text);font-weight:700}
@@ -469,11 +449,6 @@
 </head>
 <body data-day="A">
 
-<div class="dlbar" id="dlbar">
-  <span id="dlmsg">Preparing videos…</span>
-  <div class="bar"><i id="dlfill"></i></div>
-</div>
-
 <div class="persist-warn" id="persistWarn" hidden>
   ⚠ <b>This browser may not save your data permanently.</b> To protect your workouts, open the app from its <b>home-screen icon</b> (installed app) — not a browser tab. <button type="button" onclick="installHelp()">How?</button>
 </div>
@@ -525,7 +500,6 @@
       <li><b>Volume drives growth:</b> aim <b>10–20 hard sets per muscle per week</b> (see 📊 Stats). More isn't always better past ~20.</li>
       <li><b>Rest</b> ~2–3 min on compounds, 60–120 s on isolation — longer rest = more quality reps = more growth.</li>
       <li><b>Load is forgiving</b> (~6–20 reps all build muscle near failure). <b>Form &gt; weight</b>; emphasise the full/stretched range. Log every set — the Coach reads your whole history.</li>
-      <li class="attrib" style="font-size:.72rem;color:var(--muted2)">Demo clips: <b>wger.de</b> exercise database (CC-BY-SA 4.0, by Goulart) + short demonstration excerpts.</li>
     </ul>
   </div></div>
 </div>
@@ -602,147 +576,6 @@
 
 <script>
   // ============================================================
-  // VIDEOS — offline cache.
-  // On first open WITH internet, the short exact-movement demo clips
-  // (wger.de exercise database, CC-BY-SA 4.0 by Goulart, plus trimmed
-  // demonstration excerpts) are downloaded once from VIDEO_BASE and
-  // stored permanently in IndexedDB on the phone. Every open after
-  // that (even with zero signal) serves them straight from local
-  // storage. The HTML file itself stays tiny.
-  // ============================================================
-  const VIDEO_BASE = 'videos/';   // same-origin (served from this PWA's GitHub Pages site)
-  const VIDEO_VERSION = '2';  // bump to force re-download (v2: short demo clips replaced the long tutorials)
-  const IDB_NAME = 'athleanVideos';
-  const IDB_STORE = 'clips';
-  const _objUrls = {};   // slug -> object URL (in-memory cache)
-  let _dbPromise = null;
-
-  function idb() {
-    if (_dbPromise) return _dbPromise;
-    _dbPromise = new Promise((res, rej) => {
-      const r = indexedDB.open(IDB_NAME, 1);
-      r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
-      r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
-    });
-    return _dbPromise;
-  }
-  function idbGet(db, key) {
-    return new Promise((res, rej) => {
-      const tx = db.transaction(IDB_STORE, 'readonly');
-      const rq = tx.objectStore(IDB_STORE).get(key);
-      rq.onsuccess = () => res(rq.result);
-      rq.onerror = () => rej(rq.error);
-    });
-  }
-  function idbPut(db, key, val) {
-    return new Promise((res, rej) => {
-      const tx = db.transaction(IDB_STORE, 'readwrite');
-      tx.objectStore(IDB_STORE).put(val, key);
-      tx.oncomplete = () => res();
-      tx.onerror = () => rej(tx.error);
-    });
-  }
-  function idbKeys(db) {
-    return new Promise((res, rej) => {
-      const tx = db.transaction(IDB_STORE, 'readonly');
-      const rq = tx.objectStore(IDB_STORE).getAllKeys();
-      rq.onsuccess = () => res(rq.result || []);
-      rq.onerror = () => rej(rq.error);
-    });
-  }
-
-  const vkey = slug => `${slug}@${VIDEO_VERSION}`;
-
-  // Return an object URL for a cached clip, or null if not cached yet.
-  async function getVideoURL(slug) {
-    if (_objUrls[slug]) return _objUrls[slug];
-    try {
-      const db = await idb();
-      const blob = await idbGet(db, vkey(slug));
-      if (!blob) return null;
-      const url = URL.createObjectURL(blob);
-      _objUrls[slug] = url;
-      return url;
-    } catch (e) { return null; }
-  }
-
-  // Wire a <video> element to its cached clip (lazy — only when its card opens).
-  async function wireVideo(videoEl) {
-    if (!videoEl || videoEl.dataset.wired) return;
-    const slug = videoEl.closest('.video-wrap').dataset.slug;
-    const url = await getVideoURL(slug);
-    if (url) { videoEl.src = url; videoEl.dataset.wired = '1'; }
-  }
-  function wireOpenCards() {
-    document.querySelectorAll('.card.open video.form-video').forEach(wireVideo);
-  }
-
-  // List of all slugs used by the program (computed once).
-  function allSlugs() {
-    const s = new Set();
-    for (const d of Object.values(PROGRAM)) for (const e of d.exercises) s.add(e.video);
-    return [...s];
-  }
-
-  // First-run / resume download of any missing clips. Shows a progress bar.
-  async function ensureVideos() {
-    const bar = document.getElementById('dlbar');
-    const msg = document.getElementById('dlmsg');
-    const fill = document.getElementById('dlfill');
-    let db;
-    try { db = await idb(); }
-    catch (e) { return; } // IndexedDB unavailable — videos just won't show; tracker still works
-
-    const slugs = allSlugs();
-    const have = new Set(await idbKeys(db));
-    const missing = slugs.filter(s => !have.has(vkey(s)));
-
-    // purge stale versions (old long tutorials) so they don't waste phone storage
-    const want = new Set(slugs.map(vkey));
-    const stale = [...have].filter(k => !want.has(k));
-    if (stale.length) {
-      try {
-        const tx = db.transaction(IDB_STORE, 'readwrite');
-        stale.forEach(k => tx.objectStore(IDB_STORE).delete(k));
-      } catch (e) {}
-    }
-
-    if (missing.length === 0) { wireOpenCards(); return; }
-
-    if (!navigator.onLine) {
-      bar.className = 'dlbar warn show';
-      msg.textContent = `⚠ ${missing.length} videos not downloaded yet — open once with internet (Wi-Fi) and they'll save for offline use forever.`;
-      fill.style.width = '0%';
-      return;
-    }
-
-    bar.className = 'dlbar show';
-    let done = slugs.length - missing.length;
-    for (const slug of missing) {
-      msg.textContent = `Downloading form videos for offline use… ${done}/${slugs.length}`;
-      fill.style.width = Math.round(done / slugs.length * 100) + '%';
-      try {
-        const resp = await fetch(VIDEO_BASE + slug + '.mp4', { cache: 'no-store' });
-        if (!resp.ok) throw new Error('http ' + resp.status);
-        const blob = await resp.blob();
-        await idbPut(db, vkey(slug), blob);
-        done++;
-        wireOpenCards();
-      } catch (e) {
-        bar.className = 'dlbar warn show';
-        msg.textContent = `⚠ Download interrupted (${done}/${slugs.length} saved). Reopen with internet to finish — progress is kept.`;
-        return;
-      }
-    }
-    fill.style.width = '100%';
-    bar.className = 'dlbar done show';
-    msg.textContent = `✓ All ${slugs.length} videos saved. Works fully offline now.`;
-    wireOpenCards();
-    setTimeout(() => bar.classList.remove('show'), 4000);
-  }
-
-  // ============================================================
   // PROGRAM DEFINITION
   // ============================================================
   const PROGRAM = {
@@ -751,8 +584,8 @@
       shortName: "Day A",
       exercises: [
         { id:'A1', name:'Leg Press', fn:'Leg Press', cat:'Legs',
-          sets:3, reps:10, compound:true, video:'01-leg-press',
-          note:'AthleanX has no leg-press-specific video (he favors free-weight quad work). This is his quad-development guide — apply the full-foot drive and deep-knee-bend cues to the leg press.',
+          sets:3, reps:10, compound:true, slug:'01-leg-press',
+          note:'Drive through the full foot and allow a deep knee bend — that is what makes the leg press a quad builder rather than a hip push.',
           cues:[
             'Feet shoulder-width, mid-platform. Toes slightly out (~15°).',
             'Press lower back into the pad — butt stays on the seat the whole rep.',
@@ -770,7 +603,7 @@
           feel:'Quads (front of thigh), glutes, slight inner thigh. Should NOT feel lower back.'
         },
         { id:'A2', name:'Dumbbell Romanian Deadlift', fn:'Dumbbell Romanian Deadlift', cat:'Legs',
-          sets:3, reps:10, compound:true, inc:2, video:'02-rdl',
+          sets:3, reps:10, compound:true, inc:2, slug:'02-rdl',
           variants:[{label:'Dumbbell',fn:'Dumbbell Romanian Deadlift',inc:2},{label:'Barbell',fn:'Barbell Romanian Deadlift',inc:2.5}],
           cues:[
             "It's a HINGE, not a squat. Push the hips backward like closing a car door with your butt.",
@@ -789,7 +622,7 @@
           feel:'Hamstrings stretching down, glutes squeezing up. NOT lower back. If lumbar fires, reduce range/weight.'
         },
         { id:'A3', name:'Flat Dumbbell Bench Press', fn:'Dumbbell Bench Press', cat:'Chest',
-          sets:3, reps:10, compound:true, inc:2, video:'03-db-bench',
+          sets:3, reps:10, compound:true, inc:2, slug:'03-db-bench',
           variants:[{label:'Dumbbell',fn:'Dumbbell Bench Press',inc:2,perHand:true},{label:'Barbell',fn:'Barbell Bench Press',inc:2.5}],
           cues:[
             'Sit on bench with DBs on thighs. Lie back and kick them up one at a time.',
@@ -809,7 +642,7 @@
           feel:'Chest (mid/lower), front delts, triceps. NO shoulder joint pain — if you feel it, tuck elbows more.'
         },
         { id:'A4', name:'Lat Pulldown', fn:'Lat Pulldown', cat:'Back',
-          sets:3, reps:10, compound:true, video:'06-lat-pulldown',
+          sets:3, reps:10, compound:true, slug:'06-lat-pulldown',
           variants:[{label:'Cable',fn:'Lat Pulldown'},{label:'Machine',fn:'Machine Lat Pulldown',inc:5}],
           cues:[
             'Grip slightly wider than shoulder-width, overhand.',
@@ -829,7 +662,7 @@
           feel:'Lats (sides of upper back, under armpits). Mid-back contracting. Some bicep.'
         },
         { id:'A5', name:'Seated Dumbbell Shoulder Press', fn:'Dumbbell Shoulder Press', cat:'Shoulders',
-          sets:3, reps:10, compound:true, inc:2, video:'05-shoulder-press',
+          sets:3, reps:10, compound:true, inc:2, slug:'05-shoulder-press',
           variants:[{label:'Dumbbell',fn:'Dumbbell Shoulder Press',inc:2,perHand:true},{label:'Barbell',fn:'Barbell Shoulder Press',inc:2.5},{label:'Machine',fn:'Machine Shoulder Press',inc:5}],
           cues:[
             'Upright bench with back support. Sit with back firmly against pad, feet flat.',
@@ -848,7 +681,7 @@
           feel:'Front and side delts, triceps, upper chest a bit. NO sharp shoulder pinch.'
         },
         { id:'A6', name:'Standing Calf Raise', fn:'Standing Calf Raise', cat:'Legs',
-          sets:3, reps:15, compound:false, video:'08-calf-raise',
+          sets:3, reps:15, compound:false, slug:'08-calf-raise',
           cues:[
             'Balls of feet on the edge of the platform, heels free to drop below.',
             'FULL stretch — let your heels sink as low as they can.',
@@ -865,10 +698,10 @@
           feel:'Calves (gastroc). Bottom stretch should feel intense. Top should burn.'
         },
         { id:'A7', name:'Hammer Curl', fn:'Hammer Curl', cat:'Biceps',
-          sets:2, reps:12, compound:false, video:'09-bicep-curl',
+          sets:2, reps:12, compound:false, slug:'09-bicep-curl',
           variants:[{label:'Dumbbell',fn:'Hammer Curl',inc:2,perHand:true},{label:'Barbell',fn:'Barbell Hammer Curl',inc:2.5}],
           isFinisher:true,
-          note:'Neutral-grip (thumbs-up) curl — targets the brachialis & brachioradialis to add arm thickness/width. The clip shows the exact hammer curl; cues (elbows pinned, no swing, slow lowering) below.',
+          note:'Neutral-grip (thumbs-up) curl — targets the brachialis & brachioradialis to add arm thickness/width. Elbows pinned, no swing, slow lowering.',
           cues:[
             'Hold dumbbells NEUTRAL — palms facing each other (thumbs up), like holding hammers.',
             'Elbows pinned to your ribs — they don\'t drift forward.',
@@ -884,7 +717,7 @@
           feel:'Brachialis (under the bicep) and forearm/brachioradialis — builds arm width.'
         },
         { id:'A8', name:'Reverse-Grip Cable Pushdown', fn:'Reverse-Grip Cable Pushdown', cat:'Triceps',
-          sets:2, reps:12, compound:false, video:'10-tricep-pushdown',
+          sets:2, reps:12, compound:false, slug:'10-tricep-pushdown',
           variants:[{label:'Cable',fn:'Reverse-Grip Cable Pushdown'}],
           isFinisher:true,
           note:'Underhand (supinated) cable pushdown — biases the often-neglected MEDIAL head of the triceps.',
@@ -910,7 +743,7 @@
       shortName: "Day B",
       exercises: [
         { id:'B1', name:'Bulgarian Split Squat (DB)', fn:'Bulgarian Split Squat', cat:'Legs',
-          sets:3, reps:10, perSide:true, compound:true, inc:2, video:'11-bulgarian-split-squat',
+          sets:3, reps:10, perSide:true, compound:true, inc:2, slug:'11-bulgarian-split-squat',
           cues:[
             'Bench behind you. Place top of REAR foot on the bench (laces down or toes curled — whichever is comfortable).',
             'Front foot far enough forward that the knee stays roughly over the ankle at the bottom.',
@@ -930,8 +763,8 @@
           feel:'Front-leg quad, glute, and inner thigh. Hamstring stretch on the way down.'
         },
         { id:'B2', name:'Seated Leg Curl', fn:'Seated Leg Curl Machine', cat:'Legs',
-          sets:3, reps:12, compound:true, video:'12-leg-curl',
-          note:'AthleanX has no machine leg-curl video — this teaches the hamstring-curl movement (knee flexion). Apply the hard squeeze + slow controlled stretch to the seated/lying machine.',
+          sets:3, reps:12, compound:true, slug:'12-leg-curl',
+          note:'Knee-flexion movement. Squeeze hard at the top and take a slow, controlled stretch on the way down.',
           cues:[
             'Sit with back firmly against pad. Pad just above the achilles, not on the calf.',
             'Knees aligned with the machine\'s pivot point.',
@@ -948,7 +781,7 @@
           feel:'Deep hamstring contraction. Mild calf if feet are tucked.'
         },
         { id:'B3', name:'Incline Dumbbell Bench Press', fn:'Incline Dumbbell Bench Press', cat:'Chest',
-          sets:3, reps:10, compound:true, inc:2, video:'13-incline-db-bench',
+          sets:3, reps:10, compound:true, inc:2, slug:'13-incline-db-bench',
           variants:[{label:'Dumbbell',fn:'Incline Dumbbell Bench Press',inc:2,perHand:true},{label:'Barbell',fn:'Incline Barbell Bench Press',inc:2.5}],
           cues:[
             'Bench angle 30–45° (closer to 30° = more upper chest, less front delt).',
@@ -966,7 +799,7 @@
           feel:'Upper chest, front delt. NO shoulder pain — adjust elbow tuck if so.'
         },
         { id:'B4', name:'Seated Cable Row (Close Grip)', fn:'Seated Cable Row', cat:'Back',
-          sets:3, reps:10, compound:true, video:'04-cable-row',
+          sets:3, reps:10, compound:true, slug:'04-cable-row',
           variants:[{label:'Cable',fn:'Seated Cable Row'},{label:'Machine',fn:'Machine Seated Row',inc:5}],
           cues:[
             'Close-grip V-handle. Feet on platform, slight knee bend, chest up.',
@@ -985,9 +818,9 @@
           feel:'Mid-back (rhomboids, mid-traps), lats, biceps. NO lower back working hard.'
         },
         { id:'B5', name:'Cable Lateral Raise', fn:'Cable Lateral Raise', cat:'Shoulders',
-          sets:3, reps:15, compound:false, inc:2, video:'07-lateral-raise',
+          sets:3, reps:15, compound:false, inc:2, slug:'07-lateral-raise',
           variants:[{label:'Cable',fn:'Cable Lateral Raise',inc:2.3,perHand:true},{label:'Dumbbell',fn:'Dumbbell Lateral Raise',inc:2,perHand:true},{label:'Machine',fn:'Machine Lateral Raise',inc:5}],
-          note:'The clip shows the exact dumbbell lateral raise. Running it on the cable instead? Identical movement — just across your body, as in the cues below.',
+          note:'Running it on the cable instead? Identical movement — just across your body, as in the cues below.',
           cues:[
             'Pulley at lowest setting. Stand side-on, cable from the OPPOSITE side (across body).',
             'Slight elbow bend — lock that angle for the whole rep.',
@@ -1004,7 +837,7 @@
           feel:'Specific burn on the SIDE of the shoulder (medial delt). If you feel traps, drop weight and lead with the elbow.'
         },
         { id:'B6', name:'Rear Delt Fly Machine', fn:'Rear Delt Machine Fly', cat:'Shoulders',
-          sets:3, reps:15, compound:false, inc:4.5, video:'14-rear-delt-fly',
+          sets:3, reps:15, compound:false, inc:4.5, slug:'14-rear-delt-fly',
           variants:[{label:'Machine',fn:'Rear Delt Machine Fly',inc:4.5},{label:'Cable',fn:'Cable Rear Delt Fly',inc:2.3,perHand:true},{label:'Dumbbell',fn:'Dumbbell Rear Delt Fly',inc:2,perHand:true}],
           cues:[
             'Chest against pad, sit upright. Adjust handle/seat so arms are at shoulder height.',
@@ -1022,7 +855,7 @@
           feel:'Burn at the back of the shoulder (posterior delt). A bit of mid-back.'
         },
         { id:'B7', name:'Seated Calf Raise', fn:'Seated Calf Raise Machine', cat:'Legs',
-          sets:3, reps:15, compound:false, inc:5, video:'15-seated-calf-raise',
+          sets:3, reps:15, compound:false, inc:5, slug:'15-seated-calf-raise',
           cues:[
             'Pad firmly on lower thighs (just above knees).',
             'Balls of feet on the platform, heels free.',
@@ -1038,7 +871,7 @@
           feel:'Burn deep in the calf, lower part especially. Different feel from standing.'
         },
         { id:'B8', name:'Incline Dumbbell Curl', fn:'Incline Dumbbell Curl', cat:'Biceps',
-          sets:2, reps:12, compound:false, inc:2, video:'16-incline-db-curl',
+          sets:2, reps:12, compound:false, inc:2, slug:'16-incline-db-curl',
           variants:[{label:'Dumbbell',fn:'Incline Dumbbell Curl',inc:2,perHand:true},{label:'Barbell',fn:'Incline Barbell Curl',inc:2.5}],
           isFinisher:true,
           cues:[
@@ -1056,7 +889,7 @@
           feel:'Stretch at the bottom (long head of bicep), squeeze at the top.'
         },
         { id:'B9', name:'Overhead Cable Tricep Extension', fn:'Overhead Cable Tricep Extension', cat:'Triceps',
-          sets:2, reps:12, compound:false, video:'17-overhead-cable-tri',
+          sets:2, reps:12, compound:false, slug:'17-overhead-cable-tri',
           variants:[{label:'Cable',fn:'Overhead Cable Tricep Extension'},{label:'Dumbbell',fn:'Dumbbell Overhead Tricep Extension',inc:2}],
           isFinisher:true,
           cues:[
@@ -1082,8 +915,8 @@
       shortName: "Day C",
       exercises: [
         { id:'C1', name:'Heel-Elevated Goblet Squat', fn:'Heel-Elevated Goblet Squat', cat:'Legs',
-          sets:3, reps:12, compound:true, inc:2, video:'18-goblet-squat',
-          note:'Subbed in for hack squat — same quad-dominant role, but spine-safe and AthleanX-backed. The video is his core squat-technique tip; apply the depth + upright-torso cues to the heel-elevated goblet squat.',
+          sets:3, reps:12, compound:true, inc:2, slug:'18-goblet-squat',
+          note:'Subbed in for hack squat — same quad-dominant role, but spine-safe. Keep the torso upright and hit full depth.',
           cues:[
             'Heels elevated 2–5 cm on a small wedge, plate, or board. This gives ankle dorsiflexion → upright torso → maximum quad bias.',
             'Hold a dumbbell or kettlebell vertically at chest height — like a goblet, hands cupping the top.',
@@ -1102,7 +935,7 @@
           feel:'Deep quad burn — the lengthened stretch position is the magic. Some glute. NO lower back.'
         },
         { id:'C2', name:'Romanian Deadlift (Heavier)', fn:'Dumbbell Romanian Deadlift', cat:'Legs',
-          sets:3, reps:8, compound:true, inc:2, video:'02-rdl',
+          sets:3, reps:8, compound:true, inc:2, slug:'02-rdl',
           variants:[{label:'Dumbbell',fn:'Dumbbell Romanian Deadlift',inc:2},{label:'Barbell',fn:'Barbell Romanian Deadlift',inc:2.5}],
           cues:[
             'Heavier than Day A — but form rules stay identical.',
@@ -1121,7 +954,7 @@
           feel:'Deeper hamstring stretch with more load. Glutes work harder at the top.'
         },
         { id:'C3', name:'Cable Crossover', fn:'Cable Crossover', cat:'Chest',
-          sets:3, reps:12, compound:false, inc:2.3, video:'19-cable-crossover',
+          sets:3, reps:12, compound:false, inc:2.3, slug:'19-cable-crossover',
           variants:[{label:'Cable',fn:'Cable Crossover',inc:2.3,perHand:true},{label:'Machine',fn:'Machine Chest Fly',inc:5},{label:'Dumbbell',fn:'Dumbbell Fly',inc:2,perHand:true}],
           cues:[
             'Pulleys set high (for low-to-mid chest focus). Stand between them.',
@@ -1140,9 +973,9 @@
           feel:'Stretch across the chest, then a hard contraction in the middle. Pectoral squeeze.'
         },
         { id:'C4', name:'Chest-Supported Row', fn:'Chest-Supported T-Bar Row', cat:'Back',
-          sets:3, reps:10, compound:true, video:'20-chest-supported-row',
+          sets:3, reps:10, compound:true, slug:'20-chest-supported-row',
           variants:[{label:'T-Bar',fn:'Chest-Supported T-Bar Row'},{label:'Dumbbell',fn:'Chest-Supported Dumbbell Row',inc:2,perHand:true},{label:'Machine',fn:'Chest-Supported Machine Row',inc:5}],
-          note:'AthleanX row-form video — the shoulder-blades-first, drive-elbows-back cues apply directly to the chest-supported row (the chest pad just removes lower-back involvement for you).',
+          note:'Shoulder blades first, then drive the elbows back. The chest pad removes lower-back involvement for you.',
           cues:[
             'Chest fully on the pad. This eliminates lower-back involvement so back muscles do the work.',
             'Neutral or pronated grip.',
@@ -1159,7 +992,7 @@
           feel:'Mid-back, lats, rear delts. Biceps assist. NO lower back.'
         },
         { id:'C5', name:'Seated Dumbbell Shoulder Press', fn:'Dumbbell Shoulder Press', cat:'Shoulders',
-          sets:3, reps:10, compound:true, inc:2, video:'05-shoulder-press',
+          sets:3, reps:10, compound:true, inc:2, slug:'05-shoulder-press',
           variants:[{label:'Dumbbell',fn:'Dumbbell Shoulder Press',inc:2,perHand:true},{label:'Barbell',fn:'Barbell Shoulder Press',inc:2.5},{label:'Machine',fn:'Machine Shoulder Press',inc:5}],
           cues:[
             'Same as Day A. Upright bench, back firmly against pad.',
@@ -1176,7 +1009,7 @@
           feel:'Front and side delts, triceps.'
         },
         { id:'C6', name:'Cable Face Pull', fn:'Cable Face Pull', cat:'Shoulders',
-          sets:3, reps:15, compound:false, inc:4.5, video:'21-face-pull',
+          sets:3, reps:15, compound:false, inc:4.5, slug:'21-face-pull',
           variants:[{label:'Cable',fn:'Cable Face Pull',inc:4.5}],
           cues:[
             'Cable at upper-chest height. Rope attachment.',
@@ -1195,7 +1028,7 @@
           feel:'Rear delts, mid-traps, external rotators (rotator cuff). Crucial for shoulder health.'
         },
         { id:'C7', name:'Standing Calf Raise', fn:'Standing Calf Raise', cat:'Legs',
-          sets:3, reps:15, compound:false, video:'08-calf-raise',
+          sets:3, reps:15, compound:false, slug:'08-calf-raise',
           cues:[
             'Balls of feet on platform edge, heels free.',
             'FULL stretch at the bottom — drop heels.',
@@ -1211,10 +1044,10 @@
           feel:'Calves (gastroc emphasis with knees straight).'
         },
         { id:'C8', name:'Preacher Curl', fn:'Preacher Curl', cat:'Biceps',
-          sets:2, reps:12, compound:false, video:'22-preacher-curl',
+          sets:2, reps:12, compound:false, slug:'22-preacher-curl',
           variants:[{label:'Bar',fn:'Preacher Curl',inc:2.5},{label:'Dumbbell',fn:'Dumbbell Preacher Curl',inc:2,perHand:true}],
           isFinisher:true,
-          note:'The clip shows the exact single-arm dumbbell preacher curl. No full lockout at the bottom of the pad; squeeze hard at the top.',
+          note:'Single-arm dumbbell preacher curl. No full lockout at the bottom of the pad; squeeze hard at the top.',
           cues:[
             'Sit at preacher bench. Armpit firmly into the top of the pad — elbows DEEP into the pad.',
             'Grip EZ bar or DBs.',
@@ -1231,7 +1064,7 @@
           feel:'Direct bicep contraction. NO shoulder or back involvement.'
         },
         { id:'C9', name:'Cable Pushdown', fn:'Cable Pushdown', cat:'Triceps',
-          sets:2, reps:12, compound:false, video:'10-tricep-pushdown',
+          sets:2, reps:12, compound:false, slug:'10-tricep-pushdown',
           variants:[{label:'Cable',fn:'Cable Pushdown'}],
           isFinisher:true,
           note:'Standard overhand cable pushdown — biases the LATERAL head of the triceps (the outer sweep).',
@@ -1423,10 +1256,10 @@
 
   // ============================================================
   // MUSCLE PANEL — anatomy-chart front/back figures rendered inside
-  // each card's video area. Every muscle group is drawn individually
+  // each exercise card. Every muscle group is drawn individually
   // (inactive ones faint for context); primary movers bright,
-  // synergists dim, pulsing while the form video plays.
-  // Keyed by the card's video slug (one demo clip = one movement).
+  // synergists dim.
+  // Keyed by the exercise slug (one slug = one movement).
   // Shapes authored on a 220x480 viewBox, right side only; entries
   // with mirror==1 are drawn twice (plain + mirrored) so both sides
   // render from a single path. detail==1 = stroke-only hairline.
@@ -1508,7 +1341,7 @@
     return out;
   }
   function musclePanelHtml(ex){
-    const mp = MUSCLE_MAP[ex.video]; if (!mp) return '';
+    const mp = MUSCLE_MAP[ex.slug]; if (!mp) return '';
     const rank = k => mp.pri.indexOf(k) >= 0 ? 2 : (mp.syn.indexOf(k) >= 0 ? 1 : 0);
     const fig = shapes => shapes.map(([k, d, mir, det]) => {
       const c = det ? 'mdet' : (k === 'sil' ? 'sil' : (rank(k) === 2 ? 'mm pri' : (rank(k) === 1 ? 'mm syn' : 'mm')));
@@ -2662,9 +2495,9 @@
       const feelHtml = `<div class="block feel"><h4>♥ Should feel it in</h4><ul><li>${ex.feel}</li></ul></div>`;
       const formNotesHtml = `<details class="form-notes"><summary>◆ Form cues, mistakes &amp; what to feel</summary><div class="form-notes-body">${cuesHtml}${mistakesHtml}${feelHtml}</div></details>`;
 
-      // Video — wired lazily from IndexedDB when the card opens (data-slug holds the key)
-      const noteHtml = ex.note ? `<div class="video-note">📹 ${ex.note}</div>` : '';
-      const videoHtml = `<div class="video-wrap" data-slug="${ex.video}"><button type="button" class="video-btn">▶&nbsp; Form video</button><video class="form-video" controls loop muted preload="none" playsinline webkit-playsinline hidden></video></div>${musclePanelHtml(ex)}${noteHtml}`;
+      // Muscle panel + optional setup/substitution note
+      const noteHtml = ex.note ? `<div class="ex-note">◆ ${ex.note}</div>` : '';
+      const detailHtml = `${musclePanelHtml(ex)}${noteHtml}`;
 
       // Buttons
       const btnsHtml = `<div class="btn-row">
@@ -2689,37 +2522,14 @@
             ${btnsHtml}
             ${implHtml}
             ${formNotesHtml}
-            ${videoHtml}
+            ${detailHtml}
           </div>
         </div>`;
 
-      // Click to expand — and lazily wire the video from IndexedDB when opened
+      // Click to expand
       card.querySelector('.card-head').addEventListener('click', (e) => {
         if (e.target.closest('input,button,a')) return;
         card.classList.toggle('open');
-      });
-
-      // Form video loads only when you tap the button (no big empty player taking up the screen)
-      const vbtn = card.querySelector('.video-btn');
-      if (vbtn) vbtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const v = card.querySelector('video.form-video');
-        vbtn.textContent = '…';
-        await wireVideo(v);
-        if (v.getAttribute('src')) {
-          v.hidden = false; vbtn.style.display = 'none';
-          // muscle panel pulses while the demo clip is playing
-          const panel = card.querySelector('.muscle-panel');
-          if (panel && !v.dataset.mp) {
-            v.dataset.mp = '1';
-            v.addEventListener('play', () => panel.classList.add('mp-live'));
-            v.addEventListener('pause', () => panel.classList.remove('mp-live'));
-            v.addEventListener('ended', () => panel.classList.remove('mp-live'));
-          }
-          try { v.play(); } catch (_) {}
-        } else {
-          vbtn.textContent = '▶  Video not saved yet — open once online';
-        }
       });
 
       // Inputs — weight/reps persist LIVE while typing (survive screen-lock / backgrounding);
@@ -4128,9 +3938,6 @@
     window.addEventListener('offline', updateNetStat);
     resumeRest();
     showPersistState();
-
-    // Kick off offline-video setup (download on first online open; instant after)
-    ensureVideos();
 
     // Tick the live workout duration once a second (cheap — only rewrites #statDur).
     setInterval(updateDuration, 1000);

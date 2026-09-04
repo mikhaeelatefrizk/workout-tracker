@@ -1,7 +1,7 @@
 {
   "name": "Rafael · Recomp",
   "short_name": "Rafael Gym",
-  "description": "3-day upper-body recomposition tracker with form videos and an AI coach.",
+  "description": "3-day upper-body recomposition tracker with an adaptive training coach.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

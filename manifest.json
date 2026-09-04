@@ -1,7 +1,7 @@
 {
   "name": "3-Day Workout Tracker",
   "short_name": "Workout",
-  "description": "Offline A/B/C workout tracker with AthleanX form videos and an AI coach.",
+  "description": "Offline A/B/C workout tracker with an adaptive training coach.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
