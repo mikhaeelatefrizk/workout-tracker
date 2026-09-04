@@ -1,5 +1,5 @@
 /* Service worker: caches the app shell so the page opens 100% offline. */
-const CACHE = 'workout-shell-v26';
+const CACHE = 'workout-shell-v27';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -10,7 +10,10 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+    // CacheStorage is per-origin, not per-service-worker: an unscoped filter here
+    // would delete rafael/'s 'rafael-shell-*' cache on every one of our updates.
+    // Only ever evict our own previous generations.
+    await Promise.all(keys.filter((k) => k.startsWith('workout-shell-') && k !== CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
 });
